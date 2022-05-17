@@ -1,8 +1,8 @@
 import { ipcMain, IpcMainInvokeEvent, IpcMainEvent } from "electron";
 import path from "path";
 import { safeUnlink } from "../utils/files";
-import { DATASET_DIR, DB_PATH, PREPROCESSING_RUNS_DIR } from "../utils/globals";
-import { db, getSpeakersWithSamples } from "../utils/db";
+import { CLEANING_RUNS_DIR, DATASET_DIR, DB_PATH } from "../utils/globals";
+import { DB, getSpeakersWithSamples } from "../utils/db";
 import {
   DSCleaningInterface,
   CleaningRunConfigInterface,
@@ -11,7 +11,7 @@ import {
 import { startRun } from "../utils/processes";
 
 ipcMain.on("continue-cleaning-run", (event: IpcMainEvent, runID: number) => {
-  const datasetID = db
+  const datasetID = DB.getInstance()
     .prepare("SELECT dataset_id AS datasetID FROM cleaning_run WHERE ID=@runID")
     .get({ runID }).datasetID;
   const speakers = getSpeakersWithSamples(datasetID);
@@ -39,8 +39,8 @@ ipcMain.on("continue-cleaning-run", (event: IpcMainEvent, runID: number) => {
     String(runID),
     "--db_path",
     DB_PATH,
-    "--preprocessing_runs_path",
-    PREPROCESSING_RUNS_DIR,
+    "--cleaning_runs_dir",
+    CLEANING_RUNS_DIR,
     "--datasets_path",
     DATASET_DIR,
   ]);
@@ -49,7 +49,7 @@ ipcMain.on("continue-cleaning-run", (event: IpcMainEvent, runID: number) => {
 ipcMain.handle(
   "fetch-cleaning-run",
   (event: IpcMainInvokeEvent, ID: number) => {
-    const run: DSCleaningInterface = db
+    const run: DSCleaningInterface = DB.getInstance()
       .prepare("SELECT ID, name, stage FROM cleaning_run WHERE ID=@ID")
       .get({ ID });
     return run;
@@ -59,7 +59,7 @@ ipcMain.handle(
 ipcMain.handle(
   "fetch-cleaning-run-config",
   (event: IpcMainInvokeEvent, ID: number) => {
-    return db
+    return DB.getInstance()
       .prepare(
         "SELECT name, dataset_id AS datasetID FROM cleaning_run WHERE ID=@ID"
       )
@@ -74,7 +74,7 @@ ipcMain.handle(
     ID: number,
     config: CleaningRunConfigInterface
   ) => {
-    return db
+    return DB.getInstance()
       .prepare(
         "UPDATE cleaning_run SET name=@name, dataset_id=@datasetID WHERE ID=@ID"
       )
@@ -88,7 +88,7 @@ ipcMain.handle(
 ipcMain.handle(
   "fetch-noisy-samples",
   (event: IpcMainInvokeEvent, cleaningRunID: number) => {
-    return db
+    return DB.getInstance()
       .prepare(
         `
       SELECT noisy_sample.ID AS ID, noisy_sample.label_quality AS labelQuality, 
@@ -120,10 +120,10 @@ ipcMain.handle(
 ipcMain.handle(
   "remove-noisy-samples",
   (event: IpcMainInvokeEvent, sampleIDs: number[]) => {
-    const removeSample = db.prepare(
+    const removeSample = DB.getInstance().prepare(
       "DELETE FROM noisy_sample WHERE ID=@sampleID"
     );
-    db.transaction(() => {
+    DB.getInstance().transaction(() => {
       for (const sampleID of sampleIDs) {
         removeSample.run({ sampleID });
       }
@@ -134,7 +134,7 @@ ipcMain.handle(
 ipcMain.on(
   "finish-cleaning-run",
   async (event: IpcMainEvent, cleaningRunID: number) => {
-    const samples = db
+    const samples = DB.getInstance()
       .prepare(
         `
       SELECT sample.ID AS sampleID, dataset.ID AS datasetID, speaker.ID AS speakerID, 
@@ -146,13 +146,15 @@ ipcMain.on(
         `
       )
       .all({ cleaningRunID });
-    const deleteSampleStmt = db.prepare(
+    const deleteSampleStmt = DB.getInstance().prepare(
       "DELETE FROM sample WHERE ID=@sampleID"
     );
-    db.transaction(() => {
-      db.prepare(
-        "DELETE FROM noisy_sample WHERE cleaning_run_id=@cleaningRunID"
-      ).run({ cleaningRunID });
+    DB.getInstance().transaction(() => {
+      DB.getInstance()
+        .prepare(
+          "DELETE FROM noisy_sample WHERE cleaning_run_id=@cleaningRunID"
+        )
+        .run({ cleaningRunID });
       for (const sample of samples) {
         deleteSampleStmt.run({ sampleID: sample.sampleID });
       }

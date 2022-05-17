@@ -1,11 +1,11 @@
 import { ipcMain, IpcMainInvokeEvent } from "electron";
-import { db } from "../utils/db";
+import { DB } from "../utils/db";
 
 ipcMain.handle("fetch-models", async () => {
-  const speakersStmt = db.prepare(
+  const speakersStmt = DB.getInstance().prepare(
     "SELECT name, speaker_id AS speakerID FROM model_speaker WHERE model_id=@ID"
   );
-  const models = db
+  const models = DB.getInstance()
     .prepare(
       "SELECT ID, name, type, description, created_at AS createdAt FROM model"
     )
@@ -17,5 +17,7 @@ ipcMain.handle("fetch-models", async () => {
 });
 
 ipcMain.handle("remove-model", (event: IpcMainInvokeEvent, modelID: number) => {
-  db.prepare("DELETE FROM model WHERE ID=@modelID").run({ modelID });
+  DB.getInstance()
+    .prepare("DELETE FROM model WHERE ID=@modelID")
+    .run({ modelID });
 });

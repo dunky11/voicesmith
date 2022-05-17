@@ -18,7 +18,6 @@ from voice_smith.utils.tools import (
 from voice_smith.config.preprocess_config import preprocess_config
 from voice_smith.config.vocoder_model_config import vocoder_model_config as hp
 from voice_smith.utils.metrics import calc_rmse, calc_pesq, calc_estoi
-from voice_smith import TRAINING_RUNS_PATH
 
 torch.backends.cudnn.benchmark = True
 
@@ -258,10 +257,11 @@ def train_vocoder(
     checkpoint_path,
     fine_tuning,
     overwrite_saves,
+    training_runs_path: str,
     stop_after_hour=None,
 ):
 
-    preprocessed_path = TRAINING_RUNS_PATH / str(training_run_name) / "data"
+    preprocessed_path = Path(training_runs_path) / str(training_run_name) / "data"
 
     if stop_after_hour is not None:
         stop_at = time.time() + float(stop_after_hour) * 3600
@@ -269,7 +269,7 @@ def train_vocoder(
         stop_at = np.Inf
 
     checkpoint_dir = (
-        TRAINING_RUNS_PATH / str(training_run_name) / "ckpt" / "vocoder"
+        Path(training_runs_path) / str(training_run_name) / "ckpt" / "vocoder"
     )
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
     print("checkpoints directory : ", checkpoint_path)
@@ -449,7 +449,7 @@ if __name__ == "__main__":
         logger=logger,
         device=torch.device("cuda"),
         reset=False,
-        checkpoint_path=TRAINING_RUNS_PATH
+        checkpoint_path=Path(training_runs_path)
         / "univnet_pretraining"
         / "ckpt"
         / "vocoder"

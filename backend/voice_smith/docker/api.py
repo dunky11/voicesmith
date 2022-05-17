@@ -21,8 +21,7 @@ def rerun_container(user_data_path: str) -> Any:
     except NotFoundError:
         pass
 
-    cwd = Path.cwd()
-    out_path = "/home/voice_smith"
+    out_path = "/home/voice_smith/data"
     volumes = [
         f"{user_data_path}:{out_path}"
     ]
@@ -31,6 +30,8 @@ def rerun_container(user_data_path: str) -> Any:
     )
     return container
 
+if __name__ == "__main__":
+    rerun_container("/home/tim/.config/voice-smith/data")
 
 def get_container() -> Any:
     client = docker.from_env()

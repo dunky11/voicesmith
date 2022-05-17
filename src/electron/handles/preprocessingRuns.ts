@@ -8,23 +8,25 @@ import {
   CLEANING_RUNS_DIR,
   TEXT_NORMALIZATION_RUNS_DIR,
 } from "../utils/globals";
-import { db } from "../utils/db";
+import { DB } from "../utils/db";
 
 ipcMain.handle(
   "create-preprocessing-run",
   (event: IpcMainInvokeEvent, name: string, type: string) => {
     switch (type) {
       case "dSCleaning":
-        db.prepare("INSERT INTO cleaning_run (name) VALUES (@name)").run({
-          name,
-        });
+        DB.getInstance()
+          .prepare("INSERT INTO cleaning_run (name) VALUES (@name)")
+          .run({
+            name,
+          });
         break;
       case "textNormalization":
-        db.prepare(
-          "INSERT INTO text_normalization_run (name) VALUES (@name)"
-        ).run({
-          name,
-        });
+        DB.getInstance()
+          .prepare("INSERT INTO text_normalization_run (name) VALUES (@name)")
+          .run({
+            name,
+          });
         break;
       default:
         throw new Error(
@@ -35,21 +37,21 @@ ipcMain.handle(
 );
 
 ipcMain.handle("fetch-preprocessing-runs", (event: IpcMainInvokeEvent) => {
-  const cleaningRuns = db
+  const cleaningRuns = DB.getInstance()
     .prepare(
       `SELECT cleaning_run.ID AS ID, cleaning_run.name AS name, stage, dataset_id, dataset.name AS datasetName FROM cleaning_run LEFT JOIN dataset ON cleaning_run.dataset_id = dataset.ID`
     )
     .all()
-    .map((el) => ({
+    .map((el: any) => ({
       ...el,
       type: "dSCleaning",
     }));
-  const textNormalizationRuns = db
+  const textNormalizationRuns = DB.getInstance()
     .prepare(
       `SELECT text_normalization_run.ID AS ID, text_normalization_run.name AS name, stage, dataset_id FROM text_normalization_run LEFT JOIN dataset ON text_normalization_run.dataset_id = dataset.ID`
     )
     .all()
-    .map((el) => ({
+    .map((el: any) => ({
       ...el,
       type: "textNormalization",
     }));
@@ -65,18 +67,20 @@ ipcMain.handle(
   ) => {
     switch (preprocessingRun.type) {
       case "dSCleaning":
-        db.prepare("UPDATE cleaning_run SET name=@name WHERE ID=@ID").run({
-          ID: preprocessingRun.ID,
-          name: newName,
-        });
+        DB.getInstance()
+          .prepare("UPDATE cleaning_run SET name=@name WHERE ID=@ID")
+          .run({
+            ID: preprocessingRun.ID,
+            name: newName,
+          });
         break;
       case "textNormalization":
-        db.prepare(
-          "UPDATE text_normalization_run SET name=@name WHERE ID=@ID"
-        ).run({
-          ID: preprocessingRun.ID,
-          name: newName,
-        });
+        DB.getInstance()
+          .prepare("UPDATE text_normalization_run SET name=@name WHERE ID=@ID")
+          .run({
+            ID: preprocessingRun.ID,
+            name: newName,
+          });
         break;
       default:
         throw new Error(
@@ -94,13 +98,17 @@ ipcMain.handle(
   ) => {
     switch (preprocessingRun.type) {
       case "dSCleaning": {
-        db.transaction(() => {
-          db.prepare("DELETE FROM noisy_sample WHERE cleaning_run_id=@ID").run({
-            ID: preprocessingRun.ID,
-          });
-          db.prepare("DELETE FROM cleaning_run WHERE ID=@ID").run({
-            ID: preprocessingRun.ID,
-          });
+        DB.getInstance().transaction(() => {
+          DB.getInstance()
+            .prepare("DELETE FROM noisy_sample WHERE cleaning_run_id=@ID")
+            .run({
+              ID: preprocessingRun.ID,
+            });
+          DB.getInstance()
+            .prepare("DELETE FROM cleaning_run WHERE ID=@ID")
+            .run({
+              ID: preprocessingRun.ID,
+            });
         })();
         const dir = path.join(CLEANING_RUNS_DIR, String(preprocessingRun.ID));
         if (await exists(dir)) {
@@ -109,15 +117,19 @@ ipcMain.handle(
         break;
       }
       case "textNormalization": {
-        db.transaction(() => {
-          db.prepare(
-            "DELETE FROM text_normalization_sample WHERE text_normalization_run_id=@ID"
-          ).run({
-            ID: preprocessingRun.ID,
-          });
-          db.prepare("DELETE FROM text_normalization_run WHERE ID=@ID").run({
-            ID: preprocessingRun.ID,
-          });
+        DB.getInstance().transaction(() => {
+          DB.getInstance()
+            .prepare(
+              "DELETE FROM text_normalization_sample WHERE text_normalization_run_id=@ID"
+            )
+            .run({
+              ID: preprocessingRun.ID,
+            });
+          DB.getInstance()
+            .prepare("DELETE FROM text_normalization_run WHERE ID=@ID")
+            .run({
+              ID: preprocessingRun.ID,
+            });
         })();
         const dir = path.join(
           TEXT_NORMALIZATION_RUNS_DIR,
@@ -143,15 +155,17 @@ ipcMain.handle(
     const names: string[] = [];
     for (const tableName of ["cleaning_run", "text_normalization_run"]) {
       if (ID !== null) {
-        db.prepare(`SELECT name FROM ${tableName} WHERE ID!=@ID`)
+        DB.getInstance()
+          .prepare(`SELECT name FROM ${tableName} WHERE ID!=@ID`)
           .all({ ID })
-          .forEach((el) => {
+          .forEach((el: any) => {
             names.push(el.name);
           });
       } else {
-        db.prepare(`SELECT name FROM ${tableName}`)
+        DB.getInstance()
+          .prepare(`SELECT name FROM ${tableName}`)
           .all()
-          .forEach((el) => {
+          .forEach((el: any) => {
             names.push(el.name);
           });
       }

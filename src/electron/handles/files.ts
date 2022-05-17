@@ -16,7 +16,7 @@ import {
   CLEANING_RUNS_DIR,
   TEXT_NORMALIZATION_RUNS_DIR,
 } from "../utils/globals";
-import { db } from "../utils/db";
+import { DB } from "../utils/db";
 
 ipcMain.handle(
   "get-image-data-url",
@@ -39,7 +39,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle("fetch-audios-synth", async (event: IpcMainInvokeEvent) => {
-  const audios = db
+  const audios = DB.getInstance()
     .prepare(
       `
         SELECT 
@@ -56,7 +56,7 @@ ipcMain.handle("fetch-audios-synth", async (event: IpcMainInvokeEvent) => {
       `
     )
     .all()
-    .map((audio) => {
+    .map((audio: any) => {
       audio.filePath = path.join(AUDIO_SYNTH_DIR, audio.fileName);
       delete audio.fileName;
       return audio;
@@ -95,6 +95,7 @@ ipcMain.handle(
     const lines = await new Promise((resolve, reject) => {
       fs.readFile(filePath, "utf8", (err, data) => {
         if (err) {
+          console.log(err);
           resolve([]);
           return;
         }

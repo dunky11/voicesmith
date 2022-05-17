@@ -17,13 +17,13 @@ from voice_smith.preprocessing.gen_speaker_embeddings import (
 def continue_cleaning_run(
     cleaning_run_id: int,
     db_path: str,
-    preprocessing_runs_path: str,
+    cleaning_runs_dir: str,
     datasets_path: str
 ):
     con = get_con(db_path)
     cur = con.cursor()
     data_path = (
-        Path(preprocessing_runs_path) / "cleaning_runs" / str(cleaning_run_id)
+        Path(cleaning_runs_dir) / str(cleaning_run_id)
     )
     dataset_path = Path(datasets_path)
     stage = None
@@ -184,15 +184,15 @@ def continue_cleaning_run(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cleaning_run_id", type=int)
-    parser.add_argument("--db_path", type=str)
-    parser.add_argument("--preprocessing_runs_path", type=str)
-    parser.add_argument("--datasets_path", type=str)
+    parser.add_argument("--cleaning_run_id", type=int, required=True)
+    parser.add_argument("--db_path", type=str, required=True)
+    parser.add_argument("--cleaning_runs_dir", type=str, required=True)
+    parser.add_argument("--datasets_path", type=str, required=True)
     args = parser.parse_args()
 
     continue_cleaning_run(
         cleaning_run_id=args.cleaning_run_id, 
         db_path=args.db_path, 
-        preprocessing_runs_path=args.preprocessing_runs_path, 
+        cleaning_runs_dir=args.cleaning_runs_dir, 
         datasets_path=args.datasets_path
     )

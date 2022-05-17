@@ -2,8 +2,21 @@ import Database from "better-sqlite3";
 import path from "path";
 import { DATASET_DIR, DB_PATH } from "../utils/globals";
 import { SpeakerSampleInterface } from "../../interfaces";
+import { safeMkdir } from "./files";
 
-export const db = new Database(DB_PATH);
+export const DB = (function () {
+  let instance: any = null;
+  return {
+    getInstance: function () {
+      if (instance == null) {
+        safeMkdir(path.dirname(DB_PATH));
+        instance = new Database(DB_PATH);
+        instance.constructor = null;
+      }
+      return instance;
+    },
+  };
+})();
 
 export const bool2int = (obj: { [key: string]: any }) => {
   for (const [key, value] of Object.entries(obj)) {
@@ -17,7 +30,7 @@ export const bool2int = (obj: { [key: string]: any }) => {
 };
 
 export const getSpeakersWithSamples = (datasetID: number) => {
-  const samples = db
+  const samples = DB.getInstance()
     .prepare(
       `SELECT sample.text AS text, speaker.ID as speakerID, speaker.name, sample.txt_path AS txtPath, 
       sample.audio_path AS audioPath, sample.ID 
@@ -26,7 +39,7 @@ export const getSpeakersWithSamples = (datasetID: number) => {
       WHERE speaker.dataset_id=@datasetID`
     )
     .all({ datasetID })
-    .map((sample) => ({
+    .map((sample: any) => ({
       text: sample.text,
       speakerID: sample.speakerID,
       name: sample.name,
@@ -74,19 +87,19 @@ export const getSpeakersWithSamples = (datasetID: number) => {
 };
 
 export const getReferencedBy = (datasetID: number) => {
-  let row = db
+  let row = DB.getInstance()
     .prepare("SELECT name FROM training_run WHERE dataset_id=@datasetID")
     .get({ datasetID });
   if (row !== undefined) {
     return row.name;
   }
-  row = db
+  row = DB.getInstance()
     .prepare("SELECT name FROM cleaning_run WHERE dataset_id=@datasetID")
     .get({ datasetID });
   if (row !== undefined) {
     return row.name;
   }
-  row = db
+  row = DB.getInstance()
     .prepare(
       "SELECT name FROM text_normalization_run WHERE dataset_id=@datasetID"
     )

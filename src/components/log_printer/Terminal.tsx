@@ -49,4 +49,4 @@ export default function Terminal({
   );
 }
 
-Terminal.defaultProps = { maxLines: 10 };
+Terminal.defaultProps = { maxLines: 1000 };

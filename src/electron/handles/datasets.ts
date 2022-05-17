@@ -10,7 +10,7 @@ import fsNative from "fs";
 const fsPromises = fsNative.promises;
 import { safeUnlink, exists, safeMkdir, copyDir } from "../utils/files";
 import { DATASET_DIR } from "../utils/globals";
-import { db, getSpeakersWithSamples, getReferencedBy } from "../utils/db";
+import { DB, getSpeakersWithSamples, getReferencedBy } from "../utils/db";
 import {
   SpeakerSampleInterface,
   FileInterface,
@@ -20,7 +20,7 @@ import {
 import { AUDIO_EXTENSIONS, TEXT_EXTENSIONS } from "../../config";
 
 ipcMain.handle("fetch-datasets", async () => {
-  const datasets = db
+  const datasets = DB.getInstance()
     .prepare(
       `
         SELECT dataset.ID, dataset.name, count(speaker.dataset_id) AS speakerCount        
@@ -31,7 +31,7 @@ ipcMain.handle("fetch-datasets", async () => {
       `
     )
     .all()
-    .map((dataset) => ({
+    .map((dataset: any) => ({
       ...dataset,
       referencedBy: getReferencedBy(dataset.ID),
     }));
@@ -41,25 +41,29 @@ ipcMain.handle("fetch-datasets", async () => {
 ipcMain.handle(
   "add-speaker",
   (event: IpcMainInvokeEvent, speakerName: string, datasetID: number) => {
-    db.prepare(
-      `
+    DB.getInstance()
+      .prepare(
+        `
       INSERT INTO speaker 
       (
         name, 
         dataset_id
       ) VALUES(@name, @datasetID)
       `
-    ).run({
-      name: speakerName,
-      datasetID,
-    });
+      )
+      .run({
+        name: speakerName,
+        datasetID,
+      });
   }
 );
 
 ipcMain.handle(
   "create-dataset",
   async (event: IpcMainInvokeEvent, name: string) => {
-    db.prepare(`INSERT INTO dataset (name) VALUES (@name)`).run({ name });
+    DB.getInstance()
+      .prepare(`INSERT INTO dataset (name) VALUES (@name)`)
+      .run({ name });
   }
 );
 
@@ -70,11 +74,13 @@ ipcMain.handle(
     if (await exists(datasetPath)) {
       await fsPromises.rm(datasetPath, { recursive: true, force: true });
     }
-    const deleteDSstmt = db.prepare(`DELETE FROM dataset WHERE ID=@ID`);
-    const deleteSpeakersStmt = db.prepare(
+    const deleteDSstmt = DB.getInstance().prepare(
+      `DELETE FROM dataset WHERE ID=@ID`
+    );
+    const deleteSpeakersStmt = DB.getInstance().prepare(
       `DELETE FROM speaker WHERE dataset_id=@ID`
     );
-    const deleteSamplesStmt = db.prepare(
+    const deleteSamplesStmt = DB.getInstance().prepare(
       `
       DELETE FROM sample
       WHERE sample.speaker_id IN
@@ -85,7 +91,7 @@ ipcMain.handle(
       )
       `
     );
-    db.transaction(() => {
+    DB.getInstance().transaction(() => {
       deleteSamplesStmt.run({ ID });
       deleteSpeakersStmt.run({ ID });
       deleteDSstmt.run({ ID });
@@ -106,10 +112,10 @@ ipcMain.on(
         return;
       }
       const outDatasetDir = response.filePaths[0];
-      const getSpeakersStmt = db.prepare(
+      const getSpeakersStmt = DB.getInstance().prepare(
         `SELECT ID, name FROM speaker WHERE dataset_id=@datasetID`
       );
-      const getTextsStmt = db.prepare(
+      const getTextsStmt = DB.getInstance().prepare(
         `SELECT text, txt_path AS txtPath FROM sample WHERE speaker_id=@speakerID`
       );
       const speakersToCopy: {
@@ -139,7 +145,7 @@ ipcMain.on(
           speakerID: speakerToCopy.speakerID,
         });
         await Promise.all(
-          textFiles.map((textFile) =>
+          textFiles.map((textFile: any) =>
             fsPromises.writeFile(
               path.join(speakerToCopy.outPath, textFile.txtPath),
               textFile.text
@@ -156,7 +162,7 @@ ipcMain.on(
 ipcMain.handle(
   "edit-dataset-name",
   (event: IpcMainInvokeEvent, ID: number, newName: string) => {
-    db.prepare("UPDATE dataset SET name=@name WHERE ID=@ID").run({
+    DB.getInstance().prepare("UPDATE dataset SET name=@name WHERE ID=@ID").run({
       ID,
       name: newName,
     });
@@ -217,7 +223,7 @@ ipcMain.handle(
         return file.extname !== ".txt";
       })
       .map((file: FileInterface) => file.path);
-    const stmt = db.prepare(
+    const stmt = DB.getInstance().prepare(
       "INSERT INTO sample (txt_path, audio_path, speaker_id, text) VALUES(@txtPath, @audioPath, @speakerId, @text)"
     );
 
@@ -225,7 +231,7 @@ ipcMain.handle(
 
     copySpeakerFiles(datasetID, speaker.ID, samples);
 
-    const insertManySamples = db.transaction((els) => {
+    const insertManySamples = DB.getInstance().transaction((els: any[]) => {
       for (const el of els) stmt.run(el);
     });
 
@@ -248,8 +254,8 @@ ipcMain.handle(
     speakerID: number,
     samples: SpeakerSampleInterface[]
   ) => {
-    const stmt = db.prepare("DELETE FROM sample WHERE ID=@ID");
-    const deleteMany = db.transaction((els) => {
+    const stmt = DB.getInstance().prepare("DELETE FROM sample WHERE ID=@ID");
+    const deleteMany = DB.getInstance().transaction((els: any[]) => {
       for (const el of els) stmt.run(el);
     });
 
@@ -308,26 +314,26 @@ ipcMain.on("pick-speakers", async (event: IpcMainEvent, datasetID: number) => {
       event.reply("pick-speakers-reply");
       return;
     }
-    const speakers = db
+    const speakers = DB.getInstance()
       .prepare("SELECT name FROM speaker WHERE dataset_id=@datasetID")
       .all({ datasetID });
-    const stmtSpeakerID = db.prepare(
+    const stmtSpeakerID = DB.getInstance().prepare(
       "SELECT ID FROM speaker WHERE dataset_id=@datasetID AND name=@name"
     );
 
-    const stmtInsertSample = db.prepare(
+    const stmtInsertSample = DB.getInstance().prepare(
       "INSERT OR IGNORE INTO sample (txt_path, audio_path, speaker_id, text) VALUES(@txtPath, @audioPath, @speakerId, @text)"
     );
 
-    const stmtInsertSpeaker = db.prepare(
+    const stmtInsertSpeaker = DB.getInstance().prepare(
       "INSERT INTO speaker (name, dataset_id) VALUES (@name, @datasetID)"
     );
 
-    const insertManySamples = db.transaction((els) => {
+    const insertManySamples = DB.getInstance().transaction((els: any[]) => {
       for (const el of els) stmtInsertSample.run(el);
     });
 
-    const speakerNames = speakers.map((speaker) => speaker.name);
+    const speakerNames = speakers.map((speaker: any) => speaker.name);
     let progress = 0;
     for (const speakerPath of response.filePaths) {
       const split = speakerPath.split(path.sep);
@@ -399,7 +405,7 @@ ipcMain.on("pick-speakers", async (event: IpcMainEvent, datasetID: number) => {
 ipcMain.handle(
   "edit-speaker-name",
   (event: IpcMainInvokeEvent, speakerID: number, newName: string) => {
-    db.prepare("UPDATE speaker SET name=@name WHERE ID=@ID").run({
+    DB.getInstance().prepare("UPDATE speaker SET name=@name WHERE ID=@ID").run({
       name: newName,
       ID: speakerID,
     });
@@ -413,13 +419,13 @@ ipcMain.handle(
     datasetID: number,
     speakerIDs: number[]
   ) => {
-    const stmtDeleteSpeaker = db.prepare(
+    const stmtDeleteSpeaker = DB.getInstance().prepare(
       "DELETE FROM speaker WHERE ID=@speakerID"
     );
-    const stmtDeleteSamples = db.prepare(
+    const stmtDeleteSamples = DB.getInstance().prepare(
       "DELETE FROM sample WHERE speaker_id=@speakerID"
     );
-    const deleteMany = db.transaction((IDs) => {
+    const deleteMany = DB.getInstance().transaction((IDs: number[]) => {
       for (const speakerID of IDs) {
         stmtDeleteSamples.run({ speakerID });
         stmtDeleteSpeaker.run({ speakerID });
@@ -473,7 +479,7 @@ ipcMain.handle("pick-speaker-files", async (event: IpcMainInvokeEvent) => {
 });
 
 ipcMain.handle("fetch-dataset-candidates", () => {
-  const datasets = db
+  const datasets = DB.getInstance()
     .prepare(
       `SELECT  
           dataset.ID AS ID,
@@ -493,7 +499,7 @@ ipcMain.handle("fetch-dataset-candidates", () => {
       `
     )
     .all()
-    .map((dataset) => {
+    .map((dataset: any) => {
       let referencedBy = null;
       if (dataset.trainingRunName !== null) {
         referencedBy = dataset.trainingRunName;
@@ -505,7 +511,7 @@ ipcMain.handle("fetch-dataset-candidates", () => {
       return {
         ID: dataset.ID,
         name: dataset.name,
-        speakers: [],
+        speakers: [] as SpeakerInterface[],
         referencedBy,
       };
     });
@@ -513,17 +519,19 @@ ipcMain.handle("fetch-dataset-candidates", () => {
 });
 
 ipcMain.handle("edit-sample-text", (event: IpcMainEvent, sampleID, newText) => {
-  db.prepare("UPDATE sample SET text=@newText WHERE ID=@sampleID").run({
-    newText,
-    sampleID,
-  });
+  DB.getInstance()
+    .prepare("UPDATE sample SET text=@newText WHERE ID=@sampleID")
+    .run({
+      newText,
+      sampleID,
+    });
 });
 
 ipcMain.handle(
   "fetch-dataset",
   async (event: IpcMainInvokeEvent, datasetID: number) => {
     const speakers = getSpeakersWithSamples(datasetID);
-    const ds = db
+    const ds = DB.getInstance()
       .prepare("SELECT ID, name FROM dataset WHERE ID=@datasetID")
       .get({ datasetID });
     ds.speakers = speakers;

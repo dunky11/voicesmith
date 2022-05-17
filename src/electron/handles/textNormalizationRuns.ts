@@ -3,10 +3,10 @@ import path from "path";
 import {
   DATASET_DIR,
   DB_PATH,
-  PREPROCESSING_RUNS_DIR,
+  TEXT_NORMALIZATION_RUNS_DIR,
   USER_DATA_PATH,
 } from "../utils/globals";
-import { db, getSpeakersWithSamples } from "../utils/db";
+import { DB, getSpeakersWithSamples } from "../utils/db";
 import {
   TextNormalizationRunConfigInterface,
   TextNormalizationInterface,
@@ -22,8 +22,8 @@ ipcMain.on(
       String(runID),
       "--db_path",
       DB_PATH,
-      "--preprocessing_runs_path",
-      PREPROCESSING_RUNS_DIR,
+      "--text_normalization_runs_path",
+      TEXT_NORMALIZATION_RUNS_DIR,
       "--user_data_path",
       USER_DATA_PATH,
     ]);
@@ -33,7 +33,7 @@ ipcMain.on(
 ipcMain.handle(
   "fetch-text-normalization-run",
   (event: IpcMainInvokeEvent, ID: number) => {
-    const run: TextNormalizationInterface = db
+    const run: TextNormalizationInterface = DB.getInstance()
       .prepare(
         "SELECT ID, name, stage, language FROM text_normalization_run WHERE ID=@ID"
       )
@@ -49,7 +49,7 @@ ipcMain.handle(
     ID: number,
     config: TextNormalizationRunConfigInterface
   ) => {
-    return db
+    return DB.getInstance()
       .prepare(
         "UPDATE text_normalization_run SET name=@name, language=@language, dataset_id=@datasetID WHERE ID=@ID"
       )
@@ -63,7 +63,7 @@ ipcMain.handle(
 ipcMain.handle(
   "fetch-text-normalization-run-config",
   (event: IpcMainInvokeEvent, ID: number) => {
-    return db
+    return DB.getInstance()
       .prepare(
         "SELECT name, dataset_id AS datasetID, language FROM text_normalization_run WHERE ID=@ID"
       )
@@ -74,7 +74,7 @@ ipcMain.handle(
 ipcMain.handle(
   "fetch-text-normalization-samples",
   (event: IpcMainInvokeEvent, ID: number) => {
-    return db
+    return DB.getInstance()
       .prepare(
         `
       SELECT text_normalization_sample.ID AS ID, text_normalization_sample.old_text AS oldText,
@@ -107,10 +107,10 @@ ipcMain.handle(
 ipcMain.handle(
   "remove-text-normalization-samples",
   (event: IpcMainInvokeEvent, sampleIDs: number[]) => {
-    const removeSample = db.prepare(
+    const removeSample = DB.getInstance().prepare(
       "DELETE FROM text_normalization_sample WHERE ID=@sampleID"
     );
-    db.transaction(() => {
+    DB.getInstance().transaction(() => {
       for (const sampleID of sampleIDs) {
         removeSample.run({ sampleID });
       }
@@ -121,15 +121,15 @@ ipcMain.handle(
 ipcMain.on(
   "finish-text-normalization-run",
   (event: IpcMainEvent, runID: number) => {
-    const samples = db
+    const samples = DB.getInstance()
       .prepare(
         "SELECT new_text AS newText, sample_id AS sampleID FROM text_normalization_sample WHERE text_normalization_run_id=@runID"
       )
       .all({ runID });
-    const updateSampleStmt = db.prepare(
+    const updateSampleStmt = DB.getInstance().prepare(
       "UPDATE sample SET text=@text WHERE ID=@ID"
     );
-    db.transaction(() => {
+    DB.getInstance().transaction(() => {
       for (const sample of samples) {
         updateSampleStmt.run({ text: sample.newText, ID: sample.sampleID });
       }

@@ -10,16 +10,16 @@ import {
   DATASET_DIR,
   DB_PATH,
   MODELS_DIR,
-  PREPROCESSING_RUNS_DIR,
   TRAINING_RUNS_DIR,
+  USER_DATA_PATH,
 } from "../utils/globals";
-import { db, bool2int, getSpeakersWithSamples } from "../utils/db";
+import { DB, bool2int, getSpeakersWithSamples } from "../utils/db";
 import { trainingRunInitialValues } from "../../config";
 
 ipcMain.handle(
   "create-training-run",
   (event: IpcMainInvokeEvent, name: string) => {
-    const info = db
+    const info = DB.getInstance()
       .prepare(
         `INSERT INTO training_run 
       (
@@ -74,8 +74,9 @@ ipcMain.handle(
     config: ConfigurationInterface,
     ID: number
   ) => {
-    db.prepare(
-      `UPDATE training_run SET
+    DB.getInstance()
+      .prepare(
+        `UPDATE training_run SET
       name=@name, 
       validation_size=@validationSize, 
       min_seconds=@minSeconds, 
@@ -94,29 +95,38 @@ ipcMain.handle(
       dataset_id=@datasetID,
       device=@device
       WHERE ID=@trainingRunID`
-    ).run(
-      bool2int({
-        ...config,
-        trainingRunID: ID,
-      })
-    );
+      )
+      .run(
+        bool2int({
+          ...config,
+          trainingRunID: ID,
+        })
+      );
   }
 );
 
 ipcMain.handle(
   "remove-training-run",
   async (event: IpcMainInvokeEvent, ID: number) => {
-    db.transaction(() => {
-      db.prepare("DELETE FROM audio_statistic WHERE training_run_id=@ID").run({
-        ID,
-      });
-      db.prepare("DELETE FROM graph_statistic WHERE training_run_id=@ID").run({
-        ID,
-      });
-      db.prepare("DELETE FROM image_statistic WHERE training_run_id=@ID").run({
-        ID,
-      });
-      db.prepare("DELETE FROM training_run WHERE ID=@ID").run({ ID: ID });
+    DB.getInstance().transaction(() => {
+      DB.getInstance()
+        .prepare("DELETE FROM audio_statistic WHERE training_run_id=@ID")
+        .run({
+          ID,
+        });
+      DB.getInstance()
+        .prepare("DELETE FROM graph_statistic WHERE training_run_id=@ID")
+        .run({
+          ID,
+        });
+      DB.getInstance()
+        .prepare("DELETE FROM image_statistic WHERE training_run_id=@ID")
+        .run({
+          ID,
+        });
+      DB.getInstance()
+        .prepare("DELETE FROM training_run WHERE ID=@ID")
+        .run({ ID: ID });
     })();
     const dir = path.join(TRAINING_RUNS_DIR, String(ID));
     if (await exists(dir)) {
@@ -126,11 +136,9 @@ ipcMain.handle(
 );
 
 ipcMain.on("continue-training-run", (event: IpcMainEvent, runID: number) => {
-  const datasetID = db
+  const datasetID = DB.getInstance()
     .prepare("SELECT dataset_id AS datasetID FROM training_run WHERE ID=@runID")
     .get({ runID }).datasetID;
-  console.log("HERE END");
-  console.log(datasetID);
   const speakers = getSpeakersWithSamples(datasetID);
   let sampleCount = 0;
   speakers.forEach((speaker: SpeakerInterface) => {
@@ -151,12 +159,12 @@ ipcMain.on("continue-training-run", (event: IpcMainEvent, runID: number) => {
     ASSETS_PATH,
     "--db_path",
     DB_PATH,
-    "--preprocessing_runs_path",
-    PREPROCESSING_RUNS_DIR,
     "--models_path",
     MODELS_DIR,
     "--datasets_path",
     DATASET_DIR,
+    "--user_data_path",
+    USER_DATA_PATH,
   ]);
 });
 
@@ -165,13 +173,13 @@ ipcMain.handle(
   async (event: IpcMainInvokeEvent, trainingRunID: number) => {
     let names;
     if (trainingRunID == null) {
-      names = db.prepare("SELECT name FROM training_run").all();
+      names = DB.getInstance().prepare("SELECT name FROM training_run").all();
     } else {
-      names = db
+      names = DB.getInstance()
         .prepare("SELECT name FROM training_run WHERE ID!=@trainingRunID")
         .all({ trainingRunID });
     }
-    names = names.map((model) => model.name);
+    names = names.map((model: any) => model.name);
     return names;
   }
 );
@@ -179,7 +187,7 @@ ipcMain.handle(
 ipcMain.handle(
   "fetch-training-run-configuration",
   (event: IpcMainInvokeEvent, trainingRunID: number) => {
-    const configuration = db
+    const configuration = DB.getInstance()
       .prepare(
         `SELECT 
         name,
@@ -210,7 +218,7 @@ ipcMain.handle(
 ipcMain.handle(
   "fetch-training-run-statistics",
   (event: IpcMainInvokeEvent, trainingRunID: number, stage: string) => {
-    const graphStatistics = db
+    const graphStatistics = DB.getInstance()
       .prepare(
         `SELECT name, step, value FROM graph_statistic WHERE training_run_id=@trainingRunID AND stage=@stage`
       )
@@ -218,7 +226,7 @@ ipcMain.handle(
         trainingRunID,
         stage,
       });
-    const imageStatistics = db
+    const imageStatistics = DB.getInstance()
       .prepare(
         `SELECT name, step FROM image_statistic WHERE training_run_id=@trainingRunID AND stage=@stage`
       )
@@ -226,7 +234,7 @@ ipcMain.handle(
         trainingRunID,
         stage,
       })
-      .map((el) => ({
+      .map((el: any) => ({
         ...el,
         path: path.join(
           TRAINING_RUNS_DIR,
@@ -236,7 +244,7 @@ ipcMain.handle(
           `${el.step}.png`
         ),
       }));
-    const audioStatistics = db
+    const audioStatistics = DB.getInstance()
       .prepare(
         `SELECT name, step FROM audio_statistic WHERE training_run_id=@trainingRunID AND stage=@stage`
       )
@@ -244,7 +252,7 @@ ipcMain.handle(
         trainingRunID,
         stage,
       })
-      .map((el) => ({
+      .map((el: any) => ({
         ...el,
         path: path.join(
           TRAINING_RUNS_DIR,
@@ -263,7 +271,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle("fetch-training-runs", async () => {
-  const trainingRuns = db
+  const trainingRuns = DB.getInstance()
     .prepare(
       `SELECT training_run.ID AS ID, training_run.name AS name, stage, dataset.name AS datasetName FROM training_run LEFT JOIN dataset ON training_run.dataset_id = dataset.ID`
     )
@@ -274,7 +282,7 @@ ipcMain.handle("fetch-training-runs", async () => {
 ipcMain.handle(
   "fetch-training-run-progress",
   (event: IpcMainInvokeEvent, trainingRunID: number) => {
-    const progress = db
+    const progress = DB.getInstance()
       .prepare(
         `SELECT 
         stage, 

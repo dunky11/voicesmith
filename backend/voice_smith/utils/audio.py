@@ -1,17 +1,15 @@
 import torch
-from typing import Optional
 import math
 import numpy as np
-import torch
 import torch.nn.functional as F
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Optional
 from torchaudio.backend.sox_io_backend import load as audio_load
-from voice_smith.utils.librosa import mel as librosa_mel_fn
 import torchaudio.functional as audio_F
-
+import torchaudio
+from voice_smith.utils.librosa import mel as librosa_mel_fn
 
 def save_audio(file_path: str, audio: torch.Tensor, sr: int):
-    torchaudio.save(file_path, audio, sr)
+    torchaudio.save(file_path, audio.unsqueeze(0), sr)
 
 
 def stereo_to_mono(audio: np.ndarray) -> np.ndarray:

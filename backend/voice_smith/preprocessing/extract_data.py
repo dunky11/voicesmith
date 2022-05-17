@@ -16,11 +16,10 @@ from voice_smith.utils.audio import (
     safe_load,
     resample
 )
-from voice_smith import ASSETS_PATH, TRAINING_RUNS_PATH
 
 
-def get_lexicon() -> Dict[str, List[str]]:
-    with open(ASSETS_PATH / "lexicon.json", "r", encoding="utf-8") as f:
+def get_lexicon(assets_path) -> Dict[str, List[str]]:
+    with open(Path(assets_path) / "lexicon.json", "r", encoding="utf-8") as f:
         lexicon = json.load(f)
     return lexicon
 
@@ -145,7 +144,7 @@ def process_utterance(
     if not tg_path.exists():
         return
 
-    with open(text_path, "r") as f:
+    with open(text_path, "r", encoding="utf-8") as f:
         raw_text = f.readline().strip()
 
     textgrid = tgt.io.read_textgrid(tg_path)
@@ -254,12 +253,14 @@ def extract_data(
     training_run_name: str,
     preprocess_config: Dict[str, Any],
     get_logger: Optional[Callable],
+    training_runs_path: str,
+    assets_path: str,
     log_every: int = 200,
     ignore_below_hz: Union[int, None] = None,
 ) -> None:
     print("Extracting data ...")
-    in_dir = TRAINING_RUNS_PATH / str(training_run_name) / "raw_data"
-    out_dir = TRAINING_RUNS_PATH / str(training_run_name) / "data"
+    in_dir = Path(training_runs_path) / str(training_run_name) / "raw_data"
+    out_dir = Path(training_runs_path) / str(training_run_name) / "data"
 
     hop_length = preprocess_config["stft"]["hop_length"]
 
@@ -359,7 +360,7 @@ def extract_data(
         f.write(json.dumps(symbol2id))
 
     with open(out_dir / "lexicon.json", "w", encoding="utf-8") as f:
-        f.write(json.dumps(get_lexicon()))
+        f.write(json.dumps(get_lexicon(assets_path)))
 
     print(
         "Total time: {} hours".format(

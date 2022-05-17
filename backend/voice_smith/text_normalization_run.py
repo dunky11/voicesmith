@@ -8,12 +8,12 @@ from voice_smith.docker.api import reload_docker, text_normalize
 def continue_text_normalization_run(
     text_normalization_run_id: int,
     db_path: str,
-    preprocessing_runs_path: str,
+    text_normalization_runs_path: str,
     user_data_path: str
 ):
     con = get_con(db_path)
     cur = con.cursor()
-    data_path = Path(preprocessing_runs_path) / "text_normalization_runs" / str(text_normalization_run_id)
+    data_path = Path(text_normalization_runs_path) / str(text_normalization_run_id)
     stage = None
 
     while (
@@ -66,15 +66,15 @@ def continue_text_normalization_run(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--text_normalization_run_id", type=int)
-    parser.add_argument("--db_path", type=str)
-    parser.add_argument("--preprocessing_runs_path", type=str)
-    parser.add_argument("--user_data_path", type=str)
+    parser.add_argument("--text_normalization_run_id", type=int, required=True)
+    parser.add_argument("--db_path", type=str, required=True)
+    parser.add_argument("--text_normalization_runs_path", type=str, required=True)
+    parser.add_argument("--user_data_path", type=str, required=True)
     args = parser.parse_args()
 
     continue_text_normalization_run(
         text_normalization_run_id=args.text_normalization_run_id, 
         db_path=args.db_path, 
-        preprocessing_runs_path=args.preprocessing_runs_path,
+        text_normalization_runs_path=args.text_normalization_runs_path,
         user_data_path=args.user_data_path
     )

@@ -5,6 +5,7 @@ import { useInterval } from "../../utils";
 import { createUseStyles } from "react-jss";
 import Terminal from "./Terminal";
 const { ipcRenderer } = window.require("electron");
+
 const useStyles = createUseStyles({
   wrapper: {
     maxHeight: 600,

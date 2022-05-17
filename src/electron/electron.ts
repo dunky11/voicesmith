@@ -6,7 +6,8 @@ import {
   TRAINING_RUNS_DIR,
   AUDIO_SYNTH_DIR,
   DATASET_DIR,
-  PREPROCESSING_RUNS_DIR,
+  TEXT_NORMALIZATION_RUNS_DIR,
+  CLEANING_RUNS_DIR,
 } from "./utils/globals";
 import "./handles/cleaningRuns";
 import "./handles/datasets";
@@ -82,7 +83,8 @@ const createDirectories = async () => {
     TRAINING_RUNS_DIR,
     AUDIO_SYNTH_DIR,
     DATASET_DIR,
-    PREPROCESSING_RUNS_DIR,
+    CLEANING_RUNS_DIR,
+    TEXT_NORMALIZATION_RUNS_DIR,
   ]) {
     safeMkdir(path);
   }

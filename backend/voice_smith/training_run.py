@@ -138,14 +138,13 @@ def continue_training_run(
     training_runs_path: str, 
     assets_path: str, 
     db_path: str, 
-    preprocessing_runs_path: str, 
     models_path: str, 
     datasets_path: str,
     user_data_path: str
 ):
     con = get_con(db_path)
     cur = con.cursor()
-    data_path = Path(preprocessing_runs_path) / str(training_run_id)
+    data_path = Path(training_runs_path) / str(training_run_id)
     model_path = Path(models_path)
     dataset_path = Path(datasets_path)
     stage = None
@@ -244,8 +243,10 @@ def continue_training_run(
             elif preprocessing_stage == "gen_vocab":
                 (data_path / "data").mkdir(exist_ok=True)
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+                print(user_data_path)
                 container = reload_docker(user_data_path=user_data_path)
                 generate_vocab(container, training_run_name=str(training_run_id))
+                quit()
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_alignments', preprocessing_gen_vocab_progress=1.0 WHERE ID=?",
                     (training_run_id,),
@@ -277,6 +278,8 @@ def continue_training_run(
                     training_run_name=str(training_run_id),
                     preprocess_config=p_config,
                     get_logger=get_logger,
+                    assets_path=assets_path,
+                    training_runs_path=training_runs_path
                 )
                 cur.execute(
                     "UPDATE training_run SET stage='acoustic_fine_tuning', preprocessing_stage='finished' WHERE ID=?",
@@ -536,6 +539,7 @@ def continue_training_run(
                         device=device,
                         reset=reset,
                         checkpoint_path=checkpoint_path,
+                        training_runs_path=training_runs_path,
                         fine_tuning=True,
                         overwrite_saves=True,
                     )
@@ -720,14 +724,13 @@ def continue_training_run(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--training_run_id", type=int)
-    parser.add_argument("--training_runs_path", type=str)
-    parser.add_argument("--assets_path", type=str)
-    parser.add_argument("--db_path", type=str)
-    parser.add_argument("--preprocessing_runs_path", type=str)
-    parser.add_argument("--models_path", type=str)
-    parser.add_argument("--datasets_path", type=str)
-    parser.add_argument("--user_data_path", type=str)
+    parser.add_argument("--training_run_id", type=int, required=True)
+    parser.add_argument("--training_runs_path", type=str, required=True)
+    parser.add_argument("--assets_path", type=str, required=True)
+    parser.add_argument("--db_path", type=str, required=True)
+    parser.add_argument("--models_path", type=str, required=True)
+    parser.add_argument("--datasets_path", type=str, required=True)
+    parser.add_argument("--user_data_path", type=str, required=True)
     args = parser.parse_args()
 
     continue_training_run(
@@ -735,7 +738,6 @@ if __name__ == "__main__":
         training_runs_path=args.training_runs_path,
         assets_path=args.assets_path,
         db_path=args.db_path,
-        preprocessing_runs_path=args.preprocessing_runs_path,
         models_path=args.models_path,
         datasets_path=args.datasets_path,
         user_data_path=args.user_data_path

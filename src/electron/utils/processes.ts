@@ -8,6 +8,7 @@ import {
   PORT,
   ASSETS_PATH,
 } from "./globals";
+import { DB } from "./db";
 
 let serverProc: any = null;
 let pyProc: any = null;
@@ -61,6 +62,8 @@ const selectPort = () => {
 
 export const createServerProc = () => {
   const port = String(selectPort());
+  // Make sure database object is created
+  DB.getInstance();
   serverProc = childProcess.spawn(
     "poetry",
     [
