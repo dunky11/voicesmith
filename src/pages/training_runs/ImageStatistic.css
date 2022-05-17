@@ -1,0 +1,7 @@
+.image-slider {
+    margin-top: 16px;
+}
+
+.image-slider .ant-slider-mark {
+    display: none;
+}

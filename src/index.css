@@ -1,0 +1,16 @@
+body {
+    min-height: 100vh;
+    min-width: 1600px;
+    overflow-y: scroll;
+}
+
+/** Remove Chromes default outline on focus */
+:focus {
+    outline:none;
+} 
+
+@font-face {
+    font-family: 'atmospheric';
+    src: url('./fonts/atmospheric.ttf');
+}
+  

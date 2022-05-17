@@ -1,0 +1,7 @@
+.audio-slider {
+    margin-top: 16px;
+}
+
+.audio-slider .ant-slider-mark {
+    display: none;
+}
