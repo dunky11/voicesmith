@@ -38,3 +38,8 @@ export const trainingRunInitialValues: ConfigurationInterface = {
   onlyTrainSpeakerEmbUntil: 5000,
   datasetID: null,
 };
+
+export const defaultPageOptions = {
+  defaultPageSize: 100,
+  pageSizeOptions: [50, 100, 250, 1000, 5000],
+};

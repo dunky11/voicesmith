@@ -10,6 +10,7 @@ import {
   Typography,
   Tag,
 } from "antd";
+import { defaultPageOptions } from "../../config";
 import { PreprocessingRunInterface, RunInterface } from "../../interfaces";
 import { stringCompare } from "../../utils";
 const { ipcRenderer } = window.require("electron");
@@ -298,6 +299,7 @@ export default function PreprocessingRunSelection({
             bordered
             style={{ width: "100%" }}
             columns={columns}
+            pagination={defaultPageOptions}
             dataSource={preprocessingRuns.map(
               (ds: PreprocessingRunInterface) => ({
                 ...ds,

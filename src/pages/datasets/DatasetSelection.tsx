@@ -10,6 +10,7 @@ import {
   Progress,
 } from "antd";
 import InfoButton from "./InfoButton";
+import { defaultPageOptions } from "../../config";
 import { DatasetInterface } from "../../interfaces";
 import { numberCompare, stringCompare } from "../../utils";
 const { ipcRenderer } = window.require("electron");
@@ -222,6 +223,7 @@ export default function DatasetSelection({
             bordered
             style={{ width: "100%" }}
             columns={columns}
+            pagination={defaultPageOptions}
             dataSource={datasets.map((ds: DatasetInterface) => {
               return {
                 ...ds,

@@ -51,7 +51,6 @@ def synth_iter(
     preprocess_config: Dict[str, Any],
     device: torch.device,
     logger: Logger,
-    embeddings: torch.Tensor,
     data_path: str,
     assets_path: str
 ) -> None:
@@ -519,8 +518,6 @@ def train_acoustic(
     batch_size = train_config["batch_size"]
     data_path = Path(training_runs_path) / str(training_run_name) / "data"
 
-    embeddings = get_embeddings(data_path=str(data_path), device=device)
-
     # Prepare model
     gen, style_predictor, optim, step = get_acoustic_models(
         data_path=str(data_path),
@@ -532,7 +529,7 @@ def train_acoustic(
         fine_tuning=fine_tuning,
         device=device,
         reset=reset,
-        embeddings=embeddings,
+        assets_path=assets_path
     )
 
     group_size = 5  # Set this larger than 1 to enable sorting in Dataset
@@ -634,7 +631,6 @@ def train_acoustic(
                 step=step,
                 preprocess_config=preprocess_config,
                 device=device,
-                embeddings=embeddings,
                 logger=logger,
                 data_path=str(data_path),
                 assets_path=assets_path

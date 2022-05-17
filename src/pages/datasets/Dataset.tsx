@@ -11,6 +11,7 @@ import {
 import { Link, useHistory } from "react-router-dom";
 import Speaker from "./Speaker";
 import InfoButton from "./InfoButton";
+import { defaultPageOptions } from "../../config";
 import { stringCompare, numberCompare } from "../../utils";
 import { DatasetInterface, SpeakerInterface } from "../../interfaces";
 const { ipcRenderer } = window.require("electron");
@@ -279,7 +280,7 @@ export default function Dataset({ datasetID }: { datasetID: number | null }) {
               )}
               <Table
                 size="small"
-                pagination={{ pageSize: 40 }}
+                pagination={defaultPageOptions}
                 bordered
                 style={{ width: "100%" }}
                 columns={columns}

@@ -25,7 +25,7 @@ import {
   ModelSpeakerInterface,
   SynthConfigInterface,
 } from "../../interfaces";
-import { SERVER_URL } from "../../config";
+import { SERVER_URL, defaultPageOptions } from "../../config";
 const { ipcRenderer } = window.require("electron");
 const useStyles = createUseStyles({});
 
@@ -297,7 +297,7 @@ export default function Synthesize({
             </div>
             <Table
               size="small"
-              pagination={{ pageSize: 40 }}
+              pagination={defaultPageOptions}
               bordered
               style={{ width: "100%" }}
               columns={columns}

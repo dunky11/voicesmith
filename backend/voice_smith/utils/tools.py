@@ -8,7 +8,12 @@ from pathlib import Path
 import time
 import psutil
 import shutil
+import warnings, sys
 
+def warnings_to_stdout():
+    def customwarn(message, category, filename, lineno, file=None, line=None):
+        sys.stdout.write(warnings.formatwarning(message, category, filename, lineno))
+    warnings.showwarning = customwarn
 
 def to_device(
     data: Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any],

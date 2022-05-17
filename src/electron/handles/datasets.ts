@@ -334,8 +334,12 @@ ipcMain.on("pick-speakers", async (event: IpcMainEvent, datasetID: number) => {
     });
 
     const speakerNames = speakers.map((speaker: any) => speaker.name);
-    let progress = 0;
-    for (const speakerPath of response.filePaths) {
+    for (
+      let progress = 1;
+      progress < response.filePaths.length + 1;
+      progress++
+    ) {
+      const speakerPath = response.filePaths[progress - 1];
       const split = speakerPath.split(path.sep);
       const speakerName = split[split.length - 1];
       const textFiles: string[] = [];
@@ -358,7 +362,11 @@ ipcMain.on("pick-speakers", async (event: IpcMainEvent, datasetID: number) => {
       const samples = await filesToSamples(audioFiles, textFiles);
 
       if (samples.length === 0) {
-        event.reply("pick-speakers-reply");
+        event.reply(
+          "pick-speakers-progress-reply",
+          progress,
+          response.filePaths.length
+        );
         continue;
       }
       if (speakerNames.includes(speakerName)) {
@@ -391,7 +399,6 @@ ipcMain.on("pick-speakers", async (event: IpcMainEvent, datasetID: number) => {
           }))
         );
       }
-      progress += 1;
       event.reply(
         "pick-speakers-progress-reply",
         progress,

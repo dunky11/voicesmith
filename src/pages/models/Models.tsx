@@ -11,6 +11,7 @@ import {
   Typography,
   Modal,
 } from "antd";
+import { defaultPageOptions } from "../../config";
 import { ModelInterface, ModelSpeakerInterface } from "../../interfaces";
 import { stringCompare } from "../../utils";
 const { ipcRenderer } = window.require("electron");
@@ -197,6 +198,7 @@ export default function Models({
           bordered
           style={{ width: "100%" }}
           columns={columns}
+          pagination={defaultPageOptions}
           dataSource={models.map((model: ModelInterface) => {
             return {
               key: model.ID,

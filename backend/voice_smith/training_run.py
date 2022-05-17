@@ -23,6 +23,9 @@ from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con
 from voice_smith.config.symbols import symbol2id
 from voice_smith.docker.api import generate_vocab, align, reload_docker
+import warnings 
+warnings.filterwarnings('ignore')
+
 
 def step_from_ckpt(ckpt: str):
     ckpt_path = Path(ckpt)
@@ -243,10 +246,8 @@ def continue_training_run(
             elif preprocessing_stage == "gen_vocab":
                 (data_path / "data").mkdir(exist_ok=True)
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
-                print(user_data_path)
-                container = reload_docker(user_data_path=user_data_path)
+                container = reload_docker(user_data_path=user_data_path)    
                 generate_vocab(container, training_run_name=str(training_run_id))
-                quit()
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_alignments', preprocessing_gen_vocab_progress=1.0 WHERE ID=?",
                     (training_run_id,),
@@ -281,6 +282,7 @@ def continue_training_run(
                     assets_path=assets_path,
                     training_runs_path=training_runs_path
                 )
+                print("HERE AFTER")
                 cur.execute(
                     "UPDATE training_run SET stage='acoustic_fine_tuning', preprocessing_stage='finished' WHERE ID=?",
                     (training_run_id,),
@@ -333,10 +335,10 @@ def continue_training_run(
                     if checkpoint_acoustic is None or checkpoint_style is None:
                         reset = True
                         checkpoint_acoustic = str(
-                            Path(".") / "assets" / "acoustic_pretrained.pt"
+                            Path(assets_path) / "acoustic_pretrained.pt"
                         )
                         checkpoint_style = str(
-                            Path(".") / "assets" / "style_pretrained.pt"
+                            Path(assets_path) / "style_pretrained.pt"
                         )
                     else:
                         reset = False

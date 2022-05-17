@@ -11,7 +11,7 @@ import {
 } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
 import { RunInterface, TrainingRunBasicInterface } from "../../interfaces";
-import { POLL_LOGFILE_INTERVALL } from "../../config";
+import { POLL_LOGFILE_INTERVALL, defaultPageOptions } from "../../config";
 import { useInterval, stringCompare } from "../../utils";
 const { ipcRenderer } = window.require("electron");
 
@@ -210,6 +210,7 @@ export default function RunSelection({
             bordered
             style={{ width: "100%" }}
             columns={columns}
+            pagination={defaultPageOptions}
             dataSource={trainingRuns.map(
               (trainingRun: TrainingRunBasicInterface) => {
                 return {

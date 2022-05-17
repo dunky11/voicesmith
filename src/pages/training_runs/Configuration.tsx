@@ -219,7 +219,11 @@ export default function Configuration({
             Save
           </Button>
           <Button type="primary" disabled={disableNext} onClick={onNextClick}>
-            Save and Start Training
+            {running !== null &&
+            running.type === "trainingRun" &&
+            running.ID === selectedTrainingRunID
+              ? "Save and Next"
+              : "Save and Start Training"}
           </Button>
         </div>,
       ]}

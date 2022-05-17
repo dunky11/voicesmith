@@ -3,6 +3,7 @@ import { Card, Button, Table, Space } from "antd";
 import { useHistory } from "react-router-dom";
 import { numberCompare, stringCompare } from "../../../utils";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
+import { defaultPageOptions } from "../../../config";
 import {
   NoisySampleInterface,
   RunInterface,
@@ -205,7 +206,7 @@ export default function ChooseSamples({
           </div>
           <Table
             size="small"
-            pagination={{ pageSize: 40 }}
+            pagination={defaultPageOptions}
             bordered
             style={{ width: "100%" }}
             columns={columns}

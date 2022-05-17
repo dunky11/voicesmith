@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Card, Button, Table, Breadcrumb, Space, Typography } from "antd";
 import { Link } from "react-router-dom";
+import { defaultPageOptions } from "../../config";
 import AudioBottomBar from "../../components/audio_player/AudioBottomBar";
 import { stringCompare } from "../../utils";
 import {
@@ -206,7 +207,7 @@ export default function Speaker({
           </div>
           <Table
             size="small"
-            pagination={{ pageSize: 40 }}
+            pagination={defaultPageOptions}
             bordered
             style={{ width: "100%" }}
             columns={columns}

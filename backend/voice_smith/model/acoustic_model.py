@@ -33,7 +33,7 @@ class AcousticModel(nn.Module):
         preprocess_config: Dict[str, Any],
         model_config: Dict[str, Any],
         fine_tuning: bool,
-        embeddings: torch.Tensor,
+        n_speakers: int
     ):
         super().__init__()
         n_src_vocab = len(symbols) + 1
@@ -98,7 +98,7 @@ class AcousticModel(nn.Module):
 
         self.speaker_embed = Parameter(
             tools.initialize_embeddings(
-                (embeddings.shape[0], model_config["speaker_embed_dim"])
+                (n_speakers, model_config["speaker_embed_dim"])
             )
         )
 

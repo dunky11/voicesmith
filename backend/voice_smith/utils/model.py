@@ -4,6 +4,7 @@ from torch.jit._script import ScriptModule
 from itertools import chain
 from pathlib import Path
 from typing import Dict, Any, Tuple, Union
+import json
 from voice_smith.utils.optimizer import (
     ScheduledOptimPretraining,
     ScheduledOptimFinetuning,
@@ -23,19 +24,22 @@ def get_acoustic_models(
     fine_tuning: bool,
     device: torch.device,
     reset: bool,
-    embeddings: torch.Tensor,
+    assets_path: str
 ) -> Tuple[
     acoustic_model.AcousticModel,
     ScriptModule,
     Union[ScheduledOptimFinetuning, ScheduledOptimPretraining],
     int,
 ]:
+    with open(Path(data_path) / "speakers.json", "r", encoding="utf-8") as f:
+        n_speakers = len(json.load(f))
+
     gen = acoustic_model.AcousticModel(
         data_path=data_path,
         preprocess_config=preprocess_config,
         model_config=model_config,
         fine_tuning=fine_tuning,
-        embeddings=embeddings,
+        n_speakers=n_speakers
     ).to(device)
     if checkpoint_acoustic != None:
         ckpt = torch.load(checkpoint_acoustic)
@@ -51,7 +55,7 @@ def get_acoustic_models(
         step = 0
 
     if checkpoint_style == None:
-        checkpoint_style = str(Path(".") / "assets" / "tiny_bert.pt")
+        checkpoint_style = str(Path(assets_path) / "tiny_bert.pt")
 
     style_predictor = load(checkpoint_style).to(device)
 

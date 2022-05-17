@@ -16,6 +16,9 @@ from voice_smith.utils.audio import (
     safe_load,
     resample
 )
+from voice_smith.utils.tools import warnings_to_stdout
+
+warnings_to_stdout()
 
 
 def get_lexicon(assets_path) -> Dict[str, List[str]]:
@@ -371,18 +374,19 @@ def extract_data(
     logger = get_logger()
     logger.query(
         f"UPDATE {table_name} SET preprocessing_extract_data_progress=? WHERE id=?",
-        [92.5, db_id],
+        [0.925, db_id],
     )
 
     print("Creating train and validation splits ... ")
     x_train, x_val, _, _  = stratified_train_test_split(
         x=out,
-        y=speaker_names
+        y=speaker_names,
+        train_size=1.0 - preprocess_config["val_size"]
     )
 
     logger.query(
         f"UPDATE {table_name} SET preprocessing_extract_data_progress=? WHERE id=?",
-        [97.5, db_id],
+        [0.975, db_id],
     )
 
     print("Creating train.txt ... ")
@@ -436,7 +440,7 @@ def calculate_pitch_stats(
             delayed(_get_pitch)(path) for path in files_slice
         )
         for pitch in rets:
-            scaler.partial_fit(torch.from_numpy(pitch).unsqueeze((0)))
+            scaler.partial_fit(torch.from_numpy(pitch.reshape(-1, 1)))
         
     pitch_mean, pitch_std = scaler.get_mean_std()
     return pitch_mean.numpy(), pitch_std.numpy()
