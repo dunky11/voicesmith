@@ -7,8 +7,6 @@ import torchaudio.functional as audio_F
 import torchaudio
 from voice_smith.utils.librosa import mel as librosa_mel_fn
 
-# sox_io backend whose binaries are pre installed on Linux/MacOS sometimes crashes
-# on torchaudio.load() call, so use same backend for all three operating systems
 torchaudio.set_audio_backend("soundfile")
 
 def save_audio(file_path: str, audio: torch.Tensor, sr: int):
