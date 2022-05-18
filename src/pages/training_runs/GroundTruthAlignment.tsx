@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Tabs, Card, Button, Steps } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import RunCard from "../../components/cards/RunCard";
 import LogPrinter from "../../components/log_printer/LogPrinter";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
@@ -56,10 +57,10 @@ export default function GroundTruthAlignment({
     if (selectedTrainingRunID === null) {
       return;
     }
-    if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
-    } else if (stageIsRunning) {
+    if (stageIsRunning) {
       stopRun();
+    } else if (wouldContinueRun) {
+      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
     } else {
       onStepChange(5);
     }
@@ -76,25 +77,15 @@ export default function GroundTruthAlignment({
   };
 
   return (
-    <Card
-      actions={[
-        <div
-          key="next-button-wrapper"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginRight: 24,
-          }}
-        >
-          <Button style={{ marginRight: 8 }} onClick={onBackClick}>
-            Back
-          </Button>
-          <Button type="primary" onClick={onNextClick}>
-            {getNextButtonText()}
-          </Button>
-        </div>,
+    <RunCard
+      buttons={[
+        <Button style={{ marginRight: 8 }} onClick={onBackClick}>
+          Back
+        </Button>,
+        <Button type="primary" onClick={onNextClick}>
+          {getNextButtonText()}
+        </Button>,
       ]}
-      bodyStyle={{ paddingTop: 8 }}
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
@@ -124,6 +115,6 @@ export default function GroundTruthAlignment({
           />
         </Tabs.TabPane>
       </Tabs>
-    </Card>
+    </RunCard>
   );
 }

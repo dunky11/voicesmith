@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Card, Button, Table, Space } from "antd";
+import { Button, Table, Space } from "antd";
 import { useHistory } from "react-router-dom";
 import { defaultPageOptions } from "../../../config";
 import { numberCompare, stringCompare } from "../../../utils";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { NoisySampleInterface, RunInterface } from "../../../interfaces";
+import RunCard from "../../../components/cards/RunCard";
 const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
@@ -172,24 +173,13 @@ export default function ChooseSamples({
 
   return (
     <>
-      <Card
+      <RunCard
         title={`The following samples will be removed ... (${noisySamples.length} total)`}
-        actions={[
-          <div
-            key="next-button-wrapper"
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginRight: 24,
-            }}
-          >
-            <Button onClick={onBackClick} style={{ marginRight: 8 }}>
-              Back
-            </Button>
-            <Button onClick={onFinish} type="primary">
-              Remove Samples From Dataset
-            </Button>
-          </div>,
+        buttons={[
+          <Button onClick={onBackClick}>Back</Button>,
+          <Button onClick={onFinish} type="primary">
+            Remove Samples From Dataset
+          </Button>,
         ]}
       >
         <div style={{ width: "100%" }}>
@@ -219,7 +209,7 @@ export default function ChooseSamples({
             }))}
           ></Table>
         </div>
-      </Card>
+      </RunCard>
       <div
         style={{
           display: audioDataURL === null ? "none" : "block",

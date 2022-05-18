@@ -13,6 +13,7 @@ import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
+
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {

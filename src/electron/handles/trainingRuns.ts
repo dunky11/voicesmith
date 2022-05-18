@@ -7,11 +7,11 @@ import { exists } from "../utils/files";
 import { ConfigurationInterface, SpeakerInterface } from "../../interfaces";
 import {
   ASSETS_PATH,
-  DATASET_DIR,
+  getDatasetsDir,
   DB_PATH,
-  MODELS_DIR,
-  TRAINING_RUNS_DIR,
-  USER_DATA_PATH,
+  getModelsDir,
+  getTrainingRunsDir,
+  getUserdataPath,
 } from "../utils/globals";
 import { DB, bool2int, getSpeakersWithSamples } from "../utils/db";
 import { trainingRunInitialValues } from "../../config";
@@ -128,7 +128,7 @@ ipcMain.handle(
         .prepare("DELETE FROM training_run WHERE ID=@ID")
         .run({ ID: ID });
     })();
-    const dir = path.join(TRAINING_RUNS_DIR, String(ID));
+    const dir = path.join(getTrainingRunsDir(), String(ID));
     if (await exists(dir)) {
       await fsPromises.rmdir(dir, { recursive: true });
     }
@@ -154,17 +154,17 @@ ipcMain.on("continue-training-run", (event: IpcMainEvent, runID: number) => {
     "--training_run_id",
     String(runID),
     "--training_runs_path",
-    TRAINING_RUNS_DIR,
+    getTrainingRunsDir(),
     "--assets_path",
     ASSETS_PATH,
     "--db_path",
     DB_PATH,
     "--models_path",
-    MODELS_DIR,
+    getModelsDir(),
     "--datasets_path",
-    DATASET_DIR,
-    "--user_data_path",
-    USER_DATA_PATH,
+    getDatasetsDir(),
+    "--getUserdataPath()",
+    getUserdataPath(),
   ]);
 });
 
@@ -237,7 +237,7 @@ ipcMain.handle(
       .map((el: any) => ({
         ...el,
         path: path.join(
-          TRAINING_RUNS_DIR,
+          getTrainingRunsDir(),
           String(trainingRunID),
           "image_logs",
           el.name,
@@ -255,7 +255,7 @@ ipcMain.handle(
       .map((el: any) => ({
         ...el,
         path: path.join(
-          TRAINING_RUNS_DIR,
+          getTrainingRunsDir(),
           String(trainingRunID),
           "audio_logs",
           el.name,

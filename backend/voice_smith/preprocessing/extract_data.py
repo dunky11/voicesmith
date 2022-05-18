@@ -94,7 +94,6 @@ def process_utterance(
     to_mel: torch.nn.Module,
     ignore_below_hz: Union[int, None],
 ) -> Union[None, Tuple[str, int]]:
-    print(speaker, basename, flush=True) 
     audio_path = Path(in_dir) / speaker / f"{basename}.wav"
     text_path = Path(in_dir) / speaker / f"{basename}.txt"
     tg_path = Path(out_dir) / "textgrid" / speaker / f"{basename}.TextGrid"
@@ -280,7 +279,8 @@ def extract_data(
         ) for wav_path in iter_logger(
             wav_paths,
             total=len(wav_paths),
-            cb=callback
+            cb=callback,
+            print_every=log_every
         )
     )
 

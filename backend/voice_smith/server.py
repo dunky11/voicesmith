@@ -9,7 +9,7 @@ from torch.jit._serialization import load
 from g2p_en import G2p
 from voice_smith.utils.tokenization import BertTokenizer, BasicTokenizer
 from voice_smith.utils.text_normalization import EnglishTextNormalizer
-from voice_smith.sql import get_con, create_tables
+from voice_smith.sql import get_con
 from voice_smith.utils.tools import get_cpu_usage, get_ram_usage, get_disk_usage
 from voice_smith.inference import synthesize as synthesize_infer
 from voice_smith.utils.loggers import set_stream_location
@@ -68,10 +68,6 @@ def get_model(cur: sqlite3.Cursor, assets_path: str, models_path: str, model_id:
 def run_server(port: int, db_path: str, audio_synth_path: str, models_path: str, assets_path: str):
     app = Flask(__name__)
     CORS(app)
-
-    con = get_con(db_path)
-    create_tables(con)
-    con.close()
 
     @app.route("/")
     def index():

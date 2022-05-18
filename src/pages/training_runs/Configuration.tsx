@@ -10,7 +10,6 @@ import {
   Select,
   Alert,
   Typography,
-  notification,
 } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
@@ -20,14 +19,9 @@ import {
   RunInterface,
 } from "../../interfaces";
 import { SERVER_URL, trainingRunInitialValues } from "../../config";
+import { notifySave } from "../../utils";
+import RunCard from "../../components/cards/RunCard";
 const { ipcRenderer, shell } = window.require("electron");
-
-const notifySave = () => {
-  notification["success"]({
-    message: "Your configuration has been saved",
-    placement: "top",
-  });
-};
 
 export default function Configuration({
   onStepChange,
@@ -191,41 +185,21 @@ export default function Configuration({
     !configIsLoaded || (stage != "not_started" && stage != null);
 
   return (
-    <Card
+    <RunCard
       title="Configure the Training Run"
-      style={{ height: "100%" }}
-      bodyStyle={{ width: "100%", padding: "0 0 32px 0" }}
-      className="dataset-card-wrapper"
-      actions={[
-        <div
-          key="next-button-wrapper"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginRight: 24,
-          }}
-        >
-          <Button style={{ marginRight: 8 }} onClick={onBackClick}>
-            Back
-          </Button>
-          <Button
-            style={{ marginRight: 8 }}
-            disabled={disableDefaults}
-            onClick={onDefaults}
-          >
-            Reset to Default
-          </Button>
-          <Button style={{ marginRight: 8 }} onClick={onSave}>
-            Save
-          </Button>
-          <Button type="primary" disabled={disableNext} onClick={onNextClick}>
-            {running !== null &&
-            running.type === "trainingRun" &&
-            running.ID === selectedTrainingRunID
-              ? "Save and Next"
-              : "Save and Start Training"}
-          </Button>
-        </div>,
+      buttons={[
+        <Button onClick={onBackClick}>Back</Button>,
+        <Button disabled={disableDefaults} onClick={onDefaults}>
+          Reset to Default
+        </Button>,
+        <Button onClick={onSave}>Save</Button>,
+        <Button type="primary" disabled={disableNext} onClick={onNextClick}>
+          {running !== null &&
+          running.type === "trainingRun" &&
+          running.ID === selectedTrainingRunID
+            ? "Save and Next"
+            : "Save and Start Training"}
+        </Button>,
       ]}
     >
       <Form
@@ -234,7 +208,6 @@ export default function Configuration({
           formRef.current = node;
         }}
         onFinish={onFinish}
-        style={{ padding: "16px 16px 0px 16px" }}
         initialValues={trainingRunInitialValues}
       >
         <Form.Item
@@ -536,6 +509,6 @@ export default function Configuration({
           </Collapse.Panel>
         </Collapse>
       </Form>
-    </Card>
+    </RunCard>
   );
 }

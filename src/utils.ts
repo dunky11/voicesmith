@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import { notification } from "antd";
 import { GraphStatisticInterface, RunInterface } from "./interfaces";
 
 export function useInterval(callback: any, delay: number | null) {
@@ -161,3 +162,10 @@ export function getWouldContinueRun(
     (running !== null && (running.type !== type || running.ID !== ID))
   );
 }
+
+export const notifySave = () => {
+  notification["success"]({
+    message: "Your settings have been saved",
+    placement: "top",
+  });
+};

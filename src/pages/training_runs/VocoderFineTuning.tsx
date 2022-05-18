@@ -15,6 +15,7 @@ import {
   getWouldContinueRun,
 } from "../../utils";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
+import RunCard from "../../components/cards/RunCard";
 const { ipcRenderer } = window.require("electron");
 
 export default function VocoderFineTuning({
@@ -97,10 +98,10 @@ export default function VocoderFineTuning({
     if (selectedTrainingRunID === null) {
       return;
     }
-    if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
-    } else if (stageIsRunning) {
+    if (stageIsRunning) {
       stopRun();
+    } else if (wouldContinueRun) {
+      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
     } else {
       onStepChange(6);
     }
@@ -126,25 +127,13 @@ export default function VocoderFineTuning({
   }, []);
 
   return (
-    <Card
-      actions={[
-        <div
-          key="next-button-wrapper"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginRight: 24,
-          }}
-        >
-          <Button style={{ marginRight: 8 }} onClick={onBackClick}>
-            Back
-          </Button>
-          <Button type="primary" onClick={onNextClick}>
-            {getNextButtonText()}
-          </Button>
-        </div>,
+    <RunCard
+      buttons={[
+        <Button onClick={onBackClick}>Back</Button>,
+        <Button type="primary" onClick={onNextClick}>
+          {getNextButtonText()}
+        </Button>,
       ]}
-      bodyStyle={{ paddingTop: 8 }}
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
@@ -170,6 +159,6 @@ export default function VocoderFineTuning({
           />
         </Tabs.TabPane>
       </Tabs>
-    </Card>
+    </RunCard>
   );
 }

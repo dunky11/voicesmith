@@ -10,11 +10,11 @@ import fsNative from "fs";
 import fs from "fs-extra";
 const fsPromises = fsNative.promises;
 import {
-  AUDIO_SYNTH_DIR,
-  TRAINING_RUNS_DIR,
-  MODELS_DIR,
-  CLEANING_RUNS_DIR,
-  TEXT_NORMALIZATION_RUNS_DIR,
+  getAudioSynthDir,
+  getTrainingRunsDir,
+  getModelsDir,
+  getCleaningRunsDir,
+  getTextNormalizationRunsDir,
 } from "../utils/globals";
 import { DB } from "../utils/db";
 
@@ -57,7 +57,7 @@ ipcMain.handle("fetch-audios-synth", async (event: IpcMainInvokeEvent) => {
     )
     .all()
     .map((audio: any) => {
-      audio.filePath = path.join(AUDIO_SYNTH_DIR, audio.fileName);
+      audio.filePath = path.join(getAudioSynthDir(), audio.fileName);
       delete audio.fileName;
       return audio;
     });
@@ -75,16 +75,16 @@ ipcMain.handle(
     let dir;
     switch (type) {
       case "trainingRun":
-        dir = TRAINING_RUNS_DIR;
+        dir = getTrainingRunsDir();
         break;
       case "model":
-        dir = MODELS_DIR;
+        dir = getModelsDir();
         break;
       case "cleaningRun":
-        dir = CLEANING_RUNS_DIR;
+        dir = getCleaningRunsDir();
         break;
       case "textNormalizationRun":
-        dir = TEXT_NORMALIZATION_RUNS_DIR;
+        dir = getTextNormalizationRunsDir();
         break;
       default:
         throw new Error(
@@ -125,6 +125,22 @@ ipcMain.handle(
         );
       }
     });
+  }
+);
+
+ipcMain.handle(
+  "pick-single-folder",
+  async (event: IpcMainInvokeEvent, inPath: string) => {
+    const options: OpenDialogOptions = {
+      title: "Set a new storage path",
+      properties: ["openDirectory", "createDirectory"],
+    };
+    const filePath = await new Promise((resolve, reject) => {
+      dialog.showOpenDialog(null, options).then(async ({ filePaths }) => {
+        resolve(filePaths[0]);
+      });
+    });
+    return filePath;
   }
 );
 

@@ -5,8 +5,8 @@ const fsPromises = fsNative.promises;
 import { exists } from "../utils/files";
 import { PreprocessingRunInterface } from "../../interfaces";
 import {
-  CLEANING_RUNS_DIR,
-  TEXT_NORMALIZATION_RUNS_DIR,
+  getCleaningRunsDir,
+  getTextNormalizationRunsDir,
 } from "../utils/globals";
 import { DB } from "../utils/db";
 
@@ -110,7 +110,10 @@ ipcMain.handle(
               ID: preprocessingRun.ID,
             });
         })();
-        const dir = path.join(CLEANING_RUNS_DIR, String(preprocessingRun.ID));
+        const dir = path.join(
+          getCleaningRunsDir(),
+          String(preprocessingRun.ID)
+        );
         if (await exists(dir)) {
           await fsPromises.rmdir(dir, { recursive: true });
         }
@@ -132,7 +135,7 @@ ipcMain.handle(
             });
         })();
         const dir = path.join(
-          TEXT_NORMALIZATION_RUNS_DIR,
+          getTextNormalizationRunsDir(),
           String(preprocessingRun.ID)
         );
         if (await exists(dir)) {

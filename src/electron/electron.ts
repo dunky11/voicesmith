@@ -2,12 +2,12 @@ import { app, BrowserWindow, ipcMain, WebContents, Event } from "electron";
 import { safeMkdir } from "./utils/files";
 import { exit, killPyProc, createServerProc } from "./utils/processes";
 import {
-  MODELS_DIR,
-  TRAINING_RUNS_DIR,
-  AUDIO_SYNTH_DIR,
-  DATASET_DIR,
-  TEXT_NORMALIZATION_RUNS_DIR,
-  CLEANING_RUNS_DIR,
+  getModelsDir,
+  getTrainingRunsDir,
+  getAudioSynthDir,
+  getDatasetsDir,
+  getTextNormalizationRunsDir,
+  getCleaningRunsDir,
 } from "./utils/globals";
 import "./handles/cleaningRuns";
 import "./handles/datasets";
@@ -19,6 +19,7 @@ import "./handles/synthesis";
 import "./handles/textNormalizationRuns";
 import "./handles/trainingRuns";
 import "./handles/install";
+import "./handles/settings";
 
 const mainWindow: BrowserWindow = null;
 
@@ -79,12 +80,12 @@ app.on("activate", () => {
 
 const createDirectories = async () => {
   for (const path of [
-    MODELS_DIR,
-    TRAINING_RUNS_DIR,
-    AUDIO_SYNTH_DIR,
-    DATASET_DIR,
-    CLEANING_RUNS_DIR,
-    TEXT_NORMALIZATION_RUNS_DIR,
+    getModelsDir(),
+    getTrainingRunsDir(),
+    getAudioSynthDir(),
+    getDatasetsDir(),
+    getCleaningRunsDir(),
+    getTextNormalizationRunsDir(),
   ]) {
     safeMkdir(path);
   }

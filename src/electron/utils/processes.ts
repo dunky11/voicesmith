@@ -1,10 +1,10 @@
 import { IpcMainEvent } from "electron";
 import childProcess from "child_process";
 import {
-  AUDIO_SYNTH_DIR,
+  getAudioSynthDir,
   BACKEND_PATH,
   DB_PATH,
-  MODELS_DIR,
+  getModelsDir,
   PORT,
   ASSETS_PATH,
 } from "./globals";
@@ -44,6 +44,9 @@ export const startRun = (
 };
 
 export const killServerProc = () => {
+  if (serverProc === null) {
+    return;
+  }
   serverProc.kill("SIGKILL");
   serverProc = null;
 };
@@ -64,6 +67,7 @@ export const createServerProc = () => {
   const port = String(selectPort());
   // Make sure database object is created
   DB.getInstance();
+  console.log("HERE 1");
   serverProc = childProcess.spawn(
     "poetry",
     [
@@ -72,12 +76,13 @@ export const createServerProc = () => {
       "server.py",
       port,
       DB_PATH,
-      AUDIO_SYNTH_DIR,
-      MODELS_DIR,
+      getAudioSynthDir(),
+      getModelsDir(),
       ASSETS_PATH,
     ],
     { cwd: BACKEND_PATH }
   );
+  console.log("HERE 2");
   serverProc.stderr.on("data", (data: string) => {
     console.log("stderr: " + data);
   });

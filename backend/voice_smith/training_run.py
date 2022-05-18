@@ -282,7 +282,6 @@ def continue_training_run(
                     assets_path=assets_path,
                     training_runs_path=training_runs_path
                 )
-                print("HERE AFTER")
                 cur.execute(
                     "UPDATE training_run SET stage='acoustic_fine_tuning', preprocessing_stage='finished' WHERE ID=?",
                     (training_run_id,),

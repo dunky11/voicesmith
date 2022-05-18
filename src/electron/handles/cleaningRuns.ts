@@ -1,7 +1,7 @@
 import { ipcMain, IpcMainInvokeEvent, IpcMainEvent } from "electron";
 import path from "path";
 import { safeUnlink } from "../utils/files";
-import { CLEANING_RUNS_DIR, DATASET_DIR, DB_PATH } from "../utils/globals";
+import { getCleaningRunsDir, getDatasetsDir, DB_PATH } from "../utils/globals";
 import { DB, getSpeakersWithSamples } from "../utils/db";
 import {
   DSCleaningInterface,
@@ -39,10 +39,10 @@ ipcMain.on("continue-cleaning-run", (event: IpcMainEvent, runID: number) => {
     String(runID),
     "--db_path",
     DB_PATH,
-    "--cleaning_runs_dir",
-    CLEANING_RUNS_DIR,
+    "--getCleaningRunsDir()",
+    getCleaningRunsDir(),
     "--datasets_path",
-    DATASET_DIR,
+    getDatasetsDir(),
   ]);
 });
 
@@ -107,7 +107,7 @@ ipcMain.handle(
         text: el.text,
         labelQuality: el.labelQuality,
         audioPath: path.join(
-          DATASET_DIR,
+          getDatasetsDir(),
           String(el.datasetID),
           "speakers",
           String(el.speakerID),
@@ -170,7 +170,7 @@ ipcMain.on(
       });
       const sample = samples[i];
       const audioPath = path.join(
-        DATASET_DIR,
+        getDatasetsDir(),
         String(sample.datasetID),
         "speakers",
         String(sample.speakerID),

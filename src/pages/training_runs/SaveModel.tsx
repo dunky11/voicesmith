@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Tabs, Card, Button, Steps } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import RunCard from "../../components/cards/RunCard";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
 import LogPrinter from "../../components/log_printer/LogPrinter";
 import { RunInterface, UsageStatsInterface } from "../../interfaces";
@@ -73,27 +74,17 @@ export default function VocoderFineTuning({
   };
 
   return (
-    <Card
-      actions={[
-        <div
-          key="next-button-wrapper"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginRight: 24,
-          }}
-        >
-          <Button style={{ marginRight: 8 }} onClick={onBackClick}>
-            Back
+    <RunCard
+      buttons={[
+        <Button style={{ marginRight: 8 }} onClick={onBackClick}>
+          Back
+        </Button>,
+        (stageIsRunning || wouldContinueRun) && (
+          <Button type="primary" onClick={onNextClick}>
+            {getNextButtonText()}
           </Button>
-          {(stageIsRunning || wouldContinueRun) && (
-            <Button type="primary" onClick={onNextClick}>
-              {getNextButtonText()}
-            </Button>
-          )}
-        </div>,
+        ),
       ]}
-      bodyStyle={{ paddingTop: 8 }}
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
@@ -119,6 +110,6 @@ export default function VocoderFineTuning({
           />
         </Tabs.TabPane>
       </Tabs>
-    </Card>
+    </RunCard>
   );
 }

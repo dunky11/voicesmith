@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tabs, Card, Steps, Button } from "antd";
+import { Tabs, Steps, Button, Card } from "antd";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
 import { RunInterface, UsageStatsInterface } from "../../../interfaces";
@@ -9,6 +9,7 @@ import {
   getStageIsRunning,
   getWouldContinueRun,
 } from "../../../utils";
+import RunCard from "../../../components/cards/RunCard";
 
 export default function Preprocessing({
   onStepChange,
@@ -83,29 +84,19 @@ export default function Preprocessing({
   const current = 0;
 
   return (
-    <Card
-      actions={[
-        <div
-          key="next-button-wrapper"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginRight: 24,
-          }}
+    <RunCard
+      buttons={[
+        <Button style={{ marginRight: 8 }} onClick={onBackClick}>
+          Back
+        </Button>,
+        <Button
+          type="primary"
+          disabled={selectedID === null}
+          onClick={onNextClick}
         >
-          <Button style={{ marginRight: 8 }} onClick={onBackClick}>
-            Back
-          </Button>
-          <Button
-            type="primary"
-            disabled={selectedID === null}
-            onClick={onNextClick}
-          >
-            {getNextButtonText()}
-          </Button>
-        </div>,
+          {getNextButtonText()}
+        </Button>,
       ]}
-      bodyStyle={{ paddingTop: 8 }}
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
@@ -135,6 +126,6 @@ export default function Preprocessing({
           />
         </Tabs.TabPane>
       </Tabs>
-    </Card>
+    </RunCard>
   );
 }

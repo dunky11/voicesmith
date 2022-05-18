@@ -6,6 +6,7 @@ import {
   FundFilled,
   DatabaseOutlined,
   ClearOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import { createUseStyles } from "react-jss";
 import MainLoading from "./pages/main_loading/MainLoading";
@@ -17,6 +18,7 @@ import Datasets from "./pages/datasets/Datasets";
 import PreprocessingRuns from "./pages/preprocessing_runs/PreprocessingRuns";
 import Terminal from "./components/log_printer/Terminal";
 import { RunInterface, TerminalMessage } from "./interfaces";
+import Settings from "./pages/settings/Settings";
 const { ipcRenderer, shell } = window.require("electron");
 
 const useStyles = createUseStyles({
@@ -95,6 +97,9 @@ export default function App() {
         break;
       case "preprocessing-runs":
         history.push("/preprocessing-runs/run-selection");
+        break;
+      case "settings":
+        history.push("/settings");
         break;
       default:
         throw new Error(
@@ -396,6 +401,16 @@ export default function App() {
               >
                 Preprocessing
               </Menu.Item>
+              <Menu.Item
+                onClick={() => {
+                  onNavigationSelect({ key: "settings" });
+                }}
+                key="settings"
+                icon={<SettingOutlined className={classes.navIcon} />}
+                className={classes.navItem}
+              >
+                Settings
+              </Menu.Item>
             </Menu>
           </div>
         </Layout.Sider>
@@ -448,6 +463,10 @@ export default function App() {
                   ></PreprocessingRuns>
                 )}
                 path="/preprocessing-runs"
+              ></Route>
+              <Route
+                render={() => <Settings running={running}></Settings>}
+                path="/settings"
               ></Route>
               <Route render={() => <MainLoading></MainLoading>}></Route>
             </Switch>

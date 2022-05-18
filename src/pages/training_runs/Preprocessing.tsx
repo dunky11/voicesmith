@@ -9,6 +9,7 @@ import {
   getStageIsRunning,
   getWouldContinueRun,
 } from "../../utils";
+import RunCard from "../../components/cards/RunCard";
 
 export default function Preprocessing({
   onStepChange,
@@ -102,10 +103,10 @@ export default function Preprocessing({
     if (selectedTrainingRunID === null) {
       return;
     }
-    if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
-    } else if (stageIsRunning) {
+    if (stageIsRunning) {
       stopRun();
+    } else if (wouldContinueRun) {
+      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
     } else {
       onStepChange(3);
     }
@@ -127,29 +128,17 @@ export default function Preprocessing({
   const current: number = getCurrent();
 
   return (
-    <Card
-      actions={[
-        <div
-          key="next-button-wrapper"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginRight: 24,
-          }}
+    <RunCard
+      buttons={[
+        <Button onClick={onBackClick}>Back</Button>,
+        <Button
+          type="primary"
+          disabled={selectedTrainingRunID === null}
+          onClick={onNextClick}
         >
-          <Button style={{ marginRight: 8 }} onClick={onBackClick}>
-            Back
-          </Button>
-          <Button
-            type="primary"
-            disabled={selectedTrainingRunID === null}
-            onClick={onNextClick}
-          >
-            {getNextButtonText()}
-          </Button>
-        </div>,
+          {getNextButtonText()}
+        </Button>,
       ]}
-      bodyStyle={{ paddingTop: 8 }}
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
@@ -218,6 +207,6 @@ export default function Preprocessing({
           />
         </Tabs.TabPane>
       </Tabs>
-    </Card>
+    </RunCard>
   );
 }

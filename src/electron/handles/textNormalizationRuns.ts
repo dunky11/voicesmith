@@ -1,16 +1,15 @@
 import { ipcMain, IpcMainInvokeEvent, IpcMainEvent } from "electron";
 import path from "path";
 import {
-  DATASET_DIR,
+  getDatasetsDir,
   DB_PATH,
-  TEXT_NORMALIZATION_RUNS_DIR,
-  USER_DATA_PATH,
+  getTextNormalizationRunsDir,
+  getUserdataPath,
 } from "../utils/globals";
-import { DB, getSpeakersWithSamples } from "../utils/db";
+import { DB } from "../utils/db";
 import {
   TextNormalizationRunConfigInterface,
   TextNormalizationInterface,
-  SpeakerInterface,
 } from "../../interfaces";
 import { startRun } from "../utils/processes";
 
@@ -23,9 +22,9 @@ ipcMain.on(
       "--db_path",
       DB_PATH,
       "--text_normalization_runs_path",
-      TEXT_NORMALIZATION_RUNS_DIR,
-      "--user_data_path",
-      USER_DATA_PATH,
+      getTextNormalizationRunsDir(),
+      "--getUserdataPath()",
+      getUserdataPath(),
     ]);
   }
 );
@@ -94,7 +93,7 @@ ipcMain.handle(
         newText: el.newText,
         reason: el.reason,
         audioPath: path.join(
-          DATASET_DIR,
+          getDatasetsDir(),
           String(el.datasetID),
           "speakers",
           String(el.speakerID),

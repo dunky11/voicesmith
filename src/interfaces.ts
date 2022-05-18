@@ -263,3 +263,7 @@ export interface TerminalMessage {
   type: "message" | "error";
   message: string;
 }
+
+export interface SettingsInterface {
+  dataPath: string | null;
+}

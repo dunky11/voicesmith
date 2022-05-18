@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Card, Button, Form, Input, Select, notification } from "antd";
+import { Button, Form, Input, Select, notification } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import {
@@ -7,18 +7,13 @@ import {
   RunInterface,
   CleaningRunConfigInterface,
 } from "../../../interfaces";
+import RunCard from "../../../components/cards/RunCard";
+import { notifySave } from "../../../utils";
 const { ipcRenderer } = window.require("electron");
 
 const initialValues: CleaningRunConfigInterface = {
   name: "",
   datasetID: null,
-};
-
-const notifySave = () => {
-  notification["success"]({
-    message: "Your configuration has been saved",
-    placement: "top",
-  });
 };
 
 export default function Configuration({
@@ -179,36 +174,17 @@ export default function Configuration({
   const disableDefaults = disableNext || stage != "not_started";
 
   return (
-    <Card
+    <RunCard
       title="Configure the Cleaning Run"
-      style={{ height: "100%" }}
-      bodyStyle={{ width: "100%", padding: "0 0 32px 0" }}
-      actions={[
-        <div
-          key="next-button-wrapper"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginRight: 24,
-          }}
-        >
-          <Button style={{ marginRight: 8 }} onClick={onBackClick}>
-            Back
-          </Button>
-          <Button
-            disabled={disableDefaults}
-            style={{ marginRight: 8 }}
-            onClick={onDefaults}
-          >
-            Reset to Default
-          </Button>
-          <Button style={{ marginRight: 8 }} onClick={onSave}>
-            Save
-          </Button>
-          <Button type="primary" disabled={disableNext} onClick={onNextClick}>
-            {getNextButtonText()}
-          </Button>
-        </div>,
+      buttons={[
+        <Button onClick={onBackClick}>Back</Button>,
+        <Button disabled={disableDefaults} onClick={onDefaults}>
+          Reset to Default
+        </Button>,
+        <Button onClick={onSave}>Save</Button>,
+        <Button type="primary" disabled={disableNext} onClick={onNextClick}>
+          {getNextButtonText()}
+        </Button>,
       ]}
     >
       <Form
@@ -268,6 +244,6 @@ export default function Configuration({
           </Select>
         </Form.Item>
       </Form>
-    </Card>
+    </RunCard>
   );
 }

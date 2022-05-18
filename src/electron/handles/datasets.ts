@@ -9,7 +9,7 @@ import path from "path";
 import fsNative from "fs";
 const fsPromises = fsNative.promises;
 import { safeUnlink, exists, safeMkdir, copyDir } from "../utils/files";
-import { DATASET_DIR } from "../utils/globals";
+import { getDatasetsDir } from "../utils/globals";
 import { DB, getSpeakersWithSamples, getReferencedBy } from "../utils/db";
 import {
   SpeakerSampleInterface,
@@ -70,7 +70,7 @@ ipcMain.handle(
 ipcMain.handle(
   "remove-dataset",
   async (event: IpcMainInvokeEvent, ID: number) => {
-    const datasetPath = path.join(DATASET_DIR, String(ID));
+    const datasetPath = path.join(getDatasetsDir(), String(ID));
     if (await exists(datasetPath)) {
       await fsPromises.rm(datasetPath, { recursive: true, force: true });
     }
@@ -127,7 +127,7 @@ ipcMain.on(
         const speakers = getSpeakersStmt.all({ datasetID: dataset.ID });
         for (const speaker of speakers) {
           const inPath = path.join(
-            DATASET_DIR,
+            getDatasetsDir(),
             String(dataset.ID),
             "speakers",
             String(speaker.ID)
@@ -266,7 +266,7 @@ ipcMain.handle(
     );
 
     const speakerDir = path.join(
-      DATASET_DIR,
+      getDatasetsDir(),
       String(datasetID),
       "speakers",
       String(speakerID)
@@ -285,7 +285,7 @@ const copySpeakerFiles = async (
   samples: SpeakerSampleInterface[]
 ) => {
   const speakerDir = path.join(
-    DATASET_DIR,
+    getDatasetsDir(),
     String(datasetID),
     "speakers",
     String(speakerID)
@@ -440,7 +440,7 @@ ipcMain.handle(
     });
     for (const speakerID of speakerIDs) {
       const speakerDir = path.join(
-        DATASET_DIR,
+        getDatasetsDir(),
         String(datasetID),
         "speakers",
         String(speakerID)
