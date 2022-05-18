@@ -7,17 +7,20 @@ export const UserDataPath = function () {
   let dataPath: string | null = null;
   return {
     getPath: function () {
-      if (dataPath == null) {
-        const path = DB.getInstance()
+      if (dataPath === null) {
+        const dataPathDB = DB.getInstance()
           .prepare("SELECT data_path AS dataPath FROM settings")
           .get().dataPath;
-        if (path === null) {
-          dataPath = app.getPath("userData");
+        if (dataPathDB === null) {
+          dataPath = path.join(app.getPath("userData"), "data");
         } else {
-          dataPath = path;
+          dataPath = dataPathDB;
         }
       }
       return dataPath;
+    },
+    setPath: function (path: string) {
+      dataPath = path;
     },
   };
 };
@@ -29,7 +32,6 @@ const joinUserData = (pathToJoin: string) => () => {
 
 export const BASE_PATH = app.getAppPath();
 export const PORT = 12118;
-export const getUserdataPath = joinUserData("");
 export const getModelsDir = joinUserData("models");
 export const getTrainingRunsDir = joinUserData("training_runs");
 export const getAudioSynthDir = joinUserData("audio_synth");

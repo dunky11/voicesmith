@@ -67,7 +67,6 @@ export const createServerProc = () => {
   const port = String(selectPort());
   // Make sure database object is created
   DB.getInstance();
-  console.log("HERE 1");
   serverProc = childProcess.spawn(
     "poetry",
     [
@@ -82,7 +81,7 @@ export const createServerProc = () => {
     ],
     { cwd: BACKEND_PATH }
   );
-  console.log("HERE 2");
+  console.log("HERE 4");
   serverProc.stderr.on("data", (data: string) => {
     console.log("stderr: " + data);
   });

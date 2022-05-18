@@ -72,6 +72,7 @@ export default function App() {
   const [downloadDockerIsOpen, setDownloadDockerIsOpen] = useState(false);
   const [serverIsReady, setServerIsReady] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
+  const [navIsDisabled, setNavIsDisabled] = useState(false);
   const onModelSelect = (model: any) => {
     history.push("/models/synthesize");
     setSelectedModel(model);
@@ -359,7 +360,7 @@ export default function App() {
               selectedKeys={selectedKeys}
               mode="inline"
               className={classes.navMenu}
-              disabled={!serverIsReady}
+              disabled={!serverIsReady || navIsDisabled}
             >
               <Menu.Item
                 onClick={() => {
@@ -465,7 +466,12 @@ export default function App() {
                 path="/preprocessing-runs"
               ></Route>
               <Route
-                render={() => <Settings running={running}></Settings>}
+                render={() => (
+                  <Settings
+                    running={running}
+                    setNavIsDisabled={setNavIsDisabled}
+                  ></Settings>
+                )}
                 path="/settings"
               ></Route>
               <Route render={() => <MainLoading></MainLoading>}></Route>

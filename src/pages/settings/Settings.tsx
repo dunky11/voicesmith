@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, IpcRendererEvent } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Breadcrumb,
   Card,
@@ -22,8 +22,10 @@ const useStyles = createUseStyles({
 
 export default function Settings({
   running,
+  setNavIsDisabled,
 }: {
   running: RunInterface | null;
+  setNavIsDisabled: (navIsDisabled: boolean) => void;
 }) {
   const classes = useStyles();
   const formRef = useRef<FormInstance | null>();
@@ -32,11 +34,12 @@ export default function Settings({
 
   const onFinish = () => {
     setIsLoading(true);
+    setNavIsDisabled(true);
     ipcRenderer.removeAllListeners("save-settings-reply");
     ipcRenderer.on(
       "save-settings-reply",
       (
-        event: IpcRendererEvent,
+        _: any,
         message: {
           type: string;
         }
@@ -45,10 +48,11 @@ export default function Settings({
           case "finished": {
             setIsLoading(false);
             notifySave();
+            setNavIsDisabled(false);
             break;
           }
           default: {
-            throw new Exception(
+            throw new Error(
               `No case selected in switch-statement, ${message.type} is not a valid case ...`
             );
           }
@@ -60,6 +64,7 @@ export default function Settings({
 
   const fetchConfig = () => {
     ipcRenderer.invoke("fetch-settings").then((settings: SettingsInterface) => {
+      console.log(settings);
       formRef.current.setFieldsValue(settings);
     });
   };
@@ -71,6 +76,10 @@ export default function Settings({
       }
       formRef.current.setFieldsValue({ dataPath });
     });
+  };
+
+  const onSaveClick = () => {
+    formRef.current.submit();
   };
 
   useEffect(() => {
@@ -91,7 +100,11 @@ export default function Settings({
         <Col span={12}>
           <RunCard
             disableFullHeight
-            buttons={[<Button type="primary">Save</Button>]}
+            buttons={[
+              <Button type="primary" disabled={isLoading} onClick={onSaveClick}>
+                Save
+              </Button>,
+            ]}
             title="Settings"
           >
             <Form
@@ -103,9 +116,11 @@ export default function Settings({
             >
               <Form.Item label="Storage Path" name="dataPath">
                 <Input.Search
+                  disabled={isLoading || running !== null}
                   readOnly
                   onSearch={onPickStorageClick}
                   enterButton="Pick Path"
+                  loading={isLoading}
                 ></Input.Search>
               </Form.Item>
             </Form>

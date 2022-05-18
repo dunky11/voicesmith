@@ -39,7 +39,7 @@ ipcMain.on("continue-cleaning-run", (event: IpcMainEvent, runID: number) => {
     String(runID),
     "--db_path",
     DB_PATH,
-    "--getCleaningRunsDir()",
+    "--getCleaningRunsDir",
     getCleaningRunsDir(),
     "--datasets_path",
     getDatasetsDir(),

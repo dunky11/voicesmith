@@ -11,7 +11,7 @@ import {
   DB_PATH,
   getModelsDir,
   getTrainingRunsDir,
-  getUserdataPath,
+  UserDataPath,
 } from "../utils/globals";
 import { DB, bool2int, getSpeakersWithSamples } from "../utils/db";
 import { trainingRunInitialValues } from "../../config";
@@ -163,8 +163,8 @@ ipcMain.on("continue-training-run", (event: IpcMainEvent, runID: number) => {
     getModelsDir(),
     "--datasets_path",
     getDatasetsDir(),
-    "--getUserdataPath()",
-    getUserdataPath(),
+    "--getUserdataPath",
+    UserDataPath().getPath(),
   ]);
 });
 

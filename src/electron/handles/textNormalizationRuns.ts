@@ -4,7 +4,7 @@ import {
   getDatasetsDir,
   DB_PATH,
   getTextNormalizationRunsDir,
-  getUserdataPath,
+  UserDataPath,
 } from "../utils/globals";
 import { DB } from "../utils/db";
 import {
@@ -23,8 +23,8 @@ ipcMain.on(
       DB_PATH,
       "--text_normalization_runs_path",
       getTextNormalizationRunsDir(),
-      "--getUserdataPath()",
-      getUserdataPath(),
+      "--user_data_path",
+      UserDataPath().getPath(),
     ]);
   }
 );
