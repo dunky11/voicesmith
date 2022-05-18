@@ -15,7 +15,12 @@ export default function RunCard({
   return (
     <Card
       title={title}
-      style={{ height: disableFullHeight ? null : "100%" }}
+      style={{
+        height: disableFullHeight ? null : "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
       bodyStyle={{ paddingTop: title === null ? 8 : null }}
       actions={
         buttons.length === null
