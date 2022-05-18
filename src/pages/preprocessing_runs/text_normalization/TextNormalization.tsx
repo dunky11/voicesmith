@@ -111,8 +111,6 @@ export default function TextNormalization({
   useInterval(fetchCleaningRun, POLL_LOGFILE_INTERVALL);
   useInterval(pollUsageInfo, 1000);
 
-  console.log(run);
-
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>

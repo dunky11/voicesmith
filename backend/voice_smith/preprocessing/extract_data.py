@@ -27,43 +27,6 @@ def get_lexicon(assets_path) -> Dict[str, List[str]]:
     return lexicon
 
 
-def preprocess_speaker(
-    in_dir: str,
-    out_dir: str,
-    speaker_path: Path,
-    sampling_rate: int,
-    filter_length: int,
-    hop_length: int,
-    to_mel: torch.nn.Module,
-    ignore_below_hz: Union[int, None],
-) -> Tuple[int, List[str]]:
-    lines = []
-    n_frames_total = 0
-    out_path = Path(out_dir)
-    for wav_path in speaker_path.glob("*.wav"):
-        (out_path / "data" / speaker_path.name).mkdir(exist_ok=True)
-        (out_path / "wav" / speaker_path.name).mkdir(exist_ok=True)
-        basename = wav_path.stem
-
-        out = process_utterance(
-            in_dir=in_dir,
-            out_dir=out_dir,
-            speaker=str(speaker_path.name),
-            basename=basename,
-            sampling_rate=sampling_rate,
-            filter_length=filter_length,
-            hop_length=hop_length,
-            to_mel=to_mel,
-            ignore_below_hz=ignore_below_hz,
-        )
-        if out is not None:
-            line, n_frames = out
-            n_frames_total += n_frames
-            lines.append(line)
-
-    return n_frames_total, lines
-
-
 def get_alignment(
     phones_tier, words_tier, text: str, sampling_rate: int, hop_length: int
 ) -> Tuple[List[str], List[int], float, float]:
@@ -131,6 +94,7 @@ def process_utterance(
     to_mel: torch.nn.Module,
     ignore_below_hz: Union[int, None],
 ) -> Union[None, Tuple[str, int]]:
+    print(speaker, basename, flush=True) 
     audio_path = Path(in_dir) / speaker / f"{basename}.wav"
     text_path = Path(in_dir) / speaker / f"{basename}.txt"
     tg_path = Path(out_dir) / "textgrid" / speaker / f"{basename}.TextGrid"
@@ -282,49 +246,51 @@ def extract_data(
         device=torch.device("cpu"),
     )
 
-    val_size = preprocess_config["val_size"]
-
-    (out_dir / "data").mkdir(exist_ok=True, parents=True)
-    (out_dir / "wav").mkdir(exist_ok=True, parents=True)
-
     out = []
     speaker_names = []
     n_frames_total = 0
     speakers = {speaker.name: i for i, speaker in enumerate(in_dir.iterdir())}
 
-    speakers_paths = list(in_dir.iterdir())
+    for speaker_path in in_dir.iterdir():
+        (out_dir / "data" / speaker_path.name).mkdir(exist_ok=True)
+        (out_dir / "wav" / speaker_path.name).mkdir(exist_ok=True)
+
+    wav_paths = list(in_dir.glob("*/*.wav"))
 
     def callback(index: int):
-        if index % 1 == 0:
+        if index % log_every == 0:
             logger = get_logger()
-            progress = index / len(speakers_paths) / 2
+            progress = index / len(wav_paths) / 2
             logger.query(
                 f"UPDATE {table_name} SET preprocessing_extract_data_progress=? WHERE id=?",
                 [progress, db_id],
             )
 
     rets = Parallel(n_jobs=max(multiprocessing.cpu_count() - 1, 1))(
-        delayed(preprocess_speaker)(
+        delayed(process_utterance)(
             in_dir=in_dir,
             out_dir=out_dir,
-            speaker_path=speaker_path,
+            speaker=str(wav_path.parent.name),
+            basename=wav_path.stem,
             sampling_rate=sampling_rate,
             filter_length=filter_length,
             hop_length=hop_length,
             to_mel=to_mel,
             ignore_below_hz=ignore_below_hz,
-        )
-        for speaker_path in iter_logger(
-            speakers_paths, total=len(speakers_paths), cb=callback
+        ) for wav_path in iter_logger(
+            wav_paths,
+            total=len(wav_paths),
+            cb=callback
         )
     )
 
     for ret in rets:
-        n_frames, lines = ret
+        if ret is None:
+            continue
+        line, n_frames = ret
         n_frames_total += n_frames
-        out += lines
-        for line in lines:
-            speaker_names.append(line.split("|")[1])
+        out += line
+        speaker_names.append(line.split("|")[1])
 
     print("Calculating pitch stats")
     pitch_mean, pitch_std = calculate_pitch_stats(

@@ -177,7 +177,6 @@ export default function App() {
         }
       }
     );
-    console.log(run);
     switch (run.type) {
       case "trainingRun":
         ipcRenderer.send("continue-training-run", run.ID);

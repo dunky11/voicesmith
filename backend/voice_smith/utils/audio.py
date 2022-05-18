@@ -3,10 +3,13 @@ import math
 import numpy as np
 import torch.nn.functional as F
 from typing import Tuple, List, Union, Optional
-from torchaudio.backend.sox_io_backend import load as audio_load
 import torchaudio.functional as audio_F
 import torchaudio
 from voice_smith.utils.librosa import mel as librosa_mel_fn
+
+# sox_io backend whose binaries are pre installed on Linux/MacOS sometimes crashes
+# on torchaudio.load() call, so use same backend for all three operating systems
+torchaudio.set_audio_backend("soundfile")
 
 def save_audio(file_path: str, audio: torch.Tensor, sr: int):
     torchaudio.save(file_path, audio.unsqueeze(0), sr)
@@ -25,6 +28,12 @@ def get_mel_from_wav(audio: np.ndarray, to_mel: torch.nn.Module) -> np.ndarray:
 
 
 def resample(wav: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+    # Some audios are corrupted and contain uneven sampling rates
+    # resample will silently crash on them, so even out sampling rate.
+    is_odd = orig_sr % 2 == 1
+    if is_odd:
+        orig_sr -= 1
+
     wav = audio_F.resample(torch.FloatTensor(wav), orig_sr, target_sr).numpy()
     return wav
 
@@ -32,7 +41,7 @@ def resample(wav: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
 def safe_load(
     path: str, sr: Union[int, None], verbose: bool = True
 ) -> Tuple[np.ndarray, int]:
-    audio, sr_actual = audio_load(
+    audio, sr_actual = torchaudio.load(
         filepath=path,
     )
     audio = audio.numpy()

@@ -4,7 +4,8 @@ import isDev from "electron-is-dev";
 
 export const BASE_PATH = app.getAppPath();
 export const PORT = 12118;
-export const USER_DATA_PATH = path.join(app.getPath("userData"), "data");
+// export const USER_DATA_PATH = path.join(app.getPath("userData"), "data");
+export const USER_DATA_PATH = path.join(BASE_PATH, "data");
 export const MODELS_DIR = path.join(USER_DATA_PATH, "models");
 export const TRAINING_RUNS_DIR = path.join(USER_DATA_PATH, "training_runs");
 export const AUDIO_SYNTH_DIR = path.join(USER_DATA_PATH, "audio_synth");

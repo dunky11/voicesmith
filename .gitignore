@@ -132,3 +132,4 @@ wandb/
 /.webpack/
 /backup/
 /INSTALLED
+/data/
