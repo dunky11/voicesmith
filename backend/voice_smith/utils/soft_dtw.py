@@ -275,95 +275,129 @@ class SoftDTW(torch.nn.Module):
     The soft DTW implementation that optionally supports CUDA
     """
 
-    def __init__(self, use_cuda, gamma=1.0, normalize=False, bandwidth=None, dist_func=None):
+    def __init__(self, use_cuda, gamma=1.0, bandwidth=None, dist_func=None):
         """
         Initializes a new instance using the supplied parameters
         :param use_cuda: Flag indicating whether the CUDA implementation should be used
         :param gamma: sDTW's gamma parameter
-        :param normalize: Flag indicating whether to perform normalization
-                          (as discussed in https://github.com/mblondel/soft-dtw/issues/10#issuecomment-383564790)
         :param bandwidth: Sakoe-Chiba bandwidth for pruning. Passing 'None' will disable pruning.
         :param dist_func: Optional point-wise distance function to use. If 'None', then a default Euclidean distance function will be used.
         """
         super(SoftDTW, self).__init__()
-        self.normalize = normalize
         self.gamma = gamma
         self.bandwidth = 0 if bandwidth is None else float(bandwidth)
         self.use_cuda = use_cuda
 
-        # Set the distance function
-        if dist_func is not None:
-            self.dist_func = dist_func
-        else:
-            self.dist_func = SoftDTW._euclidean_dist_func
-
-    def _get_func_dtw(self, x, y):
+    def _get_func_dtw(self, dists):
         """
         Checks the inputs and selects the proper implementation to use.
         """
         bx, lx, dx = x.shape
-        by, ly, dy = y.shape
-        # Make sure the dimensions match
-        assert bx == by  # Equal batch sizes
-        assert dx == dy  # Equal feature dimensions
-
         use_cuda = self.use_cuda
 
-        if use_cuda and (lx > 1024 or ly > 1024):  # We should be able to spawn enough threads in CUDA
-                print("SoftDTW: Cannot use CUDA because the sequence length > 1024 (the maximum block size supported by CUDA)")
-                use_cuda = False
+        if use_cuda and (dists.shape[1] > 1024 or dists.shape[2] > 1024):  # We should be able to spawn enough threads in CUDA
+            print("SoftDTW: Cannot use CUDA because the sequence length > 1024 (the maximum block size supported by CUDA)")
+            use_cuda = False
 
         # Finally, return the correct function
         return _SoftDTWCUDA.apply if use_cuda else _SoftDTW.apply
 
-    @staticmethod
-    def _euclidean_dist_func(x, y):
-        """
-        Calculates the Euclidean distance between each element in x and y per timestep
-        """
-        n = x.size(1)
-        m = y.size(1)
-        d = x.size(2)
-        x = x.unsqueeze(2).expand(-1, n, m, d)
-        y = y.unsqueeze(1).expand(-1, n, m, d)
-        return torch.pow(x - y, 2).sum(3)
-
-    def forward(self, X, Y):
+    def forward(self, dists):
         """
         Compute the soft-DTW value between X and Y
         :param X: One batch of examples, batch_size x seq_len x dims
         :param Y: The other batch of examples, batch_size x seq_len x dims
         :return: The computed results
         """
-
         # Check the inputs and get the correct implementation
-        func_dtw = self._get_func_dtw(X, Y)
+        func_dtw = self._get_func_dtw(dists)
+        return func_dtw(dists, self.gamma, self.bandwidth)
 
-        if self.normalize:
-            # Stack everything up and run
-            x = torch.cat([X, X, Y])
-            y = torch.cat([Y, X, Y])
-            D = self.dist_func(x, y)
-            out = func_dtw(D, self.gamma, self.bandwidth)
-            out_xy, out_xx, out_yy = torch.split(out, X.shape[0])
-            return out_xy - 1 / 2 * (out_xx + out_yy)
-        else:
-            D_xy = self.dist_func(X, Y)
-            return func_dtw(D_xy, self.gamma, self.bandwidth)
+def get_likelihoods(x, means, stds):
+    """ 
+    args
+    ----
+    x: torch.Tensor of shape (b, c)
+    means: torch.Tensor of shape (b, c)
+    stds: torch.Tensor of shape (b, c)
+    
+    returns
+    -------
+    log likelihoods of shape (b, c)
+    """
+    # covariances = torch.diag_embed(variances, offset=0, dim1=-2, dim2=-1)
+    dist = torch.distributions.normal.Normal(
+        means,
+        stds
+    )
+    # TODO is there a function that returns prob() instead of log_prob()?
+    likelihoods = torch.exp(dist.log_prob(x))
+    return likelihoods
 
-# ----------------------------------------------------------------------------------------------------------------------
+
+def pairwise_log_likelihoods(x, means, stds, x_mask, stats_mask):
+    """ 
+    args
+    ----
+    x: torch.Tensor of shape (b, c, m)
+    means: torch.Tensor of shape (b, c, n)
+    stds: torch.Tensor of shape (b, c, n)
+    x_mask: torch.Tensor of shape (b, 1, m) steps which will be masked
+        correspond to 1 or True
+    stats_mask: torch.Tensor of shape (b, 1, n) steps which will be masked
+        correspond to 1 or True
+    returns
+    -------
+    pairwise log likelihoods of shape (b, m, n)
+    """
+    assert x.shape[0] == means.shape[0] == stds.shape[0]
+    assert x.shape[1] == means.shape[1] == stds.shape[1]
+    assert means.shape[2] == stds.shape[2]
+    b, c, m, n = x.shape[0], x.shape[1], x.shape[2], means.shape[2]
+    # (b, c, m) => (b, c, m, 1)
+    x = x.unsqueeze(-1)
+    # (b, c, m, 1) => (b, c, m, n)
+    x = x.expand(x.shape[0], x.shape[1], x.shape[2], n)
+    # (b, c, n) => (b, c, 1, n)
+    means, stds = means.unsqueeze(2), stds.unsqueeze(2)
+    # (b, c, 1, n) => (b, c, m, n)
+    means = means.expand(means.shape[0], means.shape[1], m, means.shape[3])
+    stds = stds.expand(stds.shape[0], stds.shape[1], m, stds.shape[3])
+    likelihoods = get_likelihoods(x, means, stds)
+    likelihoods = likelihoods.masked_fill(x_mask.reshape((x_mask.shape[0], 1, -1, 1)), 1.0)
+    likelihoods = likelihoods.masked_fill(stats_mask.reshape((x_mask.shape[0], 1, 1, -1)), 1.0)
+    likelihoods = torch.prod(likelihoods, 1)
+    log_likelihoods = torch.log(likelihoods)
+    log_likelihoods = log_likelihoods.masked_fill(x_mask.reshape((x_mask.shape[0], -1, 1)), 0.0)
+    log_likelihoods = log_likelihoods.masked_fill(stats_mask, 0.0)
+    return log_likelihoods
+
 if __name__ == "__main__":
-    # Create the sequences
-    batch_size, len_x, len_y, dims = 8, 15, 12, 5
-    x = torch.rand((batch_size, len_x, dims), requires_grad=True)
-    y = torch.rand((batch_size, len_y, dims))
-    # Transfer tensors to the GPU
-
-    # Create the "criterion" object
-    sdtw = SoftDTW(use_cuda=False, gamma=0.1)
-
-    # Compute the loss value
-    loss = sdtw(x, y)  # Just like any torch.nn.xyzLoss()
-
-    # Aggregate and call backward()
-    loss.mean().backward()
+    b, c, m, n = 10, 192, 30, 20
+    x = torch.FloatTensor([[
+        [3, 2],
+        [2, 4],
+    ]])
+    means = torch.FloatTensor([[
+        [3, 2, 4],
+        [2, 4, 4],
+    ]])
+    stds = torch.FloatTensor([[
+        [3, 2, 6],
+        [2, 4, 5],
+    ]])
+    x_mask = torch.LongTensor([[
+        [0, 0],
+    ]])
+    stats_mask = torch.LongTensor([[
+        [0, 0, 1],
+    ]])
+    pairs = pairwise_log_likelihoods(x, means, stds, x_mask=x_mask, stats_mask=stats_mask)
+    from scipy.stats import multivariate_normal
+    y = multivariate_normal.logpdf(x=x[0, :, 0], mean=means[0, :, 0], cov=stds[0, :, 0] ** 2)
+    print(y)
+    print(pairs[0, 0, 0])
+    m_idx, n_idx = 1, 1
+    y = multivariate_normal.logpdf(x=x[0, :, m_idx], mean=means[0, :, n_idx], cov=stds[0, :, n_idx] ** 2)
+    print(y)
+    print(pairs[0, m_idx, n_idx])

@@ -163,7 +163,7 @@ ipcMain.on("continue-training-run", (event: IpcMainEvent, runID: number) => {
     getModelsDir(),
     "--datasets_path",
     getDatasetsDir(),
-    "--getUserdataPath",
+    "--user_data_path",
     UserDataPath().getPath(),
   ]);
 });

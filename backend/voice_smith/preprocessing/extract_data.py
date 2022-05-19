@@ -251,8 +251,8 @@ def extract_data(
     speakers = {speaker.name: i for i, speaker in enumerate(in_dir.iterdir())}
 
     for speaker_path in in_dir.iterdir():
-        (out_dir / "data" / speaker_path.name).mkdir(exist_ok=True)
-        (out_dir / "wav" / speaker_path.name).mkdir(exist_ok=True)
+        (out_dir / "data" / speaker_path.name).mkdir(exist_ok=True, parents=True)
+        (out_dir / "wav" / speaker_path.name).mkdir(exist_ok=True, parents=True)
 
     wav_paths = list(in_dir.glob("*/*.wav"))
 
@@ -407,7 +407,7 @@ def calculate_pitch_stats(
         )
         for pitch in rets:
             scaler.partial_fit(torch.from_numpy(pitch.reshape(-1, 1)))
-        
+    
     pitch_mean, pitch_std = scaler.get_mean_std()
     return pitch_mean.numpy(), pitch_std.numpy()
 

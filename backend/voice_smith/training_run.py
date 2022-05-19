@@ -23,8 +23,9 @@ from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con
 from voice_smith.config.symbols import symbol2id
 from voice_smith.docker.api import generate_vocab, align, reload_docker
-import warnings 
-warnings.filterwarnings('ignore')
+from voice_smith.utils.tools import warnings_to_stdout
+
+warnings_to_stdout()
 
 
 def step_from_ckpt(ckpt: str):
@@ -244,7 +245,7 @@ def continue_training_run(
                 con.commit()
 
             elif preprocessing_stage == "gen_vocab":
-                (data_path / "data").mkdir(exist_ok=True)
+                (data_path / "data").mkdir(exist_ok=True, parents=True)
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
                 container = reload_docker(user_data_path=user_data_path)    
                 generate_vocab(container, training_run_name=str(training_run_id))
@@ -258,6 +259,7 @@ def continue_training_run(
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
                 container = reload_docker(user_data_path=user_data_path)
                 align(container, training_run_name=str(training_run_id))
+                quit()
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='extract_data', preprocessing_gen_align_progress=1.0 WHERE ID=?",
                     (training_run_id,),
