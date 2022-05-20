@@ -453,7 +453,7 @@ class ScaledDotProductAttention(nn.Module):
         attn = torch.matmul(q / self.temperature, k.transpose(2, 3))
 
         if mask is not None:
-            attn = attn.masked_fill(mask == 0, -1e9)
+            attn = attn.masked_fill(mask, -1e9)
 
         attn = self.dropout(F.softmax(attn, dim=-1))
         output = torch.matmul(attn, v)
@@ -518,23 +518,21 @@ class MemoryBank(nn.Module):
             d_v=hidden_per_head,
             dropout=p_dropout,
         )
-        self.memory_bank = nn.Parameter(
-            initialize_embeddings((bank_size, bank_hidden))
-        ).unsqueeze(0)
+        self.bank = nn.Parameter(
+            initialize_embeddings((bank_size, bank_hidden)).unsqueeze(0)
+        )
 
     def forward(self, x, mask):
         x = x.permute((0, 2, 1))
-        memory_bank = self.memory_bank.expand(
-            x.shape[0], self.memory_bank.shape[1], self.memory_bank.shape[2]
-        )
-        x, _ = self.attention(x, memory_bank, memory_bank)
+        bank = self.bank.expand(x.shape[0], self.bank.shape[1], self.bank.shape[2])
+        x, _ = self.attention(x, bank, bank)
         x = x.permute((0, 2, 1))
         x = x.masked_fill(mask, 0.0)
         return x
 
 
 class TextEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, model_config):
         super().__init__()
         self.encoder = Conformer(
             dim=model_config["encoder"]["n_hidden"],
@@ -602,7 +600,7 @@ class NaturalSpeech(nn.Module):
     ):
         super().__init__()
         n_src_vocab = len(symbols) + 1
-        self.enc_p = TextEncoder()
+        self.enc_p = TextEncoder(model_config)
         self.decoder = UnivNet(model_config["encoder"]["n_hidden"])
         # TODO insert linear spectrogram
         self.enc_q = PosteriorEncoder(
@@ -645,7 +643,6 @@ class NaturalSpeech(nn.Module):
         return token_embeddings, speaker_embeds
 
     def upsample_mas(self, z_p, mu_p, logs_p, logs_q, x_mask, y_mask):
-        # TODO invert masks
         x_mask, y_mask = ~x_mask, ~y_mask
         with torch.no_grad():
             # negative cross-entropy
@@ -724,20 +721,24 @@ class NaturalSpeech(nn.Module):
         sample_q_slice, sample_q_ids_slice = rand_slice_segments(
             sample_q_memory, spec_lens, 32
         )
-
+        # TODO add speaker emb like in VITS
         wave = self.decoder.forward_train(sample_q_slice)
 
         return {
             "wave": wave,
             "log_duration_pred": log_duration_pred,
-            "durations_mas": durations_mas,
+            "log_duration_mas": torch.log(durations_mas + 1e-6),
             "sample_q_ids_slice": sample_q_ids_slice,
+            "sample_p": sample_p,
             "z_p": z_p,
             "mu_p": mu_p,
             "log_std_p": log_std_p,
+            "sample_q": sample_q,
             "z_q": z_q,
             "mu_q": mu_q,
             "log_std_q": log_std_q,
+            "src_mask": src_mask,
+            "spec_mask": spec_mask,
         }
 
     def forward(
@@ -775,7 +776,7 @@ class NaturalSpeech(nn.Module):
             x=sample_p, x_mask=spec_mask, g=embeddings.unsqueeze(-1), reverse=True
         )
         z_q = self.memory_bank(x=z_q, mask=spec_mask)
-        wave = self.decoder.forward_train(z_q)
+        wave = self.decoder(z_q)
         return wave
 
 

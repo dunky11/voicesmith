@@ -356,18 +356,43 @@ def get_log_likelihoods(x, means, stds):
     log likelihoods of shape (b, t)
     """
     assert x.shape == means.shape == stds.shape
-    """initial_shape = x.shape
-    x, means, stds = (
-        x.permute((0, 2, 1)),
-        means.permute((0, 2, 1)),
-        stds.permute((0, 2, 1)),
-    )
-    x = x.reshape((x.shape[0] * x.shape[1], -1))
-    means = means.reshape((means.shape[0] * means.shape[1], -1))
-    stds = stds.reshape((stds.shape[0] * stds.shape[1], -1))"""
     dist = torch.distributions.Independent(torch.distributions.Normal(means, stds), 1)
     log_probs = dist.log_prob(x)
     return log_probs
+
+
+def kl_divergence_non_dtw(
+    x_same, means_same, stds_same, x_other, means_other, stds_other, mask
+):
+    """Calculates the soft dynamic time warped KL divergence loss between the posterior
+    and the prior as in https://arxiv.org/pdf/2205.04421.pdf equation 10 and 11.
+    args
+    ----
+    x_same: torch.Tensor of shape (b, c, m) z in the paper.
+    means_same: torch.Tensor of shape (b, c, m) Means of the isotropic gaussian
+        x was sampled from
+    stds_same: torch.Tensor of shape (b, c, m) Standard deviations of the isotropic
+        gaussian x was sampled from
+    x_other: torch.Tensor of shape (b, c, m) f^-1(z) in the paper.
+    means_other: torch.Tensor of shape (b, c, m) Means of the isotropic gaussian to evaluate
+        the likelihood of f^-1(x) on
+    stds_other: torch.Tensor of shape (b, c, m) Standard deviations of the isotropic gaussian to
+        evaluate the likelihood of f^-1(x) on
+    mask: torch.Tensor of shape (b, 1, m) Mask for the distribution of x_same and x_other.
+    """
+    log_likelihoods_same = get_log_likelihoods(
+        x_same.permute((0, 2, 1)),
+        means_same.permute((0, 2, 1)),
+        stds_same.permute((0, 2, 1)),
+    )
+    log_likelihoods_other = get_log_likelihoods(
+        x_other.permute((0, 2, 1)),
+        means_other.permute((0, 2, 1)),
+        stds_other.permute((0, 2, 1)),
+    )
+    print(log_likelihoods_same.shape)
+    print(log_likelihoods_other.shape)
+    return log_likelihoods_same - log_likelihoods_other
 
 
 def pairwise_log_likelihoods(x, means, stds, x_mask, stats_mask):
@@ -426,6 +451,7 @@ def dtw_kl_divergence(
     mask_other: torch.Tensor of shape (b, 1, n) Mask for the distribution f^-1(x) should be evaluated on
         steps which will be masked correspond to 1 or True
     """
+    # TODO log_likelihoods_x and pairs should be evaluated on different x
     log_likelihoods_x = get_log_likelihoods(
         x.permute((0, 2, 1)),
         means_same.permute((0, 2, 1)),
@@ -447,6 +473,40 @@ def dtw_kl_divergence(
         losses.append(loss)
     loss = torch.mean(torch.cat(losses))
     return loss
+
+
+def kl_divergence_non_dtw(
+    x_same, means_same, stds_same, x_other, means_other, stds_other, mask
+):
+    """Calculates the soft dynamic time warped KL divergence loss between the posterior
+    and the prior as in https://arxiv.org/pdf/2205.04421.pdf equation 10 and 11.
+    args
+    ----
+    x_same: torch.Tensor of shape (b, c, m) z in the paper.
+    means_same: torch.Tensor of shape (b, c, m) Means of the isotropic gaussian
+        x was sampled from
+    stds_same: torch.Tensor of shape (b, c, m) Standard deviations of the isotropic
+        gaussian x was sampled from
+    x_other: torch.Tensor of shape (b, c, m) f^-1(z) in the paper.
+    means_other: torch.Tensor of shape (b, c, m) Means of the isotropic gaussian to evaluate
+        the likelihood of f^-1(x) on
+    stds_other: torch.Tensor of shape (b, c, m) Standard deviations of the isotropic gaussian to
+        evaluate the likelihood of f^-1(x) on
+    mask: torch.Tensor of shape (b, 1, m) Mask for the distribution of x_same and x_other.
+    """
+    log_likelihoods_same = get_log_likelihoods(
+        x_same.permute((0, 2, 1)),
+        means_same.permute((0, 2, 1)),
+        stds_same.permute((0, 2, 1)),
+    )
+    log_likelihoods_other = get_log_likelihoods(
+        x_other.permute((0, 2, 1)),
+        means_other.permute((0, 2, 1)),
+        stds_other.permute((0, 2, 1)),
+    )
+    print(log_likelihoods_same.shape)
+    print(log_likelihoods_other.shape)
+    return log_likelihoods_same - log_likelihoods_other
 
 
 if __name__ == "__main__":

@@ -144,17 +144,15 @@ class AcousticDataset(Dataset):
         return output
 
 
-class AcousticDataset(Dataset):
+class NaturalSpeechDataset(Dataset):
     def __init__(
         self,
         filename: str,
         batch_size: int,
         data_path: str,
-        assets_path: str,
         sort: bool = False,
         drop_last: bool = False,
     ):
-        self.tokenizer = BertTokenizer(assets_path)
         self.preprocessed_path = Path(data_path)
         self.batch_size = batch_size
         self.basename, self.speaker = self.process_meta(filename)
@@ -189,9 +187,9 @@ class AcousticDataset(Dataset):
 
         sample = {"speaker": speaker_id, "text": phone, "mel": mel, "audio": audio}
 
-        if mel.shape[1] < 20:
+        if mel.shape[1] < 33:
             print(
-                "Skipping small sample due to the mel-spectrogram containing less than 20 frames"
+                "Skipping small sample due to the mel-spectrogram containing less than 33 frames"
             )
             rand_idx = np.random.randint(0, self.__len__())
             return self.__getitem__(rand_idx)
@@ -218,7 +216,7 @@ class AcousticDataset(Dataset):
         speakers = np.array(speakers)
         texts = pad_1D(texts)
         mels = pad_2D(mels)
-        audios = pad_2D(audios)
+        audios = pad_1D(audios)
 
         return (speakers, texts, mels, audios, text_lens, mel_lens)
 

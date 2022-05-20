@@ -92,6 +92,7 @@ def get_param_num(model: torch.nn.Module) -> int:
 
 def get_nat_speech(
     checkpoint: str,
+    preprocessed_path: str,
     train_config: Dict[str, Any],
     reset: bool,
     device: torch.device,
@@ -104,9 +105,13 @@ def get_nat_speech(
     torch.optim.lr_scheduler.ExponentialLR,
     torch.optim.lr_scheduler.ExponentialLR,
 ]:
+    with open(preprocessed_path / "speakers.json", "r", encoding="utf-8") as f:
+        n_speakers = len(json.load(f))
 
     generator = NaturalSpeech(
-        preprocess_config=preprocess_config, model_config=acoustic_model_config
+        preprocess_config=preprocess_config,
+        model_config=acoustic_model_config,
+        n_speakers=n_speakers,
     )
     discriminator = Discriminator()
 
