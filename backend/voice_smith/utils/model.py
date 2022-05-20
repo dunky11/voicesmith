@@ -9,9 +9,12 @@ from voice_smith.utils.optimizer import (
     ScheduledOptimPretraining,
     ScheduledOptimFinetuning,
 )
+from voice_smith.config.acoustic_model_config import acoustic_model_config
+from voice_smith.config.preprocess_config import preprocess_config
 from voice_smith.model import acoustic_model
 from voice_smith.config.vocoder_model_config import vocoder_model_config
-from voice_smith.model.univnet import Generator as UnivNet, Discriminator
+from voice_smith.model.univnet import Discriminator
+from voice_smith.model.natural_speech import NaturalSpeech
 
 
 def get_acoustic_models(
@@ -24,7 +27,7 @@ def get_acoustic_models(
     fine_tuning: bool,
     device: torch.device,
     reset: bool,
-    assets_path: str
+    assets_path: str,
 ) -> Tuple[
     acoustic_model.AcousticModel,
     ScriptModule,
@@ -39,7 +42,7 @@ def get_acoustic_models(
         preprocess_config=preprocess_config,
         model_config=model_config,
         fine_tuning=fine_tuning,
-        n_speakers=n_speakers
+        n_speakers=n_speakers,
     ).to(device)
     if checkpoint_acoustic != None:
         ckpt = torch.load(checkpoint_acoustic)
@@ -87,13 +90,13 @@ def get_param_num(model: torch.nn.Module) -> int:
     return num_param + num_buffers
 
 
-def get_vocoder(
+def get_nat_speech(
     checkpoint: str,
     train_config: Dict[str, Any],
     reset: bool,
     device: torch.device,
 ) -> Tuple[
-    UnivNet,
+    NaturalSpeech,
     Discriminator,
     int,
     torch.optim.Optimizer,
@@ -102,7 +105,9 @@ def get_vocoder(
     torch.optim.lr_scheduler.ExponentialLR,
 ]:
 
-    generator = UnivNet()
+    generator = NaturalSpeech(
+        preprocess_config=preprocess_config, model_config=acoustic_model_config
+    )
     discriminator = Discriminator()
 
     if checkpoint is None:
@@ -152,14 +157,6 @@ def get_vocoder(
         scheduler_d.step()
 
     return generator, discriminator, steps, optim_g, optim_d, scheduler_g, scheduler_d
-
-
-def get_infer_vocoder(checkpoint: str, device: torch.device) -> UnivNet:
-    generator = UnivNet().to(device)
-    state_dict = torch.load(checkpoint, map_location=device)
-    generator.load_state_dict(state_dict["generator"])
-    generator.eval(True)
-    return generator
 
 
 def save_torchscript(

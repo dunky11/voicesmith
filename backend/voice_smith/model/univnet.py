@@ -325,9 +325,9 @@ class LVCBlock(torch.nn.Module):
 class Generator(nn.Module):
     """UnivNet Generator"""
 
-    def __init__(self):
+    def __init__(self, cond_channels):
         super(Generator, self).__init__()
-        self.mel_channel = preprocess_config["mel"]["n_mel_channels"]
+        self.mel_channel = cond_channels
         self.noise_dim = hp["gen"]["noise_dim"]
         self.hop_length = preprocess_config["stft"]["hop_length"]
         channel_size = hp["gen"]["channel_size"]
@@ -340,7 +340,7 @@ class Generator(nn.Module):
             self.res_stack.append(
                 LVCBlock(
                     channel_size,
-                    preprocess_config["mel"]["n_mel_channels"],
+                    cond_channels,
                     stride=stride,
                     dilations=hp["gen"]["dilations"],
                     lReLU_slope=hp["gen"]["lReLU_slope"],

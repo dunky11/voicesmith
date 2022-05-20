@@ -28,7 +28,7 @@ from numba import jit
 from torch.autograd import Function
 from numba import cuda
 import math
- 
+
 # ----------------------------------------------------------------------------------------------------------------------
 @cuda.jit
 def compute_softdtw_cuda(D, gamma, bandwidth, max_i, max_j, n_passes, R):
@@ -74,9 +74,12 @@ def compute_softdtw_cuda(D, gamma, bandwidth, max_i, max_j, n_passes, R):
         # Wait for other threads in this block
         cuda.syncthreads()
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 @cuda.jit
-def compute_softdtw_backward_cuda(D, R, inv_gamma, bandwidth, max_i, max_j, n_passes, E):
+def compute_softdtw_backward_cuda(
+    D, R, inv_gamma, bandwidth, max_i, max_j, n_passes, E
+):
     k = cuda.blockIdx.x
     tid = cuda.threadIdx.x
 
@@ -104,11 +107,16 @@ def compute_softdtw_backward_cuda(D, R, inv_gamma, bandwidth, max_i, max_j, n_pa
             if not (abs(i - j) > bandwidth > 0):
                 a = math.exp((R[k, i + 1, j] - R[k, i, j] - D[k, i + 1, j]) * inv_gamma)
                 b = math.exp((R[k, i, j + 1] - R[k, i, j] - D[k, i, j + 1]) * inv_gamma)
-                c = math.exp((R[k, i + 1, j + 1] - R[k, i, j] - D[k, i + 1, j + 1]) * inv_gamma)
-                E[k, i, j] = E[k, i + 1, j] * a + E[k, i, j + 1] * b + E[k, i + 1, j + 1] * c
+                c = math.exp(
+                    (R[k, i + 1, j + 1] - R[k, i, j] - D[k, i + 1, j + 1]) * inv_gamma
+                )
+                E[k, i, j] = (
+                    E[k, i + 1, j] * a + E[k, i, j + 1] * b + E[k, i + 1, j + 1] * c
+                )
 
         # Wait for other threads in this block
         cuda.syncthreads()
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 class _SoftDTWCUDA(Function):
@@ -137,9 +145,15 @@ class _SoftDTWCUDA(Function):
         # Run the CUDA kernel.
         # Set CUDA's grid size to be equal to the batch size (every CUDA block processes one sample pair)
         # Set the CUDA block size to be equal to the length of the longer sequence (equal to the size of the largest diagonal)
-        compute_softdtw_cuda[B, threads_per_block](cuda.as_cuda_array(D.detach()),
-                                                   gamma.item(), bandwidth.item(), N, M, n_passes,
-                                                   cuda.as_cuda_array(R))
+        compute_softdtw_cuda[B, threads_per_block](
+            cuda.as_cuda_array(D.detach()),
+            gamma.item(),
+            bandwidth.item(),
+            N,
+            M,
+            n_passes,
+            cuda.as_cuda_array(R),
+        )
         ctx.save_for_backward(D, R.clone(), gamma, bandwidth)
         return R[:, -2, -2]
 
@@ -156,7 +170,7 @@ class _SoftDTWCUDA(Function):
         n_passes = 2 * threads_per_block - 1
 
         D_ = torch.zeros((B, N + 2, M + 2), dtype=dtype, device=dev)
-        D_[:, 1:N + 1, 1:M + 1] = D
+        D_[:, 1 : N + 1, 1 : M + 1] = D
 
         R[:, :, -1] = -math.inf
         R[:, -1, :] = -math.inf
@@ -166,11 +180,17 @@ class _SoftDTWCUDA(Function):
         E[:, -1, -1] = 1
 
         # Grid and block sizes are set same as done above for the forward() call
-        compute_softdtw_backward_cuda[B, threads_per_block](cuda.as_cuda_array(D_),
-                                                            cuda.as_cuda_array(R),
-                                                            1.0 / gamma.item(), bandwidth.item(), N, M, n_passes,
-                                                            cuda.as_cuda_array(E))
-        E = E[:, 1:N + 1, 1:M + 1]
+        compute_softdtw_backward_cuda[B, threads_per_block](
+            cuda.as_cuda_array(D_),
+            cuda.as_cuda_array(R),
+            1.0 / gamma.item(),
+            bandwidth.item(),
+            N,
+            M,
+            n_passes,
+            cuda.as_cuda_array(E),
+        )
+        E = E[:, 1 : N + 1, 1 : M + 1]
         return grad_output.view(-1, 1, 1).expand_as(E) * E, None, None
 
 
@@ -201,9 +221,10 @@ def compute_softdtw(D, gamma, bandwidth):
                 r2 = -R[b, i, j - 1] / gamma
                 rmax = max(max(r0, r1), r2)
                 rsum = np.exp(r0 - rmax) + np.exp(r1 - rmax) + np.exp(r2 - rmax)
-                softmin = - gamma * (np.log(rsum) + rmax)
+                softmin = -gamma * (np.log(rsum) + rmax)
                 R[b, i, j] = D[b, i - 1, j - 1] + softmin
     return R
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 @jit(nopython=True)
@@ -213,7 +234,7 @@ def compute_softdtw_backward(D_, R, gamma, bandwidth):
     M = D_.shape[2]
     D = np.zeros((B, N + 2, M + 2))
     E = np.zeros((B, N + 2, M + 2))
-    D[:, 1:N + 1, 1:M + 1] = D_
+    D[:, 1 : N + 1, 1 : M + 1] = D_
     E[:, -1, -1] = 1
     R[:, :, -1] = -np.inf
     R[:, -1, :] = -np.inf
@@ -235,8 +256,11 @@ def compute_softdtw_backward(D_, R, gamma, bandwidth):
                 a = np.exp(a0)
                 b = np.exp(b0)
                 c = np.exp(c0)
-                E[k, i, j] = E[k, i + 1, j] * a + E[k, i, j + 1] * b + E[k, i + 1, j + 1] * c
-    return E[:, 1:N + 1, 1:M + 1]
+                E[k, i, j] = (
+                    E[k, i + 1, j] * a + E[k, i, j + 1] * b + E[k, i + 1, j + 1] * c
+                )
+    return E[:, 1 : N + 1, 1 : M + 1]
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 class _SoftDTW(Function):
@@ -269,6 +293,7 @@ class _SoftDTW(Function):
         E = torch.Tensor(compute_softdtw_backward(D_, R_, g_, b_)).to(dev).type(dtype)
         return grad_output.view(-1, 1, 1).expand_as(E) * E, None, None
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 class SoftDTW(torch.nn.Module):
     """
@@ -295,8 +320,12 @@ class SoftDTW(torch.nn.Module):
         bx, lx, dx = x.shape
         use_cuda = self.use_cuda
 
-        if use_cuda and (dists.shape[1] > 1024 or dists.shape[2] > 1024):  # We should be able to spawn enough threads in CUDA
-            print("SoftDTW: Cannot use CUDA because the sequence length > 1024 (the maximum block size supported by CUDA)")
+        if use_cuda and (
+            dists.shape[1] > 1024 or dists.shape[2] > 1024
+        ):  # We should be able to spawn enough threads in CUDA
+            print(
+                "SoftDTW: Cannot use CUDA because the sequence length > 1024 (the maximum block size supported by CUDA)"
+            )
             use_cuda = False
 
         # Finally, return the correct function
@@ -313,30 +342,36 @@ class SoftDTW(torch.nn.Module):
         func_dtw = self._get_func_dtw(dists)
         return func_dtw(dists, self.gamma, self.bandwidth)
 
-def get_likelihoods(x, means, stds):
-    """ 
+
+def get_log_likelihoods(x, means, stds):
+    """
     args
     ----
-    x: torch.Tensor of shape (b, c)
-    means: torch.Tensor of shape (b, c)
-    stds: torch.Tensor of shape (b, c)
-    
+    x: torch.Tensor of shape (b, c, t)
+    means: torch.Tensor of shape (b, c, t)
+    stds: torch.Tensor of shape (b, c, t)
+
     returns
     -------
-    log likelihoods of shape (b, c)
+    log likelihoods of shape (b, t)
     """
-    # covariances = torch.diag_embed(variances, offset=0, dim1=-2, dim2=-1)
-    dist = torch.distributions.normal.Normal(
-        means,
-        stds
+    assert x.shape == means.shape == stds.shape
+    """initial_shape = x.shape
+    x, means, stds = (
+        x.permute((0, 2, 1)),
+        means.permute((0, 2, 1)),
+        stds.permute((0, 2, 1)),
     )
-    # TODO is there a function that returns prob() instead of log_prob()?
-    likelihoods = torch.exp(dist.log_prob(x))
-    return likelihoods
+    x = x.reshape((x.shape[0] * x.shape[1], -1))
+    means = means.reshape((means.shape[0] * means.shape[1], -1))
+    stds = stds.reshape((stds.shape[0] * stds.shape[1], -1))"""
+    dist = torch.distributions.Independent(torch.distributions.Normal(means, stds), 1)
+    log_probs = dist.log_prob(x)
+    return log_probs
 
 
 def pairwise_log_likelihoods(x, means, stds, x_mask, stats_mask):
-    """ 
+    """
     args
     ----
     x: torch.Tensor of shape (b, c, m)
@@ -348,7 +383,8 @@ def pairwise_log_likelihoods(x, means, stds, x_mask, stats_mask):
         correspond to 1 or True
     returns
     -------
-    pairwise log likelihoods of shape (b, m, n)
+    pairwise log likelihoods of shape (b, m, n), unmasked so it runs faster,
+    you will have to mask the output yourself
     """
     assert x.shape[0] == means.shape[0] == stds.shape[0]
     assert x.shape[1] == means.shape[1] == stds.shape[1]
@@ -363,36 +399,146 @@ def pairwise_log_likelihoods(x, means, stds, x_mask, stats_mask):
     # (b, c, 1, n) => (b, c, m, n)
     means = means.expand(means.shape[0], means.shape[1], m, means.shape[3])
     stds = stds.expand(stds.shape[0], stds.shape[1], m, stds.shape[3])
-    likelihoods = get_likelihoods(x, means, stds)
-    likelihoods = likelihoods.masked_fill(x_mask.reshape((x_mask.shape[0], 1, -1, 1)), 1.0)
-    likelihoods = likelihoods.masked_fill(stats_mask.reshape((x_mask.shape[0], 1, 1, -1)), 1.0)
-    likelihoods = torch.prod(likelihoods, 1)
-    log_likelihoods = torch.log(likelihoods)
-    log_likelihoods = log_likelihoods.masked_fill(x_mask.reshape((x_mask.shape[0], -1, 1)), 0.0)
-    log_likelihoods = log_likelihoods.masked_fill(stats_mask, 0.0)
+    log_likelihoods = get_log_likelihoods(
+        x.permute(0, 2, 3, 1), means.permute(0, 2, 3, 1), stds.permute(0, 2, 3, 1)
+    )
     return log_likelihoods
 
+
+def dtw_kl_divergence(
+    x, means_same, stds_same, means_other, stds_other, mask_same, mask_other
+):
+    """Calculates the soft dynamic time warped KL divergence loss between the posterior
+    and the prior as in https://arxiv.org/pdf/2205.04421.pdf equation 10 and 11.
+    args
+    ----
+    x: torch.Tensor of shape (b, c, m)
+    means_same: torch.Tensor of shape (b, c, m) Means of the isotropic gaussian
+        x was sampled from
+    stds_same: torch.Tensor of shape (b, c, m) Standard deviations of the isotropic
+        gaussian x was sampled from
+    means_other: torch.Tensor of shape (b, c, n) Means of the isotropic gaussian to evaluate
+        the likelihood of f^-1(x) on
+    stds_other: torch.Tensor of shape (b, c, n) Standard deviations of the isotropic gaussian to
+        evaluate the likelihood of f^-1(x) on
+    mask_same: torch.Tensor of shape (b, 1, m) Mask for the distribution x was sampled from.
+        steps which will be masked should have a value of 1 or True.
+    mask_other: torch.Tensor of shape (b, 1, n) Mask for the distribution f^-1(x) should be evaluated on
+        steps which will be masked correspond to 1 or True
+    """
+    log_likelihoods_x = get_log_likelihoods(
+        x.permute((0, 2, 1)),
+        means_same.permute((0, 2, 1)),
+        stds_same.permute((0, 2, 1)),
+    )
+    pairs = pairwise_log_likelihoods(
+        x=x, means=means_other, stds=stds_other, x_mask=mask_same, stats_mask=mask_other
+    )
+    pairwise_kl = log_likelihoods_x.unsqueeze(-1) - pairs
+    dtw = SoftDTW(use_cuda=pairwise_kl.is_cuda, gamma=0.01)
+    # TODO can be parallelized
+    losses = []
+    for batch_idx in range(pairwise_kl.shape[0]):
+        same_length = mask_same.shape[-1] - torch.sum(mask_same[batch_idx])
+        other_length = mask_other.shape[-1] - torch.sum(mask_other[batch_idx])
+        loss = dtw(
+            pairwise_kl[batch_idx, :same_length, :other_length].unsqueeze(0).cuda()
+        )
+        losses.append(loss)
+    loss = torch.mean(torch.cat(losses))
+    return loss
+
+
 if __name__ == "__main__":
-    b, c, m, n = 10, 192, 30, 20
-    x = torch.FloatTensor([[
-        [3, 2],
-        [2, 4],
-    ]])
-    means = torch.FloatTensor([[
-        [3, 2, 4],
-        [2, 4, 4],
-    ]])
-    stds = torch.FloatTensor([[
-        [3, 2, 6],
-        [2, 4, 5],
-    ]])
-    x_mask = torch.LongTensor([[
-        [0, 0],
-    ]])
-    stats_mask = torch.LongTensor([[
-        [0, 0, 1],
-    ]])
-    pairs = pairwise_log_likelihoods(x, means, stds, x_mask=x_mask, stats_mask=stats_mask)
+    b, c, m, n = 10, 192, 30, 2
+
+    """x = torch.ones(2, 10, 10, 10)
+    loc = torch.zeros(2, 10, 10, 10)
+    scale = torch.ones(2, 10, 10, 10) * 1
+
+    print(get_log_likelihoods(x, loc, scale))
+
+    x = torch.ones(2, 10, 10)
+    loc = torch.zeros(2, 10, 10)
+    scale = torch.ones(2, 10, 10) * 2
+
+    print(get_log_likelihoods(x, loc, scale))
+
+    x = torch.ones(2, 10)
+    loc = torch.zeros(2, 10)
+    scale = torch.ones(2, 10) * 3
+
+    print(get_log_likelihoods(x, loc, scale))
+
+    x = torch.FloatTensor(
+        [
+            [
+                [1, 1],
+                [1, 1],
+            ]
+        ]
+    )
+    means = torch.FloatTensor(
+        [
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+            ]
+        ]
+    )
+    stds = torch.FloatTensor(
+        [
+            [
+                [1, 1, 1],
+                [1, 1, 1],
+            ]
+        ]
+    )
+    x_mask = torch.LongTensor(
+        [
+            [
+                [0, 0],
+            ]
+        ]
+    )
+    stats_mask = torch.LongTensor(
+        [
+            [
+                [0, 0, 0],
+            ]
+        ]
+    )"""
+
+    device = torch.device("cuda")
+
+    b, c, m, n = 10, 256, 800, 100
+    x = torch.ones(b, c, m).to(device) + 2
+    means_same = torch.zeros_like(x).to(device)
+    stds_same = torch.ones_like(x).to(device)
+    means_other = torch.zeros(b, c, n).to(device)
+    stds_other = torch.ones(b, c, n).to(device)
+    x_mask = torch.zeros(b, 1, m).to(device).bool()
+    stats_mask = torch.zeros(b, 1, n).to(device).bool()
+
+    import time
+
+    start_time = time.time()
+    loss = dtw_kl_divergence(
+        x=x,
+        means_same=means_same,
+        stds_same=stds_same,
+        means_other=means_other,
+        stds_other=stds_other,
+        mask_same=x_mask,
+        mask_other=stats_mask,
+    )
+    end_time = time.time() - start_time
+    print(end_time)
+    print(loss)
+    """
+    pairs = pairwise_log_likelihoods(
+        x, means, stds, x_mask=x_mask, stats_mask=stats_mask
+    )
     from scipy.stats import multivariate_normal
     y = multivariate_normal.logpdf(x=x[0, :, 0], mean=means[0, :, 0], cov=stds[0, :, 0] ** 2)
     print(y)
@@ -400,4 +546,4 @@ if __name__ == "__main__":
     m_idx, n_idx = 1, 1
     y = multivariate_normal.logpdf(x=x[0, :, m_idx], mean=means[0, :, n_idx], cov=stds[0, :, n_idx] ** 2)
     print(y)
-    print(pairs[0, m_idx, n_idx])
+    print(pairs[0, m_idx, n_idx])"""

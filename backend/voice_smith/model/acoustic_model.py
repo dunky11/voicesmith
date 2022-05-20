@@ -33,7 +33,7 @@ class AcousticModel(nn.Module):
         preprocess_config: Dict[str, Any],
         model_config: Dict[str, Any],
         fine_tuning: bool,
-        n_speakers: int
+        n_speakers: int,
     ):
         super().__init__()
         n_src_vocab = len(symbols) + 1
@@ -97,9 +97,7 @@ class AcousticModel(nn.Module):
         self.proj_speaker = EmbeddingProjBlock(model_config["speaker_embed_dim"])
 
         self.speaker_embed = Parameter(
-            tools.initialize_embeddings(
-                (n_speakers, model_config["speaker_embed_dim"])
-            )
+            tools.initialize_embeddings((n_speakers, model_config["speaker_embed_dim"]))
         )
 
     def get_embeddings(
@@ -645,7 +643,7 @@ class LengthAdaptor(nn.Module):
             src_mask,
         )
         duration_rounded = torch.clamp(
-            (torch.round(torch.exp(log_duration_prediction) - 1) * control),
+            (torch.round((torch.exp(log_duration_prediction) - 1) * control)),
             min=0,
         )
         x, _ = self.length_regulate(x, duration_rounded)

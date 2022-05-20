@@ -144,6 +144,105 @@ class AcousticDataset(Dataset):
         return output
 
 
+class AcousticDataset(Dataset):
+    def __init__(
+        self,
+        filename: str,
+        batch_size: int,
+        data_path: str,
+        assets_path: str,
+        sort: bool = False,
+        drop_last: bool = False,
+    ):
+        self.tokenizer = BertTokenizer(assets_path)
+        self.preprocessed_path = Path(data_path)
+        self.batch_size = batch_size
+        self.basename, self.speaker = self.process_meta(filename)
+        with open(self.preprocessed_path / "speakers.json") as f:
+            self.speaker_map = json.load(f)
+        self.sort = sort
+        self.drop_last = drop_last
+
+        with open(self.preprocessed_path / "stats.json") as f:
+            stats = json.load(f)
+            self.pitch_max, self.pitch_mean, self.pitch_std = (
+                stats["pitch"][1],
+                stats["pitch"][2],
+                stats["pitch"][3],
+            )
+
+    def __len__(self) -> int:
+        return len(self.basename)
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        basename = self.basename[idx]
+        speaker_name = self.speaker[idx]
+        speaker_id = self.speaker_map[speaker_name]
+        data = torch.load(
+            self.preprocessed_path / "data" / speaker_name / f"{basename}.pt"
+        )
+        mel = data["mel"]
+        phone = torch.LongTensor(phones_to_token_ids(data["phones"]))
+        wav_path = self.preprocessed_path / "wav" / speaker_name / f"{basename}.pt"
+        audio_data = torch.load(wav_path)
+        audio = audio_data["wav"]
+
+        sample = {"speaker": speaker_id, "text": phone, "mel": mel, "audio": audio}
+
+        if mel.shape[1] < 20:
+            print(
+                "Skipping small sample due to the mel-spectrogram containing less than 20 frames"
+            )
+            rand_idx = np.random.randint(0, self.__len__())
+            return self.__getitem__(rand_idx)
+
+        return sample
+
+    def process_meta(self, filename: str) -> Tuple[List[str], List[str]]:
+        with open(self.preprocessed_path / filename, "r", encoding="utf-8") as f:
+            name = []
+            speaker = []
+            for line in f.readlines():
+                n, s = line.strip("\n").split("|")
+                name.append(n)
+                speaker.append(s)
+        return name, speaker
+
+    def reprocess(self, data: List[Dict[str, Any]], idxs: List[int]):
+        speakers = [data[idx]["speaker"] for idx in idxs]
+        texts = [data[idx]["text"] for idx in idxs]
+        mels = [data[idx]["mel"] for idx in idxs]
+        audios = [data[idx]["audio"] for idx in idxs]
+        text_lens = np.array([text.shape[0] for text in texts])
+        mel_lens = np.array([mel.shape[1] for mel in mels])
+        speakers = np.array(speakers)
+        texts = pad_1D(texts)
+        mels = pad_2D(mels)
+        audios = pad_2D(audios)
+
+        return (speakers, texts, mels, audios, text_lens, mel_lens)
+
+    def collate_fn(self, data):
+        data_size = len(data)
+
+        if self.sort:
+            len_arr = np.array([d["text"].shape[0] for d in data])
+            idx_arr = np.argsort(-len_arr)
+        else:
+            idx_arr = np.arange(data_size)
+
+        tail = idx_arr[len(idx_arr) - (len(idx_arr) % self.batch_size) :]
+        idx_arr = idx_arr[: len(idx_arr) - (len(idx_arr) % self.batch_size)]
+        idx_arr = idx_arr.reshape((-1, self.batch_size)).tolist()
+        if not self.drop_last and len(tail) > 0:
+            idx_arr += [tail.tolist()]
+
+        output = list()
+        for idx in idx_arr:
+            output.append(self.reprocess(data, idx))
+        return output
+
+
 class VocoderDataset(Dataset):
     def __init__(
         self,

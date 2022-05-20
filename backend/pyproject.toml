@@ -25,6 +25,7 @@ fire = "^0.4.0"
 waitress = "^2.1.1"
 numba = "^0.55.1"
 SoundFile = "^0.10.3"
+Cython = "0.29.21"
     
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"
