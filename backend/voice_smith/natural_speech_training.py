@@ -615,13 +615,13 @@ if __name__ == "__main__":
     train_vocoder(
         db_id=None,
         training_run_name="univnet_pretraining",
-        train_config=vocoder_pre_training_config,
-        logger=logger,
-        device=torch.device("cuda"),
-        reset=False,
-        training_runs_path=training_runs_path,
-        checkpoint_path=Path(".") / ".." / ".." / "training_runs" / "univnet_pretraining" / "ckpt" / "vocoder" / "vocoder_44500.pt",
-        fine_tuning=False,
-        overwrite_saves=False,
-        stop_after_hour=None,
-    )
+            train_config=vocoder_pre_training_config,
+            logger=logger,
+            device=torch.device("cuda"),
+            reset=False,
+            training_runs_path=training_runs_path,
+            checkpoint_path=Path(".") / ".." / ".." / "training_runs" / "univnet_pretraining" / "ckpt" / "vocoder" / "vocoder_52500.pt",
+            fine_tuning=False,
+            overwrite_saves=False,
+            stop_after_hour=None,
+        )
