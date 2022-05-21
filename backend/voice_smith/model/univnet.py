@@ -628,7 +628,6 @@ class SpectralConvergengeLoss(torch.nn.Module):
         """
         return torch.norm(y_mag - x_mag, p="fro") / torch.norm(y_mag, p="fro")
 
-
 class LogSTFTMagnitudeLoss(torch.nn.Module):
     """Log STFT magnitude loss module."""
 

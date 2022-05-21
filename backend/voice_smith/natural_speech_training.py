@@ -18,7 +18,7 @@ from voice_smith.utils.tools import (
 from voice_smith.config.preprocess_config import preprocess_config
 from voice_smith.config.vocoder_model_config import vocoder_model_config as hp
 from voice_smith.utils.metrics import calc_rmse, calc_pesq, calc_estoi
-from voice_smith.model.natural_speech import slice_segments
+from voice_smith.model.vits_orig import slice_segments
 
 # torch.backends.cudnn.benchmark = True
 
@@ -103,9 +103,10 @@ def synth_iter(
                 speakers, texts, mel, audio, text_lens, mel_lens = to_device(
                     batch, device
                 )
-                audio_fake = generator(
-                    x=texts[0:1],
-                    speakers=speakers[0:1],
+                audio_fake = generator.infer(
+                    texts[0:1, : text_lens[0].item()],
+                    x_lengths=text_lens[0:1],
+                    sid=speakers[0:1],
                 )
 
                 logger.log_audio(
@@ -185,21 +186,21 @@ def get_batch(loader, device):
     return to_device(next(loader), device)
 
 
-def kl_loss(z_p, logs_q, m_p, logs_p, mask):
+def kl_loss(z_p, logs_q, m_p, logs_p, z_mask):
     """
     z_p, logs_q: [b, h, t_t]
     m_p, logs_p: [b, h, t_t]
     """
-    """z_p = z_p.float()
+    z_p = z_p.float()
     logs_q = logs_q.float()
     m_p = m_p.float()
     logs_p = logs_p.float()
-    z_mask = z_mask.float()"""
-    mask = ~mask
+    z_mask = z_mask.float()
+
     kl = logs_p - logs_q - 0.5
     kl += 0.5 * ((z_p - m_p) ** 2) * torch.exp(-2.0 * logs_p)
-    kl = torch.sum(kl * mask)
-    l = kl / torch.sum(mask)
+    kl = torch.sum(kl * z_mask)
+    l = kl / torch.sum(z_mask)
     return l
 
 
@@ -223,7 +224,6 @@ def train_iter(
         "mel_loss": 0,
         "score_loss": 0,
         "kl_loss_backward": 0,
-        "kl_loss_forward": 0,
         "l_dur": 0,
     }
 
@@ -238,43 +238,26 @@ def train_iter(
         )
         audio = audio.unsqueeze(1)
 
-        output = generator.forward_train(
-            x=texts,
-            speakers=speakers,
-            src_lens=text_lens,
-            specs=mel,
-            spec_lens=mel_lens,
+        (
+            fake_audio,
+            l_length,
+            attn,
+            ids_slice,
+            x_mask,
+            z_mask,
+            (z, z_p, m_p, logs_p, m_q, logs_q),
+        ) = generator(
+            x=texts, x_lengths=text_lens, y=mel, y_lengths=mel_lens, sid=speakers
         )
 
-        ids_slice = output["sample_q_ids_slice"]
-        fake_audio = output["wave"]
+        mel = slice_segments(mel, ids_slice, 8192 // 256)
+
+        audio = slice_segments(audio, ids_slice * 256, 8192)  # slice
 
         res_fake, period_fake = discriminator(fake_audio)
 
-        audio = slice_segments(audio, ids_slice * 256, 32 * 256)
-
-        kl_loss_backward = kl_loss(
-            z_p=output["z_p"],
-            logs_q=output["log_std_q"],
-            m_p=output["mu_p"],
-            logs_p=output["log_std_p"],
-            mask=output["spec_mask"],
-        )
-        """kl_loss_forward = kl_divergence_non_dtw(
-            x_same=output["sample_p"],
-            means_same=output["mu_p"],
-            stds_same=output["std_p"],
-            x_other=output["z_q"],
-            means_other=output["mu_q"],
-            stds_other=output["std_q"],
-            mask=output["spec_mask"],
-        )"""
-        kl_loss_forward = torch.cuda.FloatTensor([0.0])
-        l_dur = duration_loss(
-            log_duration_pred=output["log_duration_pred"],
-            log_duration_true=output["log_duration_mas"],
-            mask=output["src_mask"],
-        )
+        loss_dur = torch.sum(l_length.float())
+        loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask)
 
         sc_loss, mag_loss = stft_criterion(fake_audio.squeeze(1), audio.squeeze(1))
         stft_loss = (sc_loss + mag_loss) * stft_lamb
@@ -285,15 +268,14 @@ def train_iter(
             score_loss += torch.mean(torch.pow(score_fake - 1.0, 2))
 
         score_loss = score_loss / len(res_fake + period_fake)
-        loss_g = score_loss + stft_loss + kl_loss_backward + kl_loss_forward + l_dur
+        loss_g = score_loss + stft_loss + loss_dur + loss_kl
         batch_size = mel.shape[0]
         len_group += batch_size
         loss_means["total_loss_gen"] += loss_g * batch_size
         loss_means["mel_loss"] += stft_loss * batch_size
         loss_means["score_loss"] += score_loss * batch_size
-        loss_means["kl_loss_backward"] += kl_loss_backward * batch_size
-        loss_means["kl_loss_forward"] += kl_loss_forward * batch_size
-        loss_means["l_dur"] += l_dur * batch_size
+        loss_means["kl_loss_backward"] += loss_kl * batch_size
+        loss_means["l_dur"] += loss_dur * batch_size
 
         (loss_g / grad_accum_steps).backward()
 
@@ -367,42 +349,28 @@ def evaluate(generator, loader, device, stft_criterion, stft_lamb):
 
                 audio = audio.unsqueeze(1)
 
-                output = generator.forward_train(
+                (
+                    fake_audio,
+                    l_length,
+                    attn,
+                    ids_slice,
+                    x_mask,
+                    z_mask,
+                    (z, z_p, m_p, logs_p, m_q, logs_q),
+                ) = generator(
                     x=texts,
-                    speakers=speakers,
-                    src_lens=text_lens,
-                    specs=mel,
-                    spec_lens=mel_lens,
+                    x_lengths=text_lens,
+                    y=mel,
+                    y_lengths=mel_lens,
+                    sid=speakers,
                 )
 
-                ids_slice = output["sample_q_ids_slice"]
-                fake_audio = output["wave"]
+                mel = slice_segments(mel, ids_slice, 8192 // 256)
 
-                audio = slice_segments(audio, ids_slice * 256, 32 * 256)
+                audio = slice_segments(audio, ids_slice * 256, 8192)  # slice
 
-                kl_loss_backward = kl_loss(
-                    z_p=output["z_p"],
-                    logs_q=output["log_std_q"],
-                    m_p=output["mu_p"],
-                    logs_p=output["log_std_p"],
-                    mask=output["spec_mask"],
-                )
-                """
-                kl_loss_forward = kl_divergence_non_dtw(
-                    x_same=output["sample_p"],
-                    means_same=output["mu_p"],
-                    stds_same=output["std_p"],
-                    x_other=output["z_q"],
-                    means_other=output["mu_q"],
-                    stds_other=output["std_q"],
-                    mask=output["spec_mask"],
-                )
-                """
-                l_dur = duration_loss(
-                    log_duration_pred=output["log_duration_pred"],
-                    log_duration_true=output["log_duration_mas"],
-                    mask=output["src_mask"],
-                )
+                loss_dur = torch.sum(l_length.float())
+                loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask)
 
                 sc_loss, mag_loss = stft_criterion(
                     fake_audio.squeeze(1), audio.squeeze(1)
@@ -430,8 +398,8 @@ def evaluate(generator, loader, device, stft_criterion, stft_lamb):
                 loss_means["estoi"] += estoi * batch_size
                 loss_means["mel_loss"] += stft_loss * batch_size
                 loss_means["rmse"] += rmse * batch_size
-                loss_means["kl_loss_backward"] += kl_loss_backward * batch_size
-                loss_means["duration_loss"] += l_dur * batch_size
+                loss_means["kl_loss_backward"] += loss_kl * batch_size
+                loss_means["duration_loss"] += loss_dur * batch_size
 
     if len_group_pesq > 0:
         loss_means["pesq"] /= len_group_pesq
@@ -641,9 +609,9 @@ if __name__ == "__main__":
         vocoder_pre_training_config,
     )
 
-    training_runs_path = Path(".") / ".." / "training_runs"
+    training_runs_path = Path(".") / ".." / ".." / "training_runs"
 
-    logger = WandBLogger("Natural Speech Pretraining Memory bug Fixed")
+    logger = WandBLogger("VITS orig")
     train_vocoder(
         db_id=None,
         training_run_name="univnet_pretraining",
@@ -652,7 +620,7 @@ if __name__ == "__main__":
         device=torch.device("cuda"),
         reset=False,
         training_runs_path=training_runs_path,
-        checkpoint_path=None,
+        checkpoint_path=Path(".") / ".." / ".." / "training_runs" / "univnet_pretraining" / "ckpt" / "vocoder" / "vocoder_44500.pt",
         fine_tuning=False,
         overwrite_saves=False,
         stop_after_hour=None,

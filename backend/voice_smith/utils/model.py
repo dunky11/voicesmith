@@ -15,6 +15,7 @@ from voice_smith.model import acoustic_model
 from voice_smith.config.vocoder_model_config import vocoder_model_config
 from voice_smith.model.univnet import Discriminator
 from voice_smith.model.natural_speech import NaturalSpeech
+from voice_smith.model.vits_orig import SynthesizerTrn
 
 
 def get_acoustic_models(
@@ -97,7 +98,7 @@ def get_nat_speech(
     reset: bool,
     device: torch.device,
 ) -> Tuple[
-    NaturalSpeech,
+    SynthesizerTrn,
     Discriminator,
     int,
     torch.optim.Optimizer,
@@ -108,9 +109,7 @@ def get_nat_speech(
     with open(preprocessed_path / "speakers.json", "r", encoding="utf-8") as f:
         n_speakers = len(json.load(f))
 
-    generator = NaturalSpeech(
-        preprocess_config=preprocess_config,
-        model_config=acoustic_model_config,
+    generator = SynthesizerTrn(
         n_speakers=n_speakers,
     )
     discriminator = Discriminator()
