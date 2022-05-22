@@ -1128,11 +1128,10 @@ class DurationPredictor(nn.Module):
         if gin_channels != 0:
             self.cond = nn.Conv1d(gin_channels, in_channels, 1)
 
-    def forward(self, x, x_mask, g=None):
+    def forward(self, x, x_mask, g):
         x = torch.detach(x)
-        if g is not None:
-            g = torch.detach(g)
-            x = x + self.cond(g)
+        g = torch.detach(g)
+        x = x + self.cond(g)
         x = self.conv_1(x * x_mask)
         x = torch.relu(x)
         x = self.norm_1(x)
@@ -1271,6 +1270,8 @@ class PosteriorEncoder(nn.Module):
         z = (m + torch.randn_like(m) * torch.exp(logs)) * x_mask
         return z, m, logs, x_mask
 
+def upsample_mask(mask, upsample_rate):
+    return torch.repeat_interleave(mask, upsample_rate, 2)
 
 class Generator(torch.nn.Module):
     def __init__(
@@ -1291,7 +1292,7 @@ class Generator(torch.nn.Module):
             initial_channel, upsample_initial_channel, 7, 1, padding=3
         )
         resblock = ResBlock1 if resblock == "1" else ResBlock2
-
+        self.upsample_rates = upsample_rates
         self.ups = nn.ModuleList()
         for i, (u, k) in enumerate(zip(upsample_rates, upsample_kernel_sizes)):
             self.ups.append(
@@ -1320,14 +1321,17 @@ class Generator(torch.nn.Module):
         if gin_channels != 0:
             self.cond = nn.Conv1d(gin_channels, upsample_initial_channel, 1)
 
-    def forward(self, x, g=None):
+    def forward(self, x, g, mask):
         x = self.conv_pre(x)
         if g is not None:
             x = x + self.cond(g)
 
         for i in range(self.num_upsamples):
             x = F.leaky_relu(x, LRELU_SLOPE)
+            x = x * mask
             x = self.ups[i](x)
+            mask = upsample_mask(mask, self.upsample_rates[i])
+            x = x * mask
             xs = None
             for j in range(self.num_kernels):
                 if xs is None:
@@ -1338,7 +1342,7 @@ class Generator(torch.nn.Module):
         x = F.leaky_relu(x)
         x = self.conv_post(x)
         x = torch.tanh(x)
-
+        x = x * mask
         return x
 
     def remove_weight_norm(self):
@@ -1624,13 +1628,12 @@ class SynthesizerTrn(nn.Module):
         m_p = torch.matmul(attn.squeeze(1), m_p.transpose(1, 2)).transpose(1, 2)
         logs_p = torch.matmul(attn.squeeze(1), logs_p.transpose(1, 2)).transpose(1, 2)
 
-        z_slice, ids_slice = rand_slice_segments(z, y_lengths, self.segment_size)
-        o = self.dec(z_slice, g=g)
+        # z_slice, ids_slice = rand_slice_segments(z, y_lengths, self.segment_size)
+        o = self.dec(z, g=g, mask=y_mask)
         return (
             o,
             l_length,
             attn,
-            ids_slice,
             x_mask,
             y_mask,
             (z, z_p, m_p, logs_p, m_q, logs_q),
@@ -1641,7 +1644,7 @@ class SynthesizerTrn(nn.Module):
         x,
         x_lengths,
         sid=None,
-        noise_scale=1,
+        noise_scale=0.33333,
         length_scale=1,
         noise_scale_w=1.0,
         max_len=None,
@@ -1672,9 +1675,9 @@ class SynthesizerTrn(nn.Module):
 
         z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
         z = self.flow(z_p, y_mask, g=g, reverse=True)
-        o = self.dec((z * y_mask)[:, :, :max_len], g=g)
+        o = self.dec((z * y_mask)[:, :, :max_len], g=g, mask=y_mask)
         return o
-
+ 
     def voice_conversion(self, y, y_lengths, sid_src, sid_tgt):
         assert self.n_speakers > 0, "n_speakers have to be larger than 0."
         g_src = self.emb_g(sid_src).unsqueeze(-1)

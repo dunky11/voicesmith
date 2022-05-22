@@ -7,6 +7,7 @@ import {
   DatabaseOutlined,
   ClearOutlined,
   SettingOutlined,
+  FormOutlined,
 } from "@ant-design/icons";
 import { createUseStyles } from "react-jss";
 import MainLoading from "./pages/main_loading/MainLoading";
@@ -19,6 +20,7 @@ import PreprocessingRuns from "./pages/preprocessing_runs/PreprocessingRuns";
 import Terminal from "./components/log_printer/Terminal";
 import { RunInterface, TerminalMessage } from "./interfaces";
 import Settings from "./pages/settings/Settings";
+import Transcribe from "./pages/transcribe/Transcribe";
 const { ipcRenderer, shell } = window.require("electron");
 
 const useStyles = createUseStyles({
@@ -89,6 +91,9 @@ export default function App() {
     switch (key) {
       case "models":
         history.push("/models/selection");
+        break;
+      case "transcribe":
+        history.push("/transcribe");
         break;
       case "datasets":
         history.push("/datasets/dataset-selection");
@@ -374,6 +379,16 @@ export default function App() {
               </Menu.Item>
               <Menu.Item
                 onClick={() => {
+                  onNavigationSelect({ key: "transcribe" });
+                }}
+                key="transcribe"
+                icon={<FormOutlined className={classes.navIcon} />}
+                className={classes.navItem}
+              >
+                Transcribe
+              </Menu.Item>
+              <Menu.Item
+                onClick={() => {
                   onNavigationSelect({ key: "datasets" });
                 }}
                 key="datasets"
@@ -440,6 +455,10 @@ export default function App() {
                   </Switch>
                 )}
                 path="/models"
+              ></Route>
+              <Route
+                render={() => <Transcribe></Transcribe>}
+                path="/transcribe"
               ></Route>
               <Route
                 render={() => (

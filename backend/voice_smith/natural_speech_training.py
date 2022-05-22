@@ -18,7 +18,7 @@ from voice_smith.utils.tools import (
 from voice_smith.config.preprocess_config import preprocess_config
 from voice_smith.config.vocoder_model_config import vocoder_model_config as hp
 from voice_smith.utils.metrics import calc_rmse, calc_pesq, calc_estoi
-from voice_smith.model.vits_orig import slice_segments
+from voice_smith.model.vits_orig import slice_segments, rand_slice_segments
 
 # torch.backends.cudnn.benchmark = True
 
@@ -242,7 +242,6 @@ def train_iter(
             fake_audio,
             l_length,
             attn,
-            ids_slice,
             x_mask,
             z_mask,
             (z, z_p, m_p, logs_p, m_q, logs_q),
@@ -250,16 +249,16 @@ def train_iter(
             x=texts, x_lengths=text_lens, y=mel, y_lengths=mel_lens, sid=speakers
         )
 
-        mel = slice_segments(mel, ids_slice, 8192 // 256)
-
-        audio = slice_segments(audio, ids_slice * 256, 8192)  # slice
+        fake_audio, ids_slice = rand_slice_segments(fake_audio, mel_lens * 256, 8192)
+        mel = slice_segments(mel, ids_slice // 256, 32)
+        audio = slice_segments(audio, ids_slice, 8192)  # slice
 
         res_fake, period_fake = discriminator(fake_audio)
 
         loss_dur = torch.sum(l_length.float())
         loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask)
 
-        sc_loss, mag_loss = stft_criterion(fake_audio.squeeze(1), audio.squeeze(1))
+        sc_loss, mag_loss = stft_criterion(fake_audio.squeeze(1), audio.squeeze(1), z_mask)
         stft_loss = (sc_loss + mag_loss) * stft_lamb
 
         score_loss = 0.0
@@ -373,7 +372,7 @@ def evaluate(generator, loader, device, stft_criterion, stft_lamb):
                 loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask)
 
                 sc_loss, mag_loss = stft_criterion(
-                    fake_audio.squeeze(1), audio.squeeze(1)
+                    fake_audio.squeeze(1), audio.squeeze(1), z_mask
                 )
                 stft_loss = (sc_loss + mag_loss) * stft_lamb
 
@@ -611,7 +610,7 @@ if __name__ == "__main__":
 
     training_runs_path = Path(".") / ".." / ".." / "training_runs"
 
-    logger = WandBLogger("VITS orig")
+    logger = WandBLogger("VITS orig dur detach")
     train_vocoder(
         db_id=None,
         training_run_name="univnet_pretraining",
@@ -620,7 +619,7 @@ if __name__ == "__main__":
             device=torch.device("cuda"),
             reset=False,
             training_runs_path=training_runs_path,
-            checkpoint_path=Path(".") / ".." / ".." / "training_runs" / "univnet_pretraining" / "ckpt" / "vocoder" / "vocoder_52500.pt",
+            checkpoint_path=Path(".") / ".." / ".." / "training_runs" / "univnet_pretraining" / "ckpt" / "vocoder" / "vocoder_66750.pt",
             fine_tuning=False,
             overwrite_saves=False,
             stop_after_hour=None,
