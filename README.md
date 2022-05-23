@@ -8,7 +8,7 @@ VoiceSmith makes it possible to train and infer on both single and multispeaker 
 
 #### Hardware:
 * OS: Windows or any Linux based operating system.
-* Graphics: NVIDIA GPU with CUDA support is heavily recommended, you can train on CPU otherwise but it will take days if not weeks. [Click here](https://developer.nvidia.com/cuda-gpus) for a list of GPUs with CUDA support.
+* Graphics: NVIDIA GPU with [CUDA support](https://developer.nvidia.com/cuda-gpus) is heavily recommended, you can train on CPU otherwise but it will take days if not weeks.
 * RAM: 8GB of RAM, you can try with less but it may not work.
 
 #### Software:
