@@ -9,7 +9,7 @@ If you want to play around with a model trained on a highly emotional emotional 
 ## Requirements
 
 #### Hardware
-* OS: Windows or any Linux based operating system, if you want to run this on macOS you have to follow the steps in build from source in order to create the installer. This is untested since I don't currently own a Mac.
+* OS: Windows or any Linux based operating system. If you want to run this on macOS you have to follow the steps in build from source in order to create the installer. This is untested since I don't currently own a Mac.
 * Graphics: NVIDIA GPU with [CUDA support](https://developer.nvidia.com/cuda-gpus) is highly recommended, you can train on CPU otherwise but it will take days if not weeks.
 * RAM: 8GB of RAM, you can try with less but it may not work.
 
