@@ -112,7 +112,7 @@ __pycache__/
 /dist/
 /entry.build/
 /entry.dist/
-/assets/
+/assets/*.pt
 *.egg-info/
 
 # Enviroment
