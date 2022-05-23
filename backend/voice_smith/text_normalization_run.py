@@ -37,7 +37,7 @@ def continue_text_normalization_run(
         elif stage == "text_normalization":
             set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             print("Normalizing Text ...\n")
-            container = reload_docker(user_data_path=user_data_path)
+            container = reload_docker(user_data_path=user_data_path, db_path=db_path)
 
             row = cur.execute(
                 "SELECT language FROM text_normalization_run WHERE ID=?",

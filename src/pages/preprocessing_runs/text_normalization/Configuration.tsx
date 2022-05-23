@@ -191,7 +191,6 @@ export default function Configuration({
         ref={(node) => {
           formRef.current = node;
         }}
-        style={{ padding: "16px 16px 0px 16px" }}
         initialValues={initialValues}
         onFinish={onFinish}
       >

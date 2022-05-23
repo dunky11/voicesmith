@@ -86,9 +86,7 @@ export default function Preprocessing({
   return (
     <RunCard
       buttons={[
-        <Button style={{ marginRight: 8 }} onClick={onBackClick}>
-          Back
-        </Button>,
+        <Button onClick={onBackClick}>Back</Button>,
         <Button
           type="primary"
           disabled={selectedID === null}

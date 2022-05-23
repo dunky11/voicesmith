@@ -289,7 +289,7 @@ def extract_data(
             continue
         line, n_frames = ret
         n_frames_total += n_frames
-        out += line
+        out.append(line)
         speaker_names.append(line.split("|")[1])
 
     print("Calculating pitch stats")

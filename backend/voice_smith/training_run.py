@@ -247,7 +247,7 @@ def continue_training_run(
             elif preprocessing_stage == "gen_vocab":
                 (data_path / "data").mkdir(exist_ok=True, parents=True)
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
-                container = reload_docker(user_data_path=user_data_path)    
+                container = reload_docker(user_data_path=user_data_path, db_path=db_path)    
                 generate_vocab(container, training_run_name=str(training_run_id))
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_alignments', preprocessing_gen_vocab_progress=1.0 WHERE ID=?",
@@ -257,9 +257,8 @@ def continue_training_run(
 
             elif preprocessing_stage == "gen_alignments":
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
-                container = reload_docker(user_data_path=user_data_path)
+                container = reload_docker(user_data_path=user_data_path, db_path=db_path)
                 align(container, training_run_name=str(training_run_id))
-                quit()
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='extract_data', preprocessing_gen_align_progress=1.0 WHERE ID=?",
                     (training_run_id,),

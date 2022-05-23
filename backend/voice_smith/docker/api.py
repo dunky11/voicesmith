@@ -13,7 +13,7 @@ def load_image_if_needed() -> None:
     client.images.get(_CONTAINER_NAME)
 
 
-def rerun_container(user_data_path: str) -> Any:
+def rerun_container(user_data_path: str, db_path: str) -> Any:
     client = docker.from_env()
     try:
         container = client.containers.get(_CONTAINER_NAME)
@@ -23,15 +23,13 @@ def rerun_container(user_data_path: str) -> Any:
 
     out_path = "/home/voice_smith/data"
     volumes = [
-        f"{user_data_path}:{out_path}"
+        f"{user_data_path}:/home/voice_smith/data",
+        f"{Path(db_path).parent}:/home/voice_smith/db"
     ]
     container = client.containers.run(
         _CONTAINER_NAME, tty=True, detach=True, name=_CONTAINER_NAME, volumes=volumes
     )
     return container
-
-if __name__ == "__main__":
-    rerun_container("/home/tim/.config/voice-smith/data")
 
 def get_container() -> Any:
     client = docker.from_env()
@@ -67,10 +65,10 @@ def align(container: Any, training_run_name: str):
     )
 
 
-def text_normalize(container: Any, training_run_name: str, lang):
+def text_normalize(container: Any, training_run_name: str, lang: str):
     run_command(
         container,
-        f"conda run python text_normalization.py {training_run_name} textNormalizationRun {lang}",
+        f"conda run python text_normalization.py --training_run_id {training_run_name} --run_type textNormalizationRun --lang {lang}",
         user="root",
     )
 
@@ -83,7 +81,7 @@ def save_image(path: str) -> None:
             f.write(chunk)
 
 
-def reload_docker(user_data_path: str) -> Any:
+def reload_docker(user_data_path: str, db_path: str) -> Any:
     load_image_if_needed()
-    container = rerun_container(user_data_path=user_data_path)
+    container = rerun_container(user_data_path=user_data_path, db_path=db_path)
     return container
