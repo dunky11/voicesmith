@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, WebContents, Event } from "electron";
+import path from "path";
 import { safeMkdir } from "./utils/files";
 import { exit, killPyProc, createServerProc } from "./utils/processes";
 import {
@@ -45,6 +46,7 @@ const createWindow = (): void => {
       nodeIntegration: true,
       contextIsolation: false,
     },
+    icon: path.join(app.getAppPath(), ".media", "icon.png"),
   });
 
   // and load the index.html of the app.

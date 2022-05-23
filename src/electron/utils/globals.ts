@@ -40,12 +40,9 @@ export const getCleaningRunsDir = joinUserData("cleaning_runs");
 export const getTextNormalizationRunsDir = joinUserData(
   "text_normalization_runs"
 );
+export const getInstalledPath = joinUserData("INSTALLED");
 export const PY_DIST_FOLDER = "backend_dist";
 export const PY_FOLDER = "voice_smith";
-export const INSTALLED_PATH = path.join(
-  isDev ? BASE_PATH : process.resourcesPath,
-  "INSTALLED"
-);
 export const POETRY_PATH = path.join(
   isDev ? BASE_PATH : process.resourcesPath,
   "backend"

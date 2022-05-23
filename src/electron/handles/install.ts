@@ -1,17 +1,18 @@
 import { ipcMain, IpcMainEvent, app } from "electron";
 import childProcess from "child_process";
-import { ASSETS_PATH, INSTALLED_PATH, POETRY_PATH } from "../utils/globals";
+import { ASSETS_PATH, getInstalledPath, POETRY_PATH } from "../utils/globals";
 import { exists } from "../utils/files";
 import fsNative from "fs";
 const fsPromises = fsNative.promises;
 
 ipcMain.handle("fetch-needs-install", async () => {
-  return !(await exists(INSTALLED_PATH));
+  return !(await exists(getInstalledPath()));
 });
 
 ipcMain.handle("install-success", async () => {
-  if (!(await exists(INSTALLED_PATH))) {
-    await fsPromises.writeFile(INSTALLED_PATH, "");
+  const installedPath = getInstalledPath();
+  if (!(await exists(installedPath))) {
+    await fsPromises.writeFile(installedPath, "");
   }
 });
 

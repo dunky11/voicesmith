@@ -2,7 +2,7 @@
   "name": "voice-smith",
   "productName": "voice-smith",
   "version": "0.1.0",
-  "description": "My Electron application description",
+  "description": "VoiceSmith makes training TTS models easy. It also provides utilities for dataset preprocessing.",
   "main": ".webpack/main",
   "scripts": {
     "start": "electron-forge start",
@@ -14,16 +14,16 @@
   "keywords": [],
   "author": {
     "name": "dunky11",
-    "email": " "
+    "email": ""
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "config": {
     "forge": {
       "packagerConfig": {
         "extraResource": [
-          "assets",
-          "backend"
-        ]
+          "assets"
+        ],
+        "icon": ".media/icon"
       },
       "makers": [
         {
@@ -34,7 +34,7 @@
               "homepage": "https://github.com/dunky11/voicesmith"
             }
           }
-        }
+        } 
       ],
       "plugins": [
         [
