@@ -4,6 +4,8 @@ VoiceSmith makes it possible to train and infer on both single and multispeaker 
 
 If you want to play around with a model trained on a highly emotional emotional 60 speaker dataset using an earlier version of this software [click here](https://colab.research.google.com/drive/1zh6w_TpEAyr_UIojiLmt4ZdYLWeap9mn#scrollTo=vQCA50dao0Mt).
 
+<img src="/.media/hero.png">
+
 ## Getting Started
 
 ### Requirements
