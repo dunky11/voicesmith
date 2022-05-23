@@ -36,7 +36,7 @@ If you want to play around with a model trained on a highly emotional emotional 
    cd voicesmith
    npm install
    ```
-4. [Click here](https://drive.google.com/drive/folders/15VQgRxGO_Z_RUNMyuJreg9O5Ckcit2vh?usp=sharing) select the folder with the latest version, download all files and place them inside the assets folder.
+4. [Click here](https://drive.google.com/drive/folders/15VQgRxGO_Z_RUNMyuJreg9O5Ckcit2vh?usp=sharing) select the folder with the latest version, download all files and place them inside the repositories assets folder.
 
 5. Start the project
 
