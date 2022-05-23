@@ -279,20 +279,11 @@ export default function PreprocessingRunSelection({
           <div style={{ marginBottom: 16, display: "flex" }}>
             <Button
               onClick={() => {
-                createPreprocessingRun("dSCleaning");
-              }}
-              style={{ marginRight: 8 }}
-              disabled={isDisabled}
-            >
-              Clean a Dataset
-            </Button>
-            <Button
-              onClick={() => {
                 createPreprocessingRun("textNormalization");
               }}
               disabled={isDisabled}
             >
-              Text Normalization
+              New Text Normalization Run
             </Button>
           </div>
           <Table
