@@ -24,7 +24,7 @@ If you want to play around with a model trained on a highly emotional emotional 
 1. Download the latest installer from the [releases page](https://github.com/dunky11/voicesmith/releases).
 2. Double click to run the installer.
 
-## How to develope
+### How to develope
 
 1. Make sure you have the latest version of [Node.js](https://nodejs.org/) installed
 2. Clone the repository
@@ -44,7 +44,7 @@ If you want to play around with a model trained on a highly emotional emotional 
    npm start
    ```
   
-## Build from source
+### Build from source
 
 1. Follow steps 1-3 from "How to develope".
 2. Run make, his will build an installer dependent on your operating system. The installer will be placed inside the out folder in the projects root.
@@ -53,10 +53,10 @@ If you want to play around with a model trained on a highly emotional emotional 
     npm make
     ```
     
-## Contribute
+### Contribute
 
 Show your support by ⭐ the project. Pull requests are always welcome.
 
-## License
+### License
 
 This project is licensed under the Apache 2.0 License - see the [LICENSE.md](https://github.com/dunky11/voicesmith/blob/master/LICENSE) file for details.
