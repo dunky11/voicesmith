@@ -15,8 +15,6 @@ VoiceSmith makes it possible to train and infer on both single and multispeaker 
 * Python >=3.7,<3.11, you can [download it here](https://www.python.org/downloads/).
 * Docker, you can [download it here](https://docs.docker.com/get-docker/).
 
-2. Make sure you have [Docker](https://docs.docker.com/get-docker/) installed, if not it will ask you on startup
-
 ### How to install
 
 1. Download the latest installer from the [releases](https://github.com/dunky11/voicesmith/releases) page
