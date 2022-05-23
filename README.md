@@ -22,7 +22,7 @@ If you want to play around with a model trained on a highly emotional emotional 
 1. Download the latest installer from the [releases page](https://github.com/dunky11/voicesmith/releases).
 2. Double click to run the installer.
 
-## How to develope
+## How to develop
 
 1. Make sure you have the latest version of [Node.js](https://nodejs.org/) installed
 2. Clone the repository
