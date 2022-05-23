@@ -44,7 +44,7 @@ If you want to play around with a model trained on a highly emotional emotional 
   
 ## Build from source
 
-1. Follow steps 1-3 from "How to develope".
+1. Follow steps 1 - 3 from above.
 2. Run make, his will build an installer dependent on your operating system. The installer will be placed inside the out folder in the projects root.
     
     ```
