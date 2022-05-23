@@ -59,4 +59,4 @@ Show your support by ⭐ the project. Pull requests are always welcome.
 
 ## License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE.md](https://github.com/dunky11/voicesmith/blob/master/LICENSE) file for details.
+This project is licensed under the Apache-2.0 license - see the [LICENSE.md](https://github.com/dunky11/voicesmith/blob/master/LICENSE) file for details.
