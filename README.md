@@ -17,5 +17,5 @@ VoiceSmith makes it possible to train and infer on both single and multispeaker 
 
 ### How to install
 
-1. Download the latest installer from the [releases](https://github.com/dunky11/voicesmith/releases) page
-2. Double click to run the installer
+1. Download the latest installer from the [releases page](https://github.com/dunky11/voicesmith/releases).
+2. Double click to run the installer.
