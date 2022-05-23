@@ -10,21 +10,46 @@ If you want to play around with a model trained on a highly emotional emotional 
 
 ### Requirements
 
-#### Hardware:
+#### Hardware
 * OS: Windows or any Linux based operating system.
 * Graphics: NVIDIA GPU with [CUDA support](https://developer.nvidia.com/cuda-gpus) is heavily recommended, you can train on CPU otherwise but it will take days if not weeks.
 * RAM: 8GB of RAM, you can try with less but it may not work.
 
-#### Software:
+#### Software
 * Python >=3.7,<3.11, you can [download it here](https://www.python.org/downloads/).
 * Docker, you can [download it here](https://docs.docker.com/get-docker/).
 
-### How To Install
+### How to install
 
 1. Download the latest installer from the [releases page](https://github.com/dunky11/voicesmith/releases).
 2. Double click to run the installer.
 
-## Build From Source
+## How to develope
 
 1. Make sure you have the latest version of [Node.js](https://nodejs.org/) installed
+2. Clone the repository
+
+   ```
+   git clone https://github.com/dunky11/voicesmith
+   ```
+3. Install dependencies, this can take a minute
+
+   ```
+   cd voicesmith
+   npm install
+   ```
+4. Start the project
+
+  ```
+  npm start
+  ```
+  
+## Build from source
+
+1. Follow steps 1-3 from "How to develope".
+2. Build the installer, this will build an installer dependent on your operating system.
+  ```
+  npm make
+  ```
+3. The installer is inside the out folder.
 
