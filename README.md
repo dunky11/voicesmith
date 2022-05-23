@@ -47,7 +47,7 @@ If you want to play around with a model trained on a highly emotional emotional 
 ## Build from source
 
 1. Follow steps 1 - 4 from above.
-2. Run make, this will create a folder named out with an installer inside. The installer will be different based on your operating system.
+2. Run make, this will create a folder named out/make with an installer inside. The installer will be different based on your operating system.
     
     ```
     npm make
