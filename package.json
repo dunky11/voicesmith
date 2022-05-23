@@ -14,7 +14,7 @@
   "keywords": [],
   "author": {
     "name": "dunky11",
-    "email": "timv94@zedat.fu-berlin.de"
+    "email": " "
   },
   "license": "MIT",
   "config": {
@@ -27,19 +27,13 @@
       },
       "makers": [
         {
-          "name": "@electron-forge/maker-squirrel",
+          "name": "@electron-forge/maker-deb",
           "config": {
-            "name": "VoiceSmith Beta"
+            "options": {
+              "maintainer": "dunky11",
+              "homepage": "https://github.com/dunky11/voicesmith"
+            }
           }
-        },
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
-        },
-        {
-          "name": "electron-forge-maker-appimage"
         }
       ],
       "plugins": [
