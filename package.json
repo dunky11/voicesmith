@@ -8,6 +8,9 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
+    "make-mac": "electron-forge make --platform darwin",
+    "make-windows": "electron-forge make --platform win32",
+    "make-linux": "electron-forge make --platform linux",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx ."
   },
@@ -27,6 +30,9 @@
       },
       "makers": [
         {
+          "name": "@electron-forge/maker-squirrel"
+        },
+        {
           "name": "@electron-forge/maker-deb",
           "config": {
             "options": {
@@ -34,7 +40,7 @@
               "homepage": "https://github.com/dunky11/voicesmith"
             }
           }
-        } 
+        }
       ],
       "plugins": [
         [
