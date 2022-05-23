@@ -19,7 +19,12 @@ If you want to play around with a model trained on a highly emotional emotional 
 * Python >=3.7,<3.11, you can [download it here](https://www.python.org/downloads/).
 * Docker, you can [download it here](https://docs.docker.com/get-docker/).
 
-### How to install
+### How To Install
 
 1. Download the latest installer from the [releases page](https://github.com/dunky11/voicesmith/releases).
 2. Double click to run the installer.
+
+## Build From Source
+
+1. Make sure you have the latest version of [Node.js](https://nodejs.org/) installed
+
