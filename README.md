@@ -10,7 +10,7 @@ If you want to play around with a model trained on a highly emotional emotional 
 
 #### Hardware
 * OS: Windows or any Linux based operating system.
-* Graphics: NVIDIA GPU with [CUDA support](https://developer.nvidia.com/cuda-gpus) is heavily recommended, you can train on CPU otherwise but it will take days if not weeks.
+* Graphics: NVIDIA GPU with [CUDA support](https://developer.nvidia.com/cuda-gpus) is highly recommended, you can train on CPU otherwise but it will take days if not weeks.
 * RAM: 8GB of RAM, you can try with less but it may not work.
 
 #### Software
