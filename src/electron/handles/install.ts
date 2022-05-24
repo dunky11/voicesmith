@@ -19,7 +19,7 @@ ipcMain.handle("install-success", async () => {
 ipcMain.on("install-backend-docker", async (event: IpcMainEvent) => {
   const dockerInstallProcess = childProcess.spawn(
     "docker",
-    ["build", "-t", "voice_smith", "."],
+    ["build", "--rm", "-t", "voice_smith", "."],
     {
       cwd: ASSETS_PATH,
     }

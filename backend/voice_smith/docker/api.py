@@ -24,12 +24,13 @@ def rerun_container(user_data_path: str, db_path: str) -> Any:
     out_path = "/home/voice_smith/data"
     volumes = [
         f"{user_data_path}:/home/voice_smith/data",
-        f"{Path(db_path).parent}:/home/voice_smith/db"
+        f"{Path(db_path).parent}:/home/voice_smith/db",
     ]
     container = client.containers.run(
         _CONTAINER_NAME, tty=True, detach=True, name=_CONTAINER_NAME, volumes=volumes
     )
     return container
+
 
 def get_container() -> Any:
     client = docker.from_env()
@@ -46,8 +47,7 @@ def generate_vocab(container: Any, training_run_name: str) -> None:
     print("Generating vocabulary ... ")
     n_workers = max(1, mp.cpu_count() - 1)
     run_command(
-        container,
-        f"bash ./generate_vocab.sh {training_run_name} {n_workers}",
+        container, f"bash ./generate_vocab.sh {training_run_name} {n_workers}",
     )
     print("Merging vocabulary with presets ...")
     run_command(
@@ -60,8 +60,7 @@ def align(container: Any, training_run_name: str):
     print("Generating alignments ...")
     n_workers = max(1, mp.cpu_count() - 1)
     run_command(
-        container,
-        f"bash ./align.sh {training_run_name} {n_workers}",
+        container, f"bash ./align.sh {training_run_name} {n_workers}",
     )
 
 
