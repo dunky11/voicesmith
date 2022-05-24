@@ -13,11 +13,11 @@ import MainLoading from "./pages/main_loading/MainLoading";
 import Models from "./pages/models/Models";
 import Synthesize from "./pages/models/Synthesize";
 import TrainingRuns from "./pages/training_runs/TrainingRuns";
-import { SERVER_URL, APP_VERSION } from "./config";
+import { SERVER_URL } from "./config";
 import Datasets from "./pages/datasets/Datasets";
 import PreprocessingRuns from "./pages/preprocessing_runs/PreprocessingRuns";
 import Terminal from "./components/log_printer/Terminal";
-import { RunInterface, TerminalMessage } from "./interfaces";
+import { AppInfoInterface, RunInterface, TerminalMessage } from "./interfaces";
 import Settings from "./pages/settings/Settings";
 const { ipcRenderer, shell } = window.require("electron");
 
@@ -67,6 +67,7 @@ export default function App() {
   const classes = useStyles();
   const history = useHistory();
   const isMounted = useRef(false);
+  const [appInfo, setAppInfo] = useState<AppInfoInterface | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<string[]>(["models"]);
   const [hasDocker, setHasDocker] = useState(false);
   const [downloadDockerIsOpen, setDownloadDockerIsOpen] = useState(false);
@@ -83,6 +84,12 @@ export default function App() {
     []
   );
   const hadInstallerError = useRef(false);
+
+  const fetchAppInfo = () => {
+    ipcRenderer.invoke("get-app-info").then((appInfo: AppInfoInterface) => {
+      setAppInfo(appInfo);
+    });
+  };
 
   const onNavigationSelect = ({ key }: { key: string }) => {
     setSelectedKeys([key]);
@@ -234,6 +241,7 @@ export default function App() {
 
   const startServer = () => {
     ipcRenderer.invoke("start-server");
+    pingServer();
   };
 
   const initiateInstall = () => {
@@ -299,7 +307,7 @@ export default function App() {
 
   useEffect(() => {
     isMounted.current = true;
-    pingServer();
+    fetchAppInfo();
     fetchHasDocker();
     return () => {
       isMounted.current = false;
@@ -349,9 +357,9 @@ export default function App() {
             <Typography.Title level={3} className={classes.logo}>
               VOICESMITH
             </Typography.Title>
-            <Typography.Text
-              className={classes.logoVersion}
-            >{`v${APP_VERSION}`}</Typography.Text>
+            <Typography.Text className={classes.logoVersion}>
+              {appInfo === null ? "" : `v${appInfo.version}`}
+            </Typography.Text>
           </div>
           <div style={{ paddingLeft: 8, paddingRight: 8 }}>
             <Divider className={classes.divider} />

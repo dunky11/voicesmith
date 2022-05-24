@@ -1,10 +1,19 @@
 import { app, ipcMain, IpcMainEvent } from "electron";
 import fsNative from "fs";
+import os from "os";
 const fsPromises = fsNative.promises;
-import { SettingsInterface } from "../../interfaces";
+import { SettingsInterface, AppInfoInterface } from "../../interfaces";
 import { UserDataPath } from "../utils/globals";
 import { DB } from "../utils/db";
 import { copyDir } from "../utils/files";
+
+ipcMain.handle("get-app-info", (event: IpcMainEvent) => {
+  const info: AppInfoInterface = {
+    version: app.getVersion(),
+    platform: process.platform,
+  };
+  return info;
+});
 
 ipcMain.on(
   "save-settings",

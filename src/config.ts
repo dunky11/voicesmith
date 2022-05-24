@@ -1,6 +1,5 @@
 import { ConfigurationInterface } from "./interfaces";
 
-export const APP_VERSION = "0.1.0";
 export const SERVER_URL = "http://localhost:12118";
 export const POLL_LOGFILE_INTERVALL = 1000;
 export const POLL_NULL_INTERVALL = 50;

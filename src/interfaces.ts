@@ -267,3 +267,19 @@ export interface TerminalMessage {
 export interface SettingsInterface {
   dataPath: string | null;
 }
+
+export interface AppInfoInterface {
+  platform:
+    | "aix"
+    | "darwin"
+    | "freebsd"
+    | "linux"
+    | "openbsd"
+    | "sunos"
+    | "win32"
+    | "android"
+    | "haiku"
+    | "cygwin"
+    | "netbsd";
+  version: string;
+}
