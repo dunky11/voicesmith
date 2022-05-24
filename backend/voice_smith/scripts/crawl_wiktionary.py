@@ -4,71 +4,80 @@ import multiprocessing as mp
 from joblib import Parallel, delayed
 from pathlib import Path
 
-ENGLISH_BLACKLIST = [
-    "in",
-    "do",
-    "am"
-]
+ENGLISH_BLACKLIST = ["in", "do", "am", "ma", "may", "free", "off"]
 SPANISH_BLACKLIST = []
 RUSSIAN_BLACKLIST = []
 GERMAN_BLACKLIST = []
+LAUGH_WORDS = ["haa", "aah", "aha", "ha", "hah", "haha", "hahah" "hahaha", "hahahah"]
+FILLER_WORDS = [
+    "um",
+    "uh",
+    "er",
+    "ah",
+    "aa",
+    "he",
+    "hu",
+    "hui",
+    "huii",
+    "huui",
+    "hi",
+    "na",
+    "naa",
+    "nah",
+    "hr",
+    "hrr",
+    "so",
+    "mm",
+    "ach",
+]
+BLACKLIST_ALL = LAUGH_WORDS + FILLER_WORDS
 
-class InitialismsScraper:
+
+class Scraper:
     jobs = [
         (
             "https://en.wiktionary.org/wiki/Category:Spanish_initialisms",
             "spanish_initialisms.txt",
-            SPANISH_BLACKLIST
-        ),      
-        ("https://en.wiktionary.org/wiki/Category:Spanish_abbreviations", "spanish_abbreviations.txt", SPANISH_BLACKLIST),
+            SPANISH_BLACKLIST,
+        ),
+        (
+            "https://en.wiktionary.org/wiki/Category:Spanish_abbreviations",
+            "spanish_abbreviations.txt",
+            SPANISH_BLACKLIST,
+        ),
         (
             "https://en.wiktionary.org/w/index.php?title=Category:English_initialisms",
             "english_initialisms.txt",
-            ENGLISH_BLACKLIST
+            ENGLISH_BLACKLIST,
         ),
-        ("https://en.wiktionary.org/wiki/Category:English_abbreviations", "english_abbreviations.txt", ENGLISH_BLACKLIST),
         (
-
+            "https://en.wiktionary.org/wiki/Category:English_abbreviations",
+            "english_abbreviations.txt",
+            ENGLISH_BLACKLIST,
+        ),
+        (
             "https://en.wiktionary.org/wiki/Category:German_initialisms",
             "german_initialisms.txt",
-            GERMAN_BLACKLIST
+            GERMAN_BLACKLIST,
         ),
-        ("https://en.wiktionary.org/wiki/Category:German_abbreviations", "german_abbreviations.txt", GERMAN_BLACKLIST),
+        (
+            "https://en.wiktionary.org/wiki/Category:German_abbreviations",
+            "german_abbreviations.txt",
+            GERMAN_BLACKLIST,
+        ),
         (
             "https://en.wiktionary.org/wiki/Category:Russian_initialisms",
             "russian_initialisms.txt",
-            RUSSIAN_BLACKLIST
-        ),        
-        ("https://en.wiktionary.org/wiki/Category:Russian_abbreviations", "russian_abbreviations.txt", RUSSIAN_BLACKLIST),
+            RUSSIAN_BLACKLIST,
+        ),
+        (
+            "https://en.wiktionary.org/wiki/Category:Russian_abbreviations",
+            "russian_abbreviations.txt",
+            RUSSIAN_BLACKLIST,
+        ),
     ]
 
-    blacklist = [
-        "um",
-        "uh",
-        "er",
-        "ah",
-        "aa",
-        "ha",
-        "he",
-        "hu",
-        "hui",
-        "huii",
-        "huui",
-        "hi",
-        "hah",
-        "haha",
-        "na",
-        "naa",
-        "nah",
-        "haa",
-        "aah",
-        "aha",
-        "hr",
-        "hrr",
-        "so"
-    ]
-
-    out_dir = Path(".") / "docker" / "to_copy" / "word_lists"
+    out_dir = Path(".") / "word_lists"
 
     def scrape_wiki_page(self, index, url, name, blacklist, words):
         print(f"Crawling page {index + 1} for language {name.split('_')[0]}")
@@ -103,21 +112,21 @@ class InitialismsScraper:
                 continue
             if len(word) == 1:
                 continue
-            if word.lower() in self.blacklist + blacklist:
+            if word.lower() in blacklist:
                 continue
             filtered.append(word)
         filtered.sort()
         return filtered
 
     def scrape(self):
-        self.out_dir.mkdir(exist_ok=True)
+        self.out_dir.mkdir(exist_ok=True, parents=True)
         Parallel(n_jobs=max(mp.cpu_count() - 1, 1))(
-            delayed(self.scrape_wiki_page)(0, url, name, blacklist, [])
+            delayed(self.scrape_wiki_page)(0, url, name, blacklist + BLACKLIST_ALL, [])
             for url, name, blacklist in self.jobs
         )
 
 
 if __name__ == "__main__":
-    scraper = InitialismsScraper()
+    scraper = Scraper()
     scraper.scrape()
- 
+

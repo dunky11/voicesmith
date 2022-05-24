@@ -107,6 +107,7 @@
 3dly
 3rd
 3rdly
+3some
 3ᵈˡʸ
 4-FA
 40th
@@ -184,6 +185,7 @@ AI
 AIBN
 AII
 AIII
+AIIMS
 AIIR
 AIP
 AIRMET
@@ -987,6 +989,7 @@ ESP
 ESS
 ESU
 ESnet
+ET
 ETKT
 ETNO
 ETR
@@ -1167,6 +1170,7 @@ G-funk
 G.O.
 G2
 G2G
+G77
 GA
 GAG
 GAHT
@@ -1262,6 +1266,7 @@ Gyr
 G³
 H&amp;J
 H&amp;P
+H'yana
 H.D.
 H.K.
 H.R.
@@ -1383,6 +1388,7 @@ IBMX
 IBZM
 ICE
 ICM
+ICMR
 ICZ
 ID
 IDOR
@@ -1394,6 +1400,7 @@ IGM
 IHRL
 IIIIth
 IIIrd
+IIT
 IIr.
 IL
 IMINT
@@ -1797,7 +1804,6 @@ MLEM
 MLMer
 MLP:FiM
 MLSE
-MM
 MMA
 MMH
 MMIWG
@@ -1844,7 +1850,6 @@ MWIR
 MX
 MXGP
 MXP
-Ma
 Mac.
 Macc.
 Maced.
@@ -2444,6 +2449,7 @@ RDML
 RDP
 RE
 REER
+REM
 RFB
 RFX
 RHF
@@ -2461,6 +2467,7 @@ RNases
 RO
 RO5
 ROC
+ROE
 ROFLMDAO
 ROILA
 ROM
@@ -2790,6 +2797,7 @@ TEOS
 TERF
 TEST
 TETS
+TF
 TGF
 THC
 THG
@@ -2864,6 +2872,7 @@ Timp.
 Tit.
 Tmbn.
 Tn
+TnG
 Tor
 Tpk.
 Tpr
@@ -3060,6 +3069,7 @@ Vtesse
 Vth
 Vulg.
 W.Va.
+W2C
 WA
 WAL
 WARNO
@@ -3120,6 +3130,7 @@ Wed
 Wed.
 Weds
 WelshE
+Westm.
 Wgt.
 Wgton.
 Wiki
@@ -3177,6 +3188,7 @@ Xty
 Xyl.
 Y10K
 Y2K
+YA
 YGMI
 YIG
 YK
@@ -3184,6 +3196,7 @@ YKS
 YN
 YO
 YSG
+YSL
 YSO
 YT
 YUC
@@ -3265,6 +3278,7 @@ agric.
 aircon
 al's
 alc
+alg
 algo
 alife
 alk
@@ -3784,7 +3798,6 @@ fol.
 foll
 fols.
 frac
-free
 freq.
 frex
 fs
@@ -4043,7 +4056,6 @@ m8
 mAb
 mDNA
 mTEC
-ma
 machine
 mag
 maj.
@@ -4105,7 +4117,6 @@ mkt.
 mktg.
 mln
 mltply
-mm
 mmag
 mmol
 mmole
@@ -4742,6 +4753,7 @@ wbu
 wch
 wd
 wdth
+whsle.
 wht
 wit.
 wk
@@ -4755,6 +4767,7 @@ wog
 wolog
 woooosh
 wpn.
+wrnt.
 wt
 wt.
 wth
@@ -4763,18 +4776,28 @@ wyif
 wym
 x-
 x-div.
+xbow
+xbred
+xbreed
+xbreeding
 xd
 xdiv
+xdress
+xdresser
 xfade
 xfer
 xform
+xgender
 xing
+xmission
 xmit
 xoxo
 xoxoxo
 xpost
 xtal
 xtr
+xwalk
+xwind
 y/o
 y/y
 yd.
@@ -4790,7 +4813,9 @@ zl.
 zool.
 ½d
 Žem.
+β-blocker
 βTrCP
+μ-
 μ-PD
 μ-scope
 μ-wave
@@ -4798,7 +4823,9 @@ zool.
 μLED
 μP
 μeV
+μmeter
 μscope
+μsecond
 μwave
 ⠁⠃
 ⠁⠃⠧

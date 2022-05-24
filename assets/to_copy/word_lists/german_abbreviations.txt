@@ -150,7 +150,6 @@ Komm.
 Kons.-Stamm
 Kor.
 Kulturgesch.
-LDVH
 LKA
 LSJ
 LSSAH
@@ -160,7 +159,6 @@ MAK
 MDN
 ME
 MFH
-MM
 MTA
 Ma.
 Mais.-Whg.
@@ -253,6 +251,7 @@ Tsd.
 Tuba
 UG
 USt.
+UStG
 UdSSR
 VB
 VHB

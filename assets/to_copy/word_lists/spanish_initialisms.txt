@@ -119,6 +119,7 @@ OEA
 OGM
 OMC
 OMI
+OMM
 OMS
 OMT
 PA
@@ -177,7 +178,6 @@ TOC
 TU
 TV3
 TVE
-UBA
 alv
 bdd
 bpd

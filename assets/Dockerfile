@@ -3,6 +3,8 @@ FROM nvcr.io/nvidia/nemo:22.01
 RUN useradd --create-home --shell /bin/bash voice_smith
 RUN apt-get update
 RUN pip install fire
+RUN pip install -U pip setuptools wheel
+RUN pip install -U spacy
 WORKDIR /home/voice_smith
 USER voice_smith
 RUN conda create --name voice_smith

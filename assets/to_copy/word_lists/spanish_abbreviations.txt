@@ -150,7 +150,6 @@ izda
 izq
 izq.
 lat.
-mm
 mts.
 n.
 n.º

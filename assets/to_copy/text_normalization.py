@@ -7,6 +7,11 @@ import multiprocessing as mp
 from joblib import Parallel, delayed
 import sqlite3
 import argparse
+from spacy.tokenizer import Tokenizer
+from spacy.lang.en import English
+from spacy.lang.es import Spanish
+from spacy.lang.ru import Russian
+from spacy.lang.de import German
 
 LATIN_CHARACTERS = list("abcdefghijklmnopqrstuvwxyz")
 GERMAN_CHARACTERS = list("öüäß")
@@ -24,11 +29,12 @@ SPECIALS = list("\"' ")
 MULTILINGUAL_ABBREVIATIONS = [
     "kg",
     "cal",
-    "corp",
+    "corp.",
     "dept",
     "dr",
     "oz",
     "ft",
+    "Ft",
     "gal",
     "hr",
     "inc",
@@ -53,62 +59,11 @@ MULTILINGUAL_ABBREVIATIONS = [
     "co",
     "corp",
 ]
-ENGLISH_ABBREVIATIONS = [
-    "i.e",
-    "e.g",
-    "ed",
-    "est",
-    "fl",
-    "oz",
-    "sq",
-    "mon",
-    "tu",
-    "tue",
-    "tues",
-    "wed",
-    "th",
-    "thu",
-    "thur",
-    "thurs",
-    "fri",
-    "sat",
-    "jan",
-    "feb",
-    "mar",
-    "apr",
-    "may",
-    "jun",
-    "jul",
-    "aug",
-    "sept",
-    "oct",
-    "nov",
-    "dec",
+MULTILINGUAL_ABBREVIATIONS = MULTILINGUAL_ABBREVIATIONS + [
+    f"{el}." for el in MULTILINGUAL_ABBREVIATIONS
 ]
-SPANISH_ABBREVIATIONS = [
-    "feb",
-    "abr",
-    "jun",
-    "jul",
-    "set",
-    "oct",
-    "nov",
-    "dic",
-    "dra",
-    "profa",
-    "pdta",
-    "arq",
-    "mtro",
-    "mtra",
-    "psic",
-    "lu",
-    "Ma",
-    "Mi",
-    "Ju",
-    "Vi",
-    "Sa",
-    "Do",
-]
+ENGLISH_ABBREVIATIONS = []
+SPANISH_ABBREVIATIONS = []
 GERMAN_ABBREVIATIONS = []
 RUSSIAN_ABBREVIATIONS = []
 MULTILINGUAL_INITIALISMS = [
@@ -144,210 +99,9 @@ MULTILINGUAL_INITIALISMS = [
     "BDSM",
     "CTC",
 ]
-ENGLISH_INITIALISMS = ["PM", "pm", "a.m.", "p.m.", "A.M", "P.M."]
+ENGLISH_INITIALISMS = []
 GERMAN_INITIALISMS = []
-SPANISH_INITIALISMS = [
-    "a.D.g.",
-    "A.H.",
-    "A.T.",
-    "ACS",
-    "ACV",
-    "ADE",
-    "ADN",
-    "AEC",
-    "AL",
-    "ALDF",
-    "ALV",
-    "alv",
-    "ANHQV",
-    "ANSV",
-    "ARN",
-    "AT",
-    "AUE",
-    "AUH",
-    "AXJ",
-    "BCB",
-    "BCE",
-    "bdd",
-    "BID",
-    "BM",
-    "BOE",
-    "BOPE",
-    "bpd",
-    "BS",
-    "BTT",
-    "C.A.",
-    "CA",
-    "CAE",
-    "CAISS",
-    "CCD",
-    "CCNCC",
-    "CDS",
-    "CEI",
-    "CEPAL",
-    "CES",
-    "CF",
-    "CFC",
-    "CGPJ",
-    "CHE",
-    "CI",
-    "CJNG",
-    "CNI",
-    "CNMC",
-    "CNT",
-    "CSD",
-    "CyL",
-    "D.F.",
-    "dana",
-    "DANA",
-    "DCV",
-    "DD.HH.",
-    "DEP",
-    "DF",
-    "DGT",
-    "DLE",
-    "DNI",
-    "DPN",
-    "DRAE",
-    "DT",
-    "e.d.",
-    "EAU",
-    "ECG",
-    "EDAR",
-    "EE.UU.",
-    "EGDE",
-    "ELN",
-    "EPD",
-    "EPOC",
-    "ERC",
-    "ETS",
-    "ETT",
-    "EUA",
-    "FA",
-    "FCF",
-    "FMI",
-    "FMLN",
-    "FRA",
-    "FSLN",
-    "GC",
-    "GH",
-    "GNL",
-    "HBP",
-    "HDA",
-    "HDB",
-    "HDLGP",
-    "HDP",
-    "IA",
-    "IBEX",
-    "ICEX",
-    "ICFT",
-    "IDH",
-    "IES",
-    "IFE",
-    "IGN",
-    "IMAO",
-    "IMC",
-    "IME",
-    "IMSS",
-    "INAH",
-    "INSS",
-    "IRA",
-    "IRPF",
-    "ISRS",
-    "ITS",
-    "ITU",
-    "IU",
-    "JCE",
-    "JLB",
-    "JRG",
-    "LATAM",
-    "LQSA",
-    "LSE",
-    "mcd",
-    "mcm",
-    "mdd",
-    "mde",
-    "MDP",
-    "mdp",
-    "MDQ",
-    "MIR",
-    "MPR",
-    "msnm",
-    "MYHYV",
-    "NIE",
-    "NMC",
-    "NNA",
-    "NOM",
-    "NPI",
-    "OEA",
-    "OGM",
-    "OMC",
-    "OMI",
-    "OMS",
-    "OMT",
-    "PA",
-    "PAN",
-    "PBC",
-    "PCC",
-    "PCR",
-    "PCUS",
-    "PFM",
-    "PIN",
-    "PNL",
-    "PNV",
-    "PP",
-    "PPE",
-    "PPK",
-    "PPP",
-    "PRI",
-    "PRM",
-    "PSUV",
-    "PUC",
-    "q.e.p.d.",
-    "QR",
-    "RAAN",
-    "RAAS",
-    "RAE",
-    "RCN",
-    "RCP",
-    "RDSI",
-    "RPC",
-    "RU",
-    "S.A.",
-    "S.A.",
-    "S.T.D.",
-    "SAG",
-    "SAI",
-    "SARM",
-    "SCA",
-    "SD",
-    "SHCP",
-    "SMI",
-    "SRL",
-    "TAC",
-    "TAPO",
-    "TC",
-    "TCA",
-    "TDAH",
-    "TEDH",
-    "TEP",
-    "THC",
-    "TIC",
-    "TKM",
-    "TLC",
-    "TLCAN",
-    "TMA",
-    "TOC",
-    "TU",
-    "TV3",
-    "TVE",
-    "UBA",
-    "UE",
-    "UGT",
-    "URSS",
-    "VMP",
-    "ZEC",
-]
+SPANISH_INITIALISMS = []
 RUSSIAN_INITIALISMS = []
 
 
@@ -396,7 +150,7 @@ class DetShouldNormalizeBase:
     or words inside the text and only normalize if necessary.
     """
 
-    def should_normalize(self, text: str) -> Tuple[bool, str]:
+    def should_normalize(self, text: str, tokenizer: Tokenizer) -> Tuple[bool, str]:
         raise NotImplementedError()
 
     def get_reasons(
@@ -405,9 +159,10 @@ class DetShouldNormalizeBase:
         abbreviations: Dict[str, Any],
         initialisms: Dict[str, Any],
         allowed_characters: Dict[str, Any],
+        tokenizer: Tokenizer,
     ) -> List[str]:
         reasons, abbr_detected, inits_detected, unusual_chars_detected = [], [], [], []
-        for token in text.split(" "):
+        for token in tokenizer(text):
             if token.lower() in abbreviations:
                 abbr_detected.append(token.lower())
             if token in initialisms:
@@ -433,14 +188,6 @@ class DetShouldNormalizeBase:
 
         return reasons
 
-    def expand_with_punct(
-        self, to_expand: List[str], punctutations: List[str]
-    ) -> List[str]:
-        out = to_expand
-        for punct in punctutations:
-            out.extend([f"{el}{punct}" for el in to_expand])
-        return out
-
     def fetch_word_list(self, name: str):
         lines = []
         with open(Path(".") / "word_lists" / name, "r", encoding="utf-8") as f:
@@ -465,12 +212,18 @@ class DetShouldNormalizeEN(DetShouldNormalizeBase):
             + self.fetch_word_list("english_initialisms.txt")
         )
 
-        self.abbreviations = set(self.expand_with_punct(abbr, en_punctuation))
-        self.initialisms = set(self.expand_with_punct(initialisms, en_punctuation))
+        self.abbreviations = set(abbr)
+        self.initialisms = set(initialisms)
 
-    def should_normalize(self, text: str) -> Tuple[bool, List[str]]:
+    def should_normalize(
+        self, text: str, tokenizer: Tokenizer
+    ) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
-            text, self.abbreviations, self.initialisms, self.allowed_characters
+            text,
+            self.abbreviations,
+            self.initialisms,
+            self.allowed_characters,
+            tokenizer,
         )
         should_normalize = len(reasons) > 0
         return should_normalize, reasons
@@ -493,12 +246,18 @@ class DetShouldNormalizeES(DetShouldNormalizeBase):
             + self.fetch_word_list("spanish_initialisms.txt")
             + SPANISH_INITIALISMS
         )
-        self.abbreviations = set(self.expand_with_punct(abbr, es_punctuation))
-        self.initialisms = set(self.expand_with_punct(initialisms, es_punctuation))
+        self.abbreviations = set(abbr, es_punctuation)
+        self.initialisms = set(initialisms, es_punctuation)
 
-    def should_normalize(self, text: str) -> Tuple[bool, List[str]]:
+    def should_normalize(
+        self, text: str, tokenizer: Tokenizer
+    ) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
-            text, self.abbreviations, self.initialisms, self.allowed_characters
+            text,
+            self.abbreviations,
+            self.initialisms,
+            self.allowed_characters,
+            tokenizer,
         )
         should_normalize = len(reasons) > 0
         return should_normalize, reasons
@@ -521,12 +280,18 @@ class DetShouldNormalizeDE(DetShouldNormalizeBase):
             + self.fetch_word_list("german_initialisms.txt")
             + GERMAN_INITIALISMS
         )
-        self.abbreviations = set(self.expand_with_punct(abbr, de_punctuation))
-        self.initialisms = set(self.expand_with_punct(initialisms, de_punctuation))
+        self.abbreviations = set(abbr)
+        self.initialisms = set(initialisms)
 
-    def should_normalize(self, text: str) -> Tuple[bool, List[str]]:
+    def should_normalize(
+        self, text: str, tokenizer: Tokenizer
+    ) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
-            text, self.abbreviations, self.initialisms, self.allowed_characters
+            text,
+            self.abbreviations,
+            self.initialisms,
+            self.allowed_characters,
+            tokenizer,
         )
         should_normalize = len(reasons) > 0
         return should_normalize, reasons
@@ -545,12 +310,18 @@ class DetShouldNormalizeRU(DetShouldNormalizeBase):
         initialisms = (
             self.fetch_word_list("russian_initialisms.txt") + RUSSIAN_INITIALISMS
         )
-        self.abbreviations = set(self.expand_with_punct(abbr, ru_punctuation))
-        self.initialisms = set(self.expand_with_punct(initialisms, ru_punctuation))
+        self.abbreviations = set(abbr, ru_punctuation)
+        self.initialisms = set(initialisms, ru_punctuation)
 
-    def should_normalize(self, text: str) -> Tuple[bool, List[str]]:
+    def should_normalize(
+        self, text: str, tokenizer: Tokenizer
+    ) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
-            text, self.abbreviations, self.initialisms, self.allowed_characters
+            text,
+            self.abbreviations,
+            self.initialisms,
+            self.allowed_characters,
+            tokenizer,
         )
         should_normalize = len(reasons) > 0
         return should_normalize, reasons
@@ -559,9 +330,7 @@ class DetShouldNormalizeRU(DetShouldNormalizeBase):
 def apply_nemo_normalization(text: str, normalizer: Normalizer):
     text_in = text
     text_out = normalizer.normalize(
-        text=text_in,
-        verbose=False,
-        punct_post_process=True,
+        text=text_in, verbose=False, punct_post_process=True,
     )
 
     if (
@@ -588,14 +357,12 @@ def normalize_text(
     detector: DetShouldNormalizeEN,
     normalizer: Normalizer,
     deterministic: bool,
+    tokenizer: Tokenizer,
 ):
     text_out, reasons_char_norm = char_normalizer.normalize(text_in)
-    should_normalize, reasons_det = detector.should_normalize(text_out)
+    should_normalize, reasons_det = detector.should_normalize(text_out, tokenizer)
     if should_normalize:
-        text_out = apply_nemo_normalization(
-            text=text_out,
-            normalizer=normalizer,
-        )
+        text_out = apply_nemo_normalization(text=text_out, normalizer=normalizer)
 
     reason = ". ".join(reasons_char_norm + reasons_det)
     if len(reason) > 0:
@@ -644,19 +411,24 @@ def normalize(ID: int, run_type: str, lang: str):
     if lang == "en":
         detector = DetShouldNormalizeEN()
         deterministic = True
+        nlp = English()
     elif lang == "es":
         detector = DetShouldNormalizeES()
         deterministic = True
+        nlp = Spanish()
     elif lang == "de":
         detector = DetShouldNormalizeDE()
         deterministic = True
+        nlp = German()
     elif lang == "ru":
         detector = DetShouldNormalizeRU()
         deterministic = False
+        nlp = Russian()
     else:
         raise Exception(
             f"No case selected in switch-statement, '{lang}' is not a valid case ..."
         )
+    tokenizer = nlp.tokenizer
 
     char_normalizer = CharNormalizer()
     normalizer = Normalizer(
@@ -668,16 +440,16 @@ def normalize(ID: int, run_type: str, lang: str):
 
     rets = []
 
-    for _, text in id_text_pairs:
+    for i, (_, text) in enumerate(id_text_pairs):
         ret = normalize_text(
             text_in=text,
             char_normalizer=char_normalizer,
             detector=detector,
             normalizer=normalizer,
             deterministic=deterministic,
+            tokenizer=tokenizer,
         )
         rets.append(ret)
-
         normalized, text_in, text_out, reason = ret
         if normalized:
             print("Text in: ", text_in, flush=True)
@@ -712,8 +484,4 @@ if __name__ == "__main__":
     parser.add_argument("--lang", type=str, required=True)
     args = parser.parse_args()
 
-    normalize(
-        ID=args.training_run_id, 
-        run_type=args.run_type,
-        lang=args.lang
-    )
+    normalize(ID=args.training_run_id, run_type=args.run_type, lang=args.lang)
