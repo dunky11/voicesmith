@@ -4,11 +4,29 @@ import multiprocessing as mp
 from joblib import Parallel, delayed
 from pathlib import Path
 
-ENGLISH_BLACKLIST = ["in", "do", "am", "ma", "may", "free", "off"]
+ENGLISH_BLACKLIST = [
+    "in",
+    "do",
+    "am",
+    "ma",
+    "may",
+    "free",
+    "off",
+    "three",
+    "three.",
+    "den",
+    "card",
+    "hanky",
+    "path",
+    "port",
+    "cat",
+    "gon",
+    "mom",
+]
 SPANISH_BLACKLIST = []
 RUSSIAN_BLACKLIST = []
 GERMAN_BLACKLIST = []
-LAUGH_WORDS = ["haa", "aah", "aha", "ha", "hah", "haha", "hahah" "hahaha", "hahahah"]
+LAUGH_WORDS = ["haa", "aah", "aha", "ha", "hah", "haha", "hahah", "hahaha", "hahahah"]
 FILLER_WORDS = [
     "um",
     "uh",
