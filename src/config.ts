@@ -25,12 +25,12 @@ export const trainingRunInitialValues: ConfigurationInterface = {
   useAudioNormalization: true,
   acousticLearningRate: 0.0002,
   acousticTrainingIterations: 30000,
-  acousticValidateEvery: 4000,
+  acousticValidateEvery: 2000,
   acousticBatchSize: 5,
   acousticGradAccumSteps: 3,
   vocoderLearningRate: 0.0002,
-  vocoderTrainingIterations: 10000,
-  vocoderValidateEvery: 4000,
+  vocoderTrainingIterations: 20000,
+  vocoderValidateEvery: 2000,
   vocoderBatchSize: 5,
   vocoderGradAccumSteps: 3,
   device: "CPU",
@@ -40,5 +40,5 @@ export const trainingRunInitialValues: ConfigurationInterface = {
 
 export const defaultPageOptions = {
   defaultPageSize: 100,
-  pageSizeOptions: [50, 100, 250, 1000, 5000],
+  pageSizeOptions: [50, 100, 250, 1000],
 };

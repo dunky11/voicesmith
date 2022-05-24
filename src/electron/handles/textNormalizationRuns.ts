@@ -30,6 +30,17 @@ ipcMain.on(
 );
 
 ipcMain.handle(
+  "edit-text-normalization-sample-new-text",
+  (event: IpcMainEvent, ID: number, newText: string) => {
+    DB.getInstance()
+      .prepare(
+        "UPDATE text_normalization_sample SET new_text=@newText WHERE ID=@ID"
+      )
+      .run({ ID, newText });
+  }
+);
+
+ipcMain.handle(
   "fetch-text-normalization-run",
   (event: IpcMainInvokeEvent, ID: number) => {
     const run: TextNormalizationInterface = DB.getInstance()

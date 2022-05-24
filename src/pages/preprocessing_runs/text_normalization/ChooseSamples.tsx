@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Table, Space, Input, Button } from "antd";
-import Highlighter from "react-highlight-words";
+import { Table, Space, Input, Button, Typography, notification } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import type { FilterConfirmProps } from "antd/lib/table/interface";
 import type { ColumnType } from "antd/lib/table";
@@ -44,8 +43,6 @@ export default function ChooseSamples({
   const playFuncRef = useRef<null | (() => void)>(null);
   const [audioDataURL, setAudioDataURL] = useState<string | null>(null);
 
-  const [searchText, setSearchText] = useState("");
-  const [searchedColumn, setSearchedColumn] = useState("");
   const searchInput = useRef<InputRef>(null);
 
   const handleSearch = (
@@ -54,13 +51,19 @@ export default function ChooseSamples({
     dataIndex: any
   ) => {
     confirm();
-    setSearchText(selectedKeys[0]);
-    setSearchedColumn(dataIndex);
   };
 
   const handleReset = (clearFilters: () => void) => {
     clearFilters();
-    setSearchText("");
+  };
+
+  const onNewTextEdit = (
+    record: TextNormalizationSampleInterface,
+    newText: string
+  ) => {
+    ipcRenderer
+      .invoke("edit-text-normalization-sample-new-text", record.ID, newText)
+      .then(fetchSamples);
   };
 
   const getColumnSearchProps = (dataIndex: any): ColumnType<any> => ({
@@ -121,17 +124,6 @@ export default function ChooseSamples({
         setTimeout(() => searchInput.current?.select(), 100);
       }
     },
-    render: (text) =>
-      searchedColumn === dataIndex ? (
-        <Highlighter
-          highlightStyle={{ backgroundColor: "#ffc069", padding: 0 }}
-          searchWords={[searchText]}
-          autoEscape
-          textToHighlight={text ? text.toString() : ""}
-        />
-      ) : (
-        text
-      ),
   });
 
   const removeSamples = (sampleIDs: number[]) => {
@@ -201,9 +193,13 @@ export default function ChooseSamples({
             ipcRenderer
               .invoke("remove-preprocessing-run", {
                 ID: selectedID,
-                type: "textNormalization",
+                type: "textNormalizationRun",
               })
               .then(() => {
+                notification["success"]({
+                  message: "Your dataset has been normalized",
+                  placement: "top",
+                });
                 history.push("/preprocessing-runs/run-selection");
               });
             break;
@@ -246,6 +242,18 @@ export default function ChooseSamples({
       dataIndex: "newText",
       key: "newText",
       ...getColumnSearchProps("newText"),
+      render: (text: any, record: TextNormalizationSampleInterface) => (
+        <Typography.Text
+          editable={{
+            tooltip: false,
+            onChange: (newName: string) => {
+              onNewTextEdit(record, newName);
+            },
+          }}
+        >
+          {record.newText}
+        </Typography.Text>
+      ),
     },
     {
       title: "Reason",
