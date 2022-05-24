@@ -52,7 +52,13 @@ If you want to play around with a model trained on a highly emotional emotional 
     ```
     npm make
     ```
-    
+## Architecture
+
+VoiceSmith currently uses a two-stage modified DelightfulTTS and UnivNet pipeline.
+
+<img src="/.media/architecture.png">
+
+ 
 ## Contribute
 
 Show your support by ⭐ the project. Pull requests are always welcome.
