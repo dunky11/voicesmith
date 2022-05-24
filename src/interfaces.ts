@@ -205,6 +205,7 @@ export interface TextNormalizationInterface extends PreprocessingRunInterface {
   type: "textNormalizationRun";
   language: "en" | "es" | "de" | "ru";
   stage: "not_started" | "text_normalization" | "choose_samples" | "finished";
+  textNormalizationProgress: number;
 }
 
 export interface TextNormalizationRunConfigInterface {

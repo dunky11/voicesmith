@@ -163,6 +163,7 @@ class DetShouldNormalizeBase:
     ) -> List[str]:
         reasons, abbr_detected, inits_detected, unusual_chars_detected = [], [], [], []
         for token in tokenizer(text):
+            token = str(token)
             if token.lower() in abbreviations:
                 abbr_detected.append(token.lower())
             if token in initialisms:
@@ -457,6 +458,20 @@ def normalize(ID: int, run_type: str, lang: str):
             print("Reason: ", reason, flush=True)
             print("", flush=True)
 
+        if i % 100 == 0 and i != 0:
+            progress = ((i + 1) / len(id_text_pairs)) * 0.9
+            cur.execute(
+                "UPDATE text_normalization_run SET text_normalization_progress = ? WHERE ID=?",
+                (progress, ID),
+            )
+            con.commit()
+
+    cur.execute(
+        "UPDATE text_normalization_run SET text_normalization_progress=0.9 WHERE ID=?",
+        (ID,),
+    )
+    con.commit()
+
     for (sample_id, _), (has_normalized, text_in, text_out, reason) in zip(
         id_text_pairs, rets
     ):
@@ -474,6 +489,10 @@ def normalize(ID: int, run_type: str, lang: str):
                 f"No case selected in switch-statement, '{run_type}' is not a valid case ..."
             )
 
+    cur.execute(
+        "UPDATE text_normalization_run SET text_normalization_progress=1.0 WHERE ID=?",
+        (ID,),
+    )
     con.commit()
 
 

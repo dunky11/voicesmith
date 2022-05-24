@@ -53,7 +53,7 @@ export default function TextNormalization({
     running.type === "textNormalizationRun" &&
     running.ID == preprocessingRun?.ID;
 
-  const fetchCleaningRun = () => {
+  const fetchRun = () => {
     if (preprocessingRun === null) {
       return;
     }
@@ -108,7 +108,7 @@ export default function TextNormalization({
     };
   }, []);
 
-  useInterval(fetchCleaningRun, POLL_LOGFILE_INTERVALL);
+  useInterval(fetchRun, POLL_LOGFILE_INTERVALL);
   useInterval(pollUsageInfo, 1000);
 
   return (
@@ -171,6 +171,9 @@ export default function TextNormalization({
                   stage={run === null ? null : run.stage}
                   usageStats={usageStats}
                   stopRun={stopRun}
+                  textNormalizationProgress={
+                    run === null ? 0 : run.textNormalizationProgress
+                  }
                 />
               )}
               path={stepToPath[1]}

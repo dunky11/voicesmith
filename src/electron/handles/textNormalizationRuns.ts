@@ -34,7 +34,7 @@ ipcMain.handle(
   (event: IpcMainInvokeEvent, ID: number) => {
     const run: TextNormalizationInterface = DB.getInstance()
       .prepare(
-        "SELECT ID, name, stage, language FROM text_normalization_run WHERE ID=@ID"
+        "SELECT ID, name, stage, language, text_normalization_progress AS textNormalizationProgress FROM text_normalization_run WHERE ID=@ID"
       )
       .get({ ID });
     return run;

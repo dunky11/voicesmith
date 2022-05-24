@@ -17,6 +17,7 @@ export default function Preprocessing({
   running,
   continueRun,
   stage,
+  textNormalizationProgress,
   usageStats,
   stopRun,
 }: {
@@ -30,6 +31,7 @@ export default function Preprocessing({
     | "choose_samples"
     | "finished"
     | null;
+  textNormalizationProgress: number;
   usageStats: UsageStatsInterface[];
   stopRun: () => void;
 }) {
@@ -105,7 +107,10 @@ export default function Preprocessing({
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step
-                title="Text Normalization"
+                title={getProgressTitle(
+                  "Text Normalization",
+                  textNormalizationProgress
+                )}
                 description="Normalizing text of each file."
                 icon={
                   current === 0 && stageIsRunning ? (
