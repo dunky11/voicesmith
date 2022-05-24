@@ -112,6 +112,8 @@ class Scraper:
                 continue
             if len(word) == 1:
                 continue
+            if len(word) == 2 and "." in word:
+                continue
             if word.lower() in blacklist:
                 continue
             filtered.append(word)

@@ -5,11 +5,12 @@ from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con
 from voice_smith.docker.api import reload_docker, text_normalize
 
+
 def continue_text_normalization_run(
     text_normalization_run_id: int,
     db_path: str,
     text_normalization_runs_path: str,
-    user_data_path: str
+    user_data_path: str,
 ):
     con = get_con(db_path)
     cur = con.cursor()
@@ -73,8 +74,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     continue_text_normalization_run(
-        text_normalization_run_id=args.text_normalization_run_id, 
-        db_path=args.db_path, 
+        text_normalization_run_id=args.text_normalization_run_id,
+        db_path=args.db_path,
         text_normalization_runs_path=args.text_normalization_runs_path,
-        user_data_path=args.user_data_path
+        user_data_path=args.user_data_path,
     )

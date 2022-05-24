@@ -42,7 +42,6 @@ MULTILINGUAL_ABBREVIATIONS = [
     "km",
     "ltd",
     "mg",
-    "mm",
     "mph",
     "mr",
     "ms",
