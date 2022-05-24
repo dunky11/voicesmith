@@ -6,11 +6,9 @@ import type { FilterConfirmProps } from "antd/lib/table/interface";
 import type { ColumnType } from "antd/lib/table";
 import type { InputRef } from "antd";
 import { useHistory } from "react-router-dom";
-import { numberCompare, stringCompare } from "../../../utils";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { defaultPageOptions } from "../../../config";
 import {
-  NoisySampleInterface,
   RunInterface,
   TextNormalizationSampleInterface,
 } from "../../../interfaces";
