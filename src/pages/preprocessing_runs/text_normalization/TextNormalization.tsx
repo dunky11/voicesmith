@@ -139,7 +139,8 @@ export default function TextNormalization({
               />
               <Steps.Step
                 disabled={
-                  run === null || ["not_started", "running"].includes(run.stage)
+                  run === null ||
+                  ["not_started", "text_normalization"].includes(run.stage)
                 }
                 title={stepToTitle[2]}
               />

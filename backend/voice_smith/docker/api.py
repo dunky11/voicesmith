@@ -37,7 +37,7 @@ def get_container() -> Any:
 
 
 def run_command(container: Any, cmd: str, user="voice_smith") -> None:
-    _, stream = container.exec_run(cmd, stream=True, user=user)
+    _, stream = container.exec_run(cmd, stream=True, user=user, tty=True)
     for data in stream:
         print(data.decode(), flush=True)
 

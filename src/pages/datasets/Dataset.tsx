@@ -112,7 +112,11 @@ export default function Dataset({ datasetID }: { datasetID: number | null }) {
 
   const columns = [
     {
-      title: "Name",
+      title:
+        "Name" +
+        (dataset === null || dataset?.speakers.length === 0
+          ? ""
+          : ` (${dataset.speakers.length} Speakers Total)`),
       key: "name",
       render: (text: any, record: SpeakerInterface) => (
         <Typography.Text

@@ -3,7 +3,11 @@ import path from "path";
 import fsNative from "fs";
 const fsPromises = fsNative.promises;
 import { exists } from "../utils/files";
-import { PreprocessingRunInterface } from "../../interfaces";
+import {
+  CleaningRunInterface,
+  PreprocessingRunInterface,
+  TextNormalizationInterface,
+} from "../../interfaces";
 import {
   getCleaningRunsDir,
   getTextNormalizationRunsDir,
@@ -14,14 +18,14 @@ ipcMain.handle(
   "create-preprocessing-run",
   (event: IpcMainInvokeEvent, name: string, type: string) => {
     switch (type) {
-      case "dSCleaning":
+      case "dSCleaningRun":
         DB.getInstance()
           .prepare("INSERT INTO cleaning_run (name) VALUES (@name)")
           .run({
             name,
           });
         break;
-      case "textNormalization":
+      case "textNormalizationRun":
         DB.getInstance()
           .prepare("INSERT INTO text_normalization_run (name) VALUES (@name)")
           .run({
@@ -44,7 +48,7 @@ ipcMain.handle("fetch-preprocessing-runs", (event: IpcMainInvokeEvent) => {
     .all()
     .map((el: any) => ({
       ...el,
-      type: "dSCleaning",
+      type: "dSCleaningRun",
     }));
   const textNormalizationRuns = DB.getInstance()
     .prepare(
@@ -53,7 +57,7 @@ ipcMain.handle("fetch-preprocessing-runs", (event: IpcMainInvokeEvent) => {
     .all()
     .map((el: any) => ({
       ...el,
-      type: "textNormalization",
+      type: "textNormalizationRun",
     }));
   return cleaningRuns.concat(textNormalizationRuns);
 });
@@ -66,7 +70,7 @@ ipcMain.handle(
     newName: string
   ) => {
     switch (preprocessingRun.type) {
-      case "dSCleaning":
+      case "dSCleaningRun":
         DB.getInstance()
           .prepare("UPDATE cleaning_run SET name=@name WHERE ID=@ID")
           .run({
@@ -74,7 +78,7 @@ ipcMain.handle(
             name: newName,
           });
         break;
-      case "textNormalization":
+      case "textNormalizationRun":
         DB.getInstance()
           .prepare("UPDATE text_normalization_run SET name=@name WHERE ID=@ID")
           .run({
@@ -97,7 +101,7 @@ ipcMain.handle(
     preprocessingRun: PreprocessingRunInterface
   ) => {
     switch (preprocessingRun.type) {
-      case "dSCleaning": {
+      case "dSCleaningRun": {
         DB.getInstance().transaction(() => {
           DB.getInstance()
             .prepare("DELETE FROM noisy_sample WHERE cleaning_run_id=@ID")
@@ -119,7 +123,7 @@ ipcMain.handle(
         }
         break;
       }
-      case "textNormalization": {
+      case "textNormalizationRun": {
         DB.getInstance().transaction(() => {
           DB.getInstance()
             .prepare(

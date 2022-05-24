@@ -680,9 +680,9 @@ def normalize(ID: int, run_type: str, lang: str):
 
         normalized, text_in, text_out, reason = ret
         if normalized:
-            print("Text in: ", text_in)
-            print("Text normalized: ", text_out)
-            print("Reason: ", reason)
+            print("Text in: ", text_in, flush=True)
+            print("Text normalized: ", text_out, flush=True)
+            print("Reason: ", reason, flush=True)
             print("", flush=True)
 
     for (sample_id, _), (has_normalized, text_in, text_out, reason) in zip(

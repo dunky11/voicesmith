@@ -187,7 +187,7 @@ export default function App() {
       case "trainingRun":
         ipcRenderer.send("continue-training-run", run.ID);
         break;
-      case "dSCleaning":
+      case "dSCleaningRun":
         ipcRenderer.send("continue-cleaning-run", run.ID);
         break;
       case "textNormalizationRun":

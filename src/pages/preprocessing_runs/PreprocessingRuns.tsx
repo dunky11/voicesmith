@@ -24,10 +24,10 @@ export default function PreprcocessingRuns({
       return;
     }
     switch (selectedPreprocessingRun.type) {
-      case "textNormalization":
+      case "textNormalizationRun":
         history.push("/preprocessing-runs/text-normalization/configuration");
         break;
-      case "dSCleaning":
+      case "dSCleaningRun":
         history.push("/preprocessing-runs/dataset-cleaning/configuration");
         break;
       default:

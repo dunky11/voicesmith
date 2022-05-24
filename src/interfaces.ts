@@ -90,7 +90,7 @@ export interface ConfigurationInterface {
 
 export interface RunInterface {
   ID: number;
-  type: "trainingRun" | "dSCleaning" | "textNormalizationRun";
+  type: "trainingRun" | "dSCleaningRun" | "textNormalizationRun";
 }
 
 export interface SynthConfigInterface {
@@ -196,13 +196,13 @@ export interface PreprocessingRunInterface {
   ID: number;
   name: string;
   stage: string;
-  type: "textNormalization" | "dSCleaning";
+  type: "textNormalizationRun" | "dSCleaningRun";
   datasetID?: number;
   datasetName: string | null;
 }
 
 export interface TextNormalizationInterface extends PreprocessingRunInterface {
-  type: "textNormalization";
+  type: "textNormalizationRun";
   language: "en" | "es" | "de" | "ru";
   stage: "not_started" | "text_normalization" | "choose_samples" | "finished";
 }
@@ -215,7 +215,7 @@ export interface TextNormalizationRunConfigInterface {
 }
 
 export interface DSCleaningInterface extends PreprocessingRunInterface {
-  type: "dSCleaning";
+  type: "dSCleaningRun";
   stage:
     | "not_started"
     | "gen_file_embeddings"

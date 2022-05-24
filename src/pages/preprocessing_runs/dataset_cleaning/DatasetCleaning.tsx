@@ -51,7 +51,7 @@ export default function DatasetCleaning({
 
   const selectedIsRunning =
     running !== null &&
-    running.type === "dSCleaning" &&
+    running.type === "dSCleaningRun" &&
     running.ID == preprocessingRun?.ID;
 
   const fetchCleaningRun = () => {

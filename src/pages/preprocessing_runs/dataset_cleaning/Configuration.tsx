@@ -90,7 +90,7 @@ export default function Configuration({
           if (stage === "not_started") {
             continueRun({
               ID: selectedID,
-              type: "dSCleaning",
+              type: "dSCleaningRun",
             });
           }
           onStepChange(1);

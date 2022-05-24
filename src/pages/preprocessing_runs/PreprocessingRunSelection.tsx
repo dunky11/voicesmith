@@ -16,12 +16,12 @@ import { stringCompare } from "../../utils";
 const { ipcRenderer } = window.require("electron");
 
 const prettyType = (
-  type: "textNormalization" | "superResolution" | "dSCleaning" | "NoiseRemoval"
+  type: "textNormalizationRun" | "superResolutionRun" | "dSCleaningRun"
 ) => {
   switch (type) {
-    case "textNormalization":
+    case "textNormalizationRun":
       return "Text Normalization";
-    case "dSCleaning":
+    case "dSCleaningRun":
       return "Dataset Cleaning";
     default:
       throw new Error(
@@ -100,7 +100,9 @@ export default function PreprocessingRunSelection({
       .then(fetchPreprocessingRuns);
   };
 
-  const createPreprocessingRun = (type: "textNormalization" | "dSCleaning") => {
+  const createPreprocessingRun = (
+    type: "textNormalizationRun" | "dSCleaningRun"
+  ) => {
     const name = getFirstPossibleName();
     ipcRenderer
       .invoke("create-preprocessing-run", name, type)
@@ -216,8 +218,7 @@ export default function PreprocessingRunSelection({
               return (
                 <a
                   onClick={() => {
-                    // @ts-ignore
-                    continueRun({ ID: record.ID, type: String(record.type) });
+                    continueRun({ ID: record.ID, type: record.type });
                   }}
                 >
                   Continue Run
@@ -279,7 +280,7 @@ export default function PreprocessingRunSelection({
           <div style={{ marginBottom: 16, display: "flex" }}>
             <Button
               onClick={() => {
-                createPreprocessingRun("textNormalization");
+                createPreprocessingRun("textNormalizationRun");
               }}
               disabled={isDisabled}
             >
