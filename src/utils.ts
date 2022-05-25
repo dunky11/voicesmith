@@ -39,12 +39,13 @@ export function useInterval(callback: any, delay: number | null) {
   return intervalRef;
 }
 
-export function useStateCallback<T>(initialState: T) {
+export function useStateCallback<T>(
+  initialState: T
+): [T, (state: T, cb: null | (() => void)) => void] {
   const [state, setState] = useState(initialState);
   const cbRef = useRef<() => void | null>(null); // init mutable ref container for callbacks
 
-  const setStateCallback = useCallback((state: T, cb: null | "() => void") => {
-    // @ts-ignore
+  const setStateCallback = useCallback((state: T, cb: null | (() => void)) => {
     cbRef.current = cb; // store current, passed callback in ref
     setState(state);
   }, []); // keep object reference stable, exactly like `useState`

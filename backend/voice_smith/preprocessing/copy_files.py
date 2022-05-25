@@ -35,6 +35,7 @@ def copy_files(
     audio_paths: List[str],
     names: List[str],
     get_logger: Optional[Callable],
+    workers: int,
     log_every: int = 200,
 ) -> None:
     assert len(txt_paths) == len(texts)
@@ -58,14 +59,14 @@ def copy_files(
             )
 
     print("Writing text files ...")
-    Parallel(n_jobs=max(1, mp.cpu_count() - 1))(
+    Parallel(n_jobs=workers)(
         delayed(write_text_file)(file_path, text, Path(data_path) / "raw_data" / name)
         for file_path, text, name in iter_logger(
             zip(txt_paths, texts, names), cb=txt_callback
         )
     )
     print("Copying audio files ...")
-    Parallel(n_jobs=max(1, mp.cpu_count() - 1))(
+    Parallel(n_jobs=workers)(
         delayed(copy_audio_file)(file_path, Path(data_path) / "raw_data" / name)
         for file_path, name in iter_logger(zip(audio_paths, names), cb=audio_callback)
     )

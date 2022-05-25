@@ -10,6 +10,7 @@ const createTables = (db: any) => {
     CREATE TABLE IF NOT EXISTS training_run (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         stage TEXT NOT NULL DEFAULT "not_started",
+        maximum_workers INTEGER NOT NULL,
         name TEXT NOT NULL,
         validation_size FLOAT NOT NULL,
         min_seconds FLOAT NOT NULL,

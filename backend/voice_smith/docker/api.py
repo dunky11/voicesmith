@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 import multiprocessing as mp
 import os
+import sys
 
 _CONTAINER_NAME = "voice_smith"
 
@@ -43,11 +44,10 @@ def run_command(container: Any, cmd: str, user="voice_smith") -> None:
         print(data.decode(), flush=True)
 
 
-def generate_vocab(container: Any, training_run_name: str) -> None:
+def generate_vocab(container: Any, training_run_name: str, workers: int) -> None:
     print("Generating vocabulary ... ")
-    n_workers = max(1, mp.cpu_count() - 1)
     run_command(
-        container, f"bash ./generate_vocab.sh {training_run_name} {n_workers}",
+        container, f"bash ./generate_vocab.sh {training_run_name} {workers}",
     )
     print("Merging vocabulary with presets ...")
     run_command(
@@ -56,11 +56,10 @@ def generate_vocab(container: Any, training_run_name: str) -> None:
     )
 
 
-def align(container: Any, training_run_name: str):
+def align(container: Any, training_run_name: str, workers: int):
     print("Generating alignments ...")
-    n_workers = max(1, mp.cpu_count() - 1)
     run_command(
-        container, f"bash ./align.sh {training_run_name} {n_workers}",
+        container, f"bash ./align.sh {training_run_name} {workers}",
     )
 
 
@@ -84,3 +83,88 @@ def reload_docker(user_data_path: str, db_path: str) -> Any:
     load_image_if_needed()
     container = rerun_container(user_data_path=user_data_path, db_path=db_path)
     return container
+
+
+def container_exec(
+    container,
+    cmd,
+    stdout=True,
+    stderr=True,
+    stdin=False,
+    tty=False,
+    privileged=False,
+    user="",
+    detach=False,
+    stream=False,
+    socket=False,
+    environment=None,
+    workdir=None,
+):
+    """ https://github.com/docker/docker-py/issues/1989
+    An enhanced version of #docker.Container.exec_run() which returns an object
+    that can be properly inspected for the status of the executed commands.
+    """
+
+    exec_id = container.client.api.exec_create(
+        container.id,
+        cmd,
+        stdout=stdout,
+        stderr=stderr,
+        stdin=stdin,
+        tty=tty,
+        privileged=privileged,
+        user=user,
+        environment=environment,
+        workdir=workdir,
+    )["Id"]
+
+    output = container.client.api.exec_start(
+        exec_id, detach=detach, tty=tty, stream=stream, socket=socket
+    )
+
+    return ContainerExec(container.client, exec_id, output)
+
+
+class ContainerExec(object):
+    def __init__(self, client, id, output):
+        self.client = client
+        self.id = id
+        self.output = output
+
+    def inspect(self):
+        return self.client.api.exec_inspect(self.id)
+
+    def poll(self):
+        return self.inspect()["ExitCode"]
+
+    def communicate(self, line_prefix=b""):
+        for data in self.output:
+            if not data:
+                continue
+            offset = 0
+            print(data)
+            while offset < len(data):
+                sys.stdout.buffer.write(line_prefix)
+                nl = data.find(b"\n", offset)
+                if nl >= 0:
+                    slice = data[offset : nl + 1]
+                    offset = nl + 1
+                else:
+                    slice = data[offset:]
+                    offset += len(slice)
+                sys.stdout.buffer.write(slice)
+            sys.stdout.flush()
+        while self.poll() is None:
+            raise RuntimeError("Hm could that really happen?")
+        return self.poll()
+
+
+if __name__ == "__main__":
+    client = docker.from_env()
+    container = client.containers.get(_CONTAINER_NAME)
+    container = client.containers.run(
+        _CONTAINER_NAME, tty=True, detach=True, name="TEST"
+    )
+    ret = container_exec(container, "echo 'hello world!';")
+    response_code = ret.communicate()
+    print(response_code)

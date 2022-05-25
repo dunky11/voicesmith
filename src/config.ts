@@ -19,6 +19,7 @@ export const STATISTIC_HEIGHT = 200;
 
 export const trainingRunInitialValues: ConfigurationInterface = {
   name: "",
+  maximumWorkers: -1,
   validationSize: 5.0,
   minSeconds: 0.5,
   maxSeconds: 10,

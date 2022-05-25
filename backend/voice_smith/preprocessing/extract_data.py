@@ -7,14 +7,18 @@ import numpy as np
 import tgt
 from typing import Dict, Any, Callable, Optional, List, Tuple, Union
 from voice_smith.config.symbols import symbol2id
-from voice_smith.utils.tools import iter_logger, OnlineScaler, stratified_train_test_split
+from voice_smith.utils.tools import (
+    iter_logger,
+    OnlineScaler,
+    stratified_train_test_split,
+)
 from voice_smith.utils.audio import (
     TacotronSTFT,
     get_mel_from_wav,
     compute_yin,
     norm_interp_f0,
     safe_load,
-    resample
+    resample,
 )
 from voice_smith.utils.tools import warnings_to_stdout
 
@@ -201,9 +205,7 @@ def process_utterance(
     )
 
     torch.save(
-        {
-            "wav": torch.from_numpy(wav).float(),
-        },
+        {"wav": torch.from_numpy(wav).float(),},
         Path(out_dir) / "wav" / speaker / f"{basename}.pt",
     )
 
@@ -221,6 +223,7 @@ def extract_data(
     get_logger: Optional[Callable],
     training_runs_path: str,
     assets_path: str,
+    workers: int,
     log_every: int = 200,
     ignore_below_hz: Union[int, None] = None,
 ) -> None:
@@ -265,7 +268,7 @@ def extract_data(
                 [progress, db_id],
             )
 
-    rets = Parallel(n_jobs=max(multiprocessing.cpu_count() - 1, 1))(
+    rets = Parallel(n_jobs=workers)(
         delayed(process_utterance)(
             in_dir=in_dir,
             out_dir=out_dir,
@@ -276,11 +279,9 @@ def extract_data(
             hop_length=hop_length,
             to_mel=to_mel,
             ignore_below_hz=ignore_below_hz,
-        ) for wav_path in iter_logger(
-            wav_paths,
-            total=len(wav_paths),
-            cb=callback,
-            print_every=log_every
+        )
+        for wav_path in iter_logger(
+            wav_paths, total=len(wav_paths), cb=callback, print_every=log_every
         )
     )
 
@@ -294,7 +295,11 @@ def extract_data(
 
     print("Calculating pitch stats")
     pitch_mean, pitch_std = calculate_pitch_stats(
-        table_name=table_name, db_id=db_id, out_dir=str(out_dir), get_logger=get_logger
+        table_name=table_name,
+        db_id=db_id,
+        out_dir=str(out_dir),
+        get_logger=get_logger,
+        workers=workers,
     )
 
     print("Normalizing pitch")
@@ -306,6 +311,7 @@ def extract_data(
         std=pitch_std,
         get_logger=get_logger,
         log_every=log_every,
+        workers=workers,
     )
 
     print("Saving stats ... ")
@@ -344,10 +350,8 @@ def extract_data(
     )
 
     print("Creating train and validation splits ... ")
-    x_train, x_val, _, _  = stratified_train_test_split(
-        x=out,
-        y=speaker_names,
-        train_size=1.0 - preprocess_config["val_size"]
+    x_train, x_val, _, _ = stratified_train_test_split(
+        x=out, y=speaker_names, train_size=1.0 - preprocess_config["val_size"]
     )
 
     logger.query(
@@ -377,6 +381,7 @@ def calculate_pitch_stats(
     db_id: int,
     out_dir: str,
     get_logger: Optional[Callable],
+    workers: int,
     chunk_size: int = 10000,
 ) -> Tuple[float, float]:
     scaler = OnlineScaler()
@@ -402,12 +407,12 @@ def calculate_pitch_stats(
         cb=callback,
     ):
         files_slice = files[start_idx : start_idx + chunk_size]
-        rets = Parallel(n_jobs=max(multiprocessing.cpu_count() - 1, 1))(
+        rets = Parallel(n_jobs=workers)(
             delayed(_get_pitch)(path) for path in files_slice
         )
         for pitch in rets:
             scaler.partial_fit(torch.from_numpy(pitch.reshape(-1, 1)))
-    
+
     pitch_mean, pitch_std = scaler.get_mean_std()
     return pitch_mean.numpy(), pitch_std.numpy()
 
@@ -419,6 +424,7 @@ def normalize_pitch(
     mean: float,
     std: float,
     get_logger: Optional[Callable],
+    workers: int,
     log_every: int = 200,
 ) -> Tuple[float, float]:
     paths = list((Path(out_dir) / "data").glob("*/*.pt"))
@@ -442,7 +448,7 @@ def normalize_pitch(
                 [progress, db_id],
             )
 
-    rets = Parallel(n_jobs=max(multiprocessing.cpu_count() - 1, 1))(
+    rets = Parallel(n_jobs=workers)(
         delayed(_normalize)(path)
         for path in iter_logger(paths, total=len(paths), cb=callback)
     )

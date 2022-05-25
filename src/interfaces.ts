@@ -69,6 +69,7 @@ export interface SpeakerInterface {
 
 export interface ConfigurationInterface {
   name: string;
+  maximumWorkers: number;
   validationSize: number;
   minSeconds: number;
   maxSeconds: number;

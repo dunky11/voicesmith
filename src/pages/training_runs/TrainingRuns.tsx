@@ -22,7 +22,11 @@ export default function TrainingRuns({
 
   const selectTrainingRun = (ID: number) => {
     removeTrainingRunID.current = null;
-    setSelectedTrainingRunID(ID);
+    if (selectedTrainingRunID == ID) {
+      history.push("/training-runs/create-model");
+    } else {
+      setSelectedTrainingRunID(ID);
+    }
   };
 
   const removeTrainingRun = (ID: number) => {

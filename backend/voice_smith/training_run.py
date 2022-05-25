@@ -7,6 +7,7 @@ import json
 import sqlite3
 from typing import Union, Literal, Tuple, Dict, Any
 import argparse
+import multiprocessing as mp
 from voice_smith.preprocessing.copy_files import copy_files
 from voice_smith.preprocessing.extract_data import extract_data
 from voice_smith.preprocessing.ground_truth_alignment import ground_truth_alignment
@@ -138,13 +139,13 @@ def get_device(device: Union[Literal["CPU"], Literal["GPU"]]) -> torch.device:
 
 
 def continue_training_run(
-    training_run_id: int, 
-    training_runs_path: str, 
-    assets_path: str, 
-    db_path: str, 
-    models_path: str, 
+    training_run_id: int,
+    training_runs_path: str,
+    assets_path: str,
+    db_path: str,
+    models_path: str,
     datasets_path: str,
-    user_data_path: str
+    user_data_path: str,
 ):
     con = get_con(db_path)
     cur = con.cursor()
@@ -167,10 +168,12 @@ def continue_training_run(
 
     while stage != "finished":
         row = cur.execute(
-            "SELECT stage, preprocessing_stage FROM training_run WHERE ID=?",
+            "SELECT stage, preprocessing_stage, maximum_workers FROM training_run WHERE ID=?",
             (training_run_id,),
         ).fetchone()
-        stage, preprocessing_stage = row
+        stage, preprocessing_stage, workers = row
+        if workers == -1:
+            workers = max(1, mp.cpu_count() - 1)
         if stage == "not_started":
             cur.execute(
                 "UPDATE training_run SET stage='preprocessing' WHERE ID=?",
@@ -237,6 +240,7 @@ def continue_training_run(
                     audio_paths=audio_paths,
                     names=names,
                     get_logger=get_logger,
+                    workers=workers,
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",
@@ -247,8 +251,12 @@ def continue_training_run(
             elif preprocessing_stage == "gen_vocab":
                 (data_path / "data").mkdir(exist_ok=True, parents=True)
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
-                container = reload_docker(user_data_path=user_data_path, db_path=db_path)    
-                generate_vocab(container, training_run_name=str(training_run_id))
+                container = reload_docker(
+                    user_data_path=user_data_path, db_path=db_path
+                )
+                generate_vocab(
+                    container, training_run_name=str(training_run_id), workers=workers
+                )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_alignments', preprocessing_gen_vocab_progress=1.0 WHERE ID=?",
                     (training_run_id,),
@@ -257,8 +265,12 @@ def continue_training_run(
 
             elif preprocessing_stage == "gen_alignments":
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
-                container = reload_docker(user_data_path=user_data_path, db_path=db_path)
-                align(container, training_run_name=str(training_run_id))
+                container = reload_docker(
+                    user_data_path=user_data_path, db_path=db_path
+                )
+                align(
+                    container, training_run_name=str(training_run_id), workers=workers
+                )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='extract_data', preprocessing_gen_align_progress=1.0 WHERE ID=?",
                     (training_run_id,),
@@ -281,7 +293,8 @@ def continue_training_run(
                     preprocess_config=p_config,
                     get_logger=get_logger,
                     assets_path=assets_path,
-                    training_runs_path=training_runs_path
+                    training_runs_path=training_runs_path,
+                    workers=workers,
                 )
                 cur.execute(
                     "UPDATE training_run SET stage='acoustic_fine_tuning', preprocessing_stage='finished' WHERE ID=?",
@@ -303,8 +316,7 @@ def continue_training_run(
             set_stream_location(str(data_path / "logs" / "acoustic_fine_tuning.txt"))
             print("Fine-Tuning Acoustic Model ...")
             row = cur.execute(
-                "SELECT device FROM training_run WHERE ID=?",
-                (training_run_id,),
+                "SELECT device FROM training_run WHERE ID=?", (training_run_id,),
             ).fetchone()
 
             device = row[0]
@@ -371,7 +383,7 @@ def continue_training_run(
                         fine_tuning=True,
                         overwrite_saves=True,
                         assets_path=assets_path,
-                        training_runs_path=training_runs_path
+                        training_runs_path=training_runs_path,
                     )
                     break
                 except RuntimeError as e:
@@ -483,8 +495,7 @@ def continue_training_run(
             print("Fine-Tuning Vocoder ...")
 
             row = cur.execute(
-                "SELECT device FROM training_run WHERE ID=?",
-                (training_run_id,),
+                "SELECT device FROM training_run WHERE ID=?", (training_run_id,),
             ).fetchone()
             device = row[0]
             device = get_device(device)
@@ -590,12 +601,10 @@ def continue_training_run(
             print("Saving Model ...")
 
             checkpoint_acoustic, acoustic_steps = get_latest_checkpoint(
-                name="acoustic",
-                ckpt_dir=str(data_path / "ckpt" / "acoustic"),
+                name="acoustic", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
             )
             checkpoint_style, acoustic_steps = get_latest_checkpoint(
-                name="style",
-                ckpt_dir=str(data_path / "ckpt" / "acoustic"),
+                name="style", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
             )
             checkpoint_vocoder, vocoder_steps = get_latest_checkpoint(
                 name="vocoder", ckpt_dir=str(data_path / "ckpt" / "vocoder")
@@ -658,8 +667,7 @@ def continue_training_run(
             """
 
             row = cur.execute(
-                "SELECT name FROM training_run WHERE ID=?",
-                (training_run_id,),
+                "SELECT name FROM training_run WHERE ID=?", (training_run_id,),
             ).fetchone()
             con.commit()
 
@@ -724,6 +732,7 @@ def continue_training_run(
         else:
             raise Exception(f"Stage '{stage}' is not a valid stage ...")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--training_run_id", type=int, required=True)
@@ -742,5 +751,5 @@ if __name__ == "__main__":
         db_path=args.db_path,
         models_path=args.models_path,
         datasets_path=args.datasets_path,
-        user_data_path=args.user_data_path
+        user_data_path=args.user_data_path,
     )

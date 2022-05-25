@@ -23,7 +23,8 @@ ipcMain.handle(
       .prepare(
         `INSERT INTO training_run 
       (
-        name,  
+        name,
+        maximum_workers,
         validation_size, 
         min_seconds,  
         max_seconds, 
@@ -42,7 +43,8 @@ ipcMain.handle(
         dataset_id,
         device
       ) VALUES(
-        @name, 
+        @name,
+        @maximum_workers,
         @validationSize, 
         @minSeconds, 
         @maxSeconds, 
@@ -77,7 +79,8 @@ ipcMain.handle(
     DB.getInstance()
       .prepare(
         `UPDATE training_run SET
-      name=@name, 
+      name=@name,
+      maximum_workers=@maximumWorkers,
       validation_size=@validationSize, 
       min_seconds=@minSeconds, 
       max_seconds=@maxSeconds, 
@@ -211,6 +214,7 @@ ipcMain.handle(
       FROM training_run WHERE ID=@trainingRunID`
       )
       .get({ trainingRunID });
+    console.log(configuration);
     return configuration;
   }
 );

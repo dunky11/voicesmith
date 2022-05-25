@@ -19,7 +19,7 @@ import {
   RunInterface,
 } from "../../interfaces";
 import { SERVER_URL, trainingRunInitialValues } from "../../config";
-import { notifySave } from "../../utils";
+import { notifySave, useStateCallback } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
 const { ipcRenderer, shell } = window.require("electron");
 
@@ -49,13 +49,13 @@ export default function Configuration({
   const [modelNames, setModelNames] = useState<string[]>([]);
   const isMounted = useRef(false);
   const [datasetsIsLoaded, setDatastsIsLoaded] = useState(false);
-
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
   const [cudaStateIsLoaded, setCudaStateIsLoaded] = useState(false);
   const [cudaIsAvailable, setCudaIsAvailable] = useState(false);
   const [datasets, setDatasets] = useState<DatasetInterface[]>([]);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
+  const fetchConfigRef = useRef(false);
   const formRef = useRef<FormInstance | null>();
 
   const onBackClick = () => {
@@ -118,13 +118,14 @@ export default function Configuration({
         if (!isMounted.current) {
           return;
         }
-        if (!configIsLoaded) {
-          setConfigIsLoaded(true);
-        }
         const config = {
           ...configuration,
           device: cudaIsAvailable ? configuration.device : "CPU",
         };
+
+        if (!configIsLoaded) {
+          setConfigIsLoaded(true);
+        }
         formRef.current?.setFieldsValue(config);
       });
   };
@@ -160,18 +161,28 @@ export default function Configuration({
         return;
       }
       const response = JSON.parse(ajax.responseText);
-      setCudaIsAvailable(response.available);
+      if (response.available) {
+        fetchConfigRef.current = true;
+        setCudaIsAvailable(true);
+      } else {
+        fetchConfiguration();
+      }
       setCudaStateIsLoaded(true);
     };
     ajax.send();
   };
 
   useEffect(() => {
+    if (fetchConfigRef.current) {
+      fetchConfiguration();
+    }
+  }, [cudaIsAvailable]);
+
+  useEffect(() => {
     isMounted.current = true;
     fetchNamesInUse();
     fetchDatasets();
     fetchIsCudaAvailable();
-    fetchConfiguration();
     return () => {
       isMounted.current = false;
     };
@@ -298,6 +309,18 @@ export default function Configuration({
                 max={100.0}
                 addonAfter="%"
               ></InputNumber>
+            </Form.Item>
+            <Form.Item label="Maximum Number of Workers" name="maximumWorkers">
+              <Select disabled={disableEdit} style={{ width: 200 }}>
+                <Select.Option value={-1}>Auto</Select.Option>
+                {Array.from(Array(64 + 1).keys())
+                  .slice(1)
+                  .map((el) => (
+                    <Select.Option key={el} value={el}>
+                      {el}
+                    </Select.Option>
+                  ))}
+              </Select>
             </Form.Item>
             <Form.Item
               rules={[
