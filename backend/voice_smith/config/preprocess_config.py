@@ -5,10 +5,8 @@ preprocess_config: Dict[str, Any] = {
     "min_seconds": 0.5,
     "max_seconds": 10.0,
     "sampling_rate": 22050,
-    "stft": {
-        "filter_length": 1024,
-        "hop_length": 256,
-        "win_length": 1024,
-    },
+    "use_audio_normalization": True,
+    "workers": 11,
+    "stft": {"filter_length": 1024, "hop_length": 256, "win_length": 1024,},
     "mel": {"n_mel_channels": 100, "mel_fmin": 20, "mel_fmax": 11025},
 }

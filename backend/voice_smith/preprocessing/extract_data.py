@@ -96,11 +96,17 @@ def process_utterance(
     filter_length: int,
     hop_length: int,
     to_mel: torch.nn.Module,
+    min_seconds: float,
+    max_seconds: float,
+    normalize_loudness: bool,
     ignore_below_hz: Union[int, None],
 ) -> Union[None, Tuple[str, int]]:
     audio_path = Path(in_dir) / speaker / f"{basename}.wav"
     text_path = Path(in_dir) / speaker / f"{basename}.txt"
     tg_path = Path(out_dir) / "textgrid" / speaker / f"{basename}.TextGrid"
+
+    min_samples = int(sampling_rate * min_seconds)
+    max_samples = int(sampling_rate * max_seconds)
 
     if not audio_path.exists():
         print(f"File {audio_path} does not exist, skipping ...")
@@ -146,7 +152,11 @@ def process_utterance(
         int(np.round(sampling_rate * start)) : int(np.round(sampling_rate * end))
     ].astype(np.float32)
 
-    wav = wav / np.max(np.abs(wav))
+    if wav.shape[0] < min_samples or wav.shape[0] > max_samples:
+        return
+
+    if normalize_loudness:
+        wav = wav / np.max(np.abs(wav))
 
     pitch, _, _, _ = compute_yin(
         wav,
@@ -223,13 +233,18 @@ def extract_data(
     get_logger: Optional[Callable],
     training_runs_path: str,
     assets_path: str,
-    workers: int,
     log_every: int = 200,
     ignore_below_hz: Union[int, None] = None,
 ) -> None:
-    print("Extracting data ...")
+    workers = preprocess_config["workers"]
+    print(f"Extracting data with {workers} workers ...")
+
     in_dir = Path(training_runs_path) / str(training_run_name) / "raw_data"
     out_dir = Path(training_runs_path) / str(training_run_name) / "data"
+
+    min_seconds = preprocess_config["min_seconds"]
+    max_seconds = preprocess_config["max_seconds"]
+    use_audio_normalization = preprocess_config["use_audio_normalization"]
 
     hop_length = preprocess_config["stft"]["hop_length"]
 
@@ -279,6 +294,9 @@ def extract_data(
             hop_length=hop_length,
             to_mel=to_mel,
             ignore_below_hz=ignore_below_hz,
+            min_seconds=min_seconds,
+            max_seconds=max_seconds,
+            normalize_loudness=use_audio_normalization,
         )
         for wav_path in iter_logger(
             wav_paths, total=len(wav_paths), cb=callback, print_every=log_every

@@ -72,12 +72,16 @@ def get_acoustic_configs(
 ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
     row = cur.execute(
         """
-        SELECT validation_size, acoustic_learning_rate, acoustic_training_iterations, acoustic_batch_size, acoustic_grad_accum_steps, acoustic_validate_every, only_train_speaker_emb_until 
+        SELECT min_seconds, max_seconds, maximum_workers, use_audio_normalization, validation_size, acoustic_learning_rate, acoustic_training_iterations, acoustic_batch_size, acoustic_grad_accum_steps, acoustic_validate_every, only_train_speaker_emb_until 
         FROM training_run WHERE ID=?
         """,
         (training_run_id,),
     ).fetchone()
     (
+        min_seconds,
+        max_seconds,
+        maximum_workers,
+        use_audio_normalization,
         validation_size,
         acoustic_learning_rate,
         acoustic_training_iterations,
@@ -90,6 +94,12 @@ def get_acoustic_configs(
     m_config = acoustic_model_config.copy()
     t_config = acoustic_fine_tuning_config.copy()
     p_config["val_size"] = validation_size / 100.0
+    p_config["min_seconds"] = min_seconds
+    p_config["max_seconds"] = max_seconds
+    p_config["use_audio_normalization"] = use_audio_normalization == 1
+    p_config["workers"] = (
+        max(1, mp.cpu_count() - 1) if maximum_workers == -1 else maximum_workers
+    )
     t_config["batch_size"] = batch_size
     t_config["grad_acc_step"] = grad_acc_step
     t_config["step"]["train_steps"] = acoustic_training_iterations
@@ -168,12 +178,10 @@ def continue_training_run(
 
     while stage != "finished":
         row = cur.execute(
-            "SELECT stage, preprocessing_stage, maximum_workers FROM training_run WHERE ID=?",
+            "SELECT stage, preprocessing_stage FROM training_run WHERE ID=?",
             (training_run_id,),
         ).fetchone()
-        stage, preprocessing_stage, workers = row
-        if workers == -1:
-            workers = max(1, mp.cpu_count() - 1)
+        stage, preprocessing_stage = row
         if stage == "not_started":
             cur.execute(
                 "UPDATE training_run SET stage='preprocessing' WHERE ID=?",
@@ -231,6 +239,9 @@ def continue_training_run(
                     texts.append(text)
                     audio_paths.append(str(full_audio_path))
                     names.append(speaker_name)
+                p_config, _, _ = get_acoustic_configs(
+                    cur=cur, training_run_id=training_run_id
+                )
                 copy_files(
                     db_id=training_run_id,
                     table_name="training_run",
@@ -240,7 +251,7 @@ def continue_training_run(
                     audio_paths=audio_paths,
                     names=names,
                     get_logger=get_logger,
-                    workers=workers,
+                    preprocess_config=p_config,
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",
@@ -254,8 +265,11 @@ def continue_training_run(
                 container = reload_docker(
                     user_data_path=user_data_path, db_path=db_path
                 )
+                p_config, _, _ = get_acoustic_configs(
+                    cur=cur, training_run_id=training_run_id
+                )
                 generate_vocab(
-                    container, training_run_name=str(training_run_id), workers=workers
+                    container, training_run_name=str(training_run_id), p_config=p_config
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_alignments', preprocessing_gen_vocab_progress=1.0 WHERE ID=?",
@@ -268,8 +282,11 @@ def continue_training_run(
                 container = reload_docker(
                     user_data_path=user_data_path, db_path=db_path
                 )
+                p_config, _, _ = get_acoustic_configs(
+                    cur=cur, training_run_id=training_run_id
+                )
                 align(
-                    container, training_run_name=str(training_run_id), workers=workers
+                    container, training_run_name=str(training_run_id), p_config=p_config
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='extract_data', preprocessing_gen_align_progress=1.0 WHERE ID=?",
@@ -294,7 +311,6 @@ def continue_training_run(
                     get_logger=get_logger,
                     assets_path=assets_path,
                     training_runs_path=training_runs_path,
-                    workers=workers,
                 )
                 cur.execute(
                     "UPDATE training_run SET stage='acoustic_fine_tuning', preprocessing_stage='finished' WHERE ID=?",

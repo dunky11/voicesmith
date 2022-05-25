@@ -1,7 +1,7 @@
 import docker
 from docker.errors import NotFound as NotFoundError, ImageNotFound as ImageNotFoundError
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 import multiprocessing as mp
 import os
 import sys
@@ -44,8 +44,11 @@ def run_command(container: Any, cmd: str, user="voice_smith") -> None:
         print(data.decode(), flush=True)
 
 
-def generate_vocab(container: Any, training_run_name: str, workers: int) -> None:
-    print("Generating vocabulary ... ")
+def generate_vocab(
+    container: Any, training_run_name: str, p_config: Dict[str, Any]
+) -> None:
+    workers = p_config["workers"]
+    print("Generating vocabulary using {workers} workers ... ")
     run_command(
         container, f"bash ./generate_vocab.sh {training_run_name} {workers}",
     )
@@ -56,8 +59,9 @@ def generate_vocab(container: Any, training_run_name: str, workers: int) -> None
     )
 
 
-def align(container: Any, training_run_name: str, workers: int):
-    print("Generating alignments ...")
+def align(container: Any, training_run_name: str, p_config: Dict[str, Any]):
+    workers = p_config["workers"]
+    print("Generating alignments using {workers} workers ...")
     run_command(
         container, f"bash ./align.sh {training_run_name} {workers}",
     )

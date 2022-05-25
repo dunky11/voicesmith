@@ -2,7 +2,7 @@ from joblib import Parallel, delayed
 import multiprocessing as mp
 import shutil
 import torch
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Dict, Any
 from pathlib import Path
 from voice_smith.utils.audio import safe_load
 from voice_smith.utils.tools import iter_logger
@@ -35,10 +35,11 @@ def copy_files(
     audio_paths: List[str],
     names: List[str],
     get_logger: Optional[Callable],
-    workers: int,
+    preprocess_config: Dict[str, Any],
     log_every: int = 200,
 ) -> None:
     assert len(txt_paths) == len(texts)
+    workers = preprocess_config["workers"]
 
     def txt_callback(index: int):
         if index % log_every == 0:

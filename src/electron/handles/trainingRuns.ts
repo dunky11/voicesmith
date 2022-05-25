@@ -194,6 +194,7 @@ ipcMain.handle(
       .prepare(
         `SELECT 
         name,
+        maximum_workers AS maximumWorkers,
         validation_size AS validationSize,
         min_seconds AS minSeconds, 
         max_seconds AS maxSeconds,
@@ -214,7 +215,6 @@ ipcMain.handle(
       FROM training_run WHERE ID=@trainingRunID`
       )
       .get({ trainingRunID });
-    console.log(configuration);
     return configuration;
   }
 );

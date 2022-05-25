@@ -5,9 +5,11 @@ import torch.nn.functional as F
 from typing import Tuple, List, Union, Optional
 import torchaudio.functional as audio_F
 import torchaudio
+import librosa
 from voice_smith.utils.librosa import mel as librosa_mel_fn
 
 torchaudio.set_audio_backend("soundfile")
+
 
 def save_audio(file_path: str, audio: torch.Tensor, sr: int):
     torchaudio.save(file_path, audio.unsqueeze(0), sr)
@@ -28,28 +30,14 @@ def get_mel_from_wav(audio: np.ndarray, to_mel: torch.nn.Module) -> np.ndarray:
 def resample(wav: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
     # Some audios are corrupted and contain uneven sampling rates
     # resample will silently crash on them, so even out sampling rate.
-    is_odd = orig_sr % 2 == 1
-    if is_odd:
-        orig_sr -= 1
-
-    wav = audio_F.resample(torch.FloatTensor(wav), orig_sr, target_sr).numpy()
+    wav = librosa.resample(wav, orig_sr, target_sr)
     return wav
 
 
 def safe_load(
     path: str, sr: Union[int, None], verbose: bool = True
 ) -> Tuple[np.ndarray, int]:
-    audio, sr_actual = torchaudio.load(
-        filepath=path,
-    )
-    audio = audio.numpy()
-    if audio.shape[0] > 1:
-        audio = stereo_to_mono(audio)
-    if sr != None and sr != sr_actual:
-        audio = resample(wav=audio, orig_sr=sr_actual, target_sr=sr)
-        sr_actual = sr
-
-    audio = audio.squeeze(0)
+    audio, sr_actual = librosa.load(path, sr=sr)
     return audio, sr_actual
 
 
@@ -112,7 +100,7 @@ def differenceFunction(x: np.ndarray, N: int, tau_max: int) -> np.ndarray:
     size = w + tau_max
     p2 = (size // 32).bit_length()
     nice_numbers = (16, 18, 20, 24, 25, 27, 30, 32)
-    size_pad = min(x * 2**p2 for x in nice_numbers if x * 2**p2 >= size)
+    size_pad = min(x * 2 ** p2 for x in nice_numbers if x * 2 ** p2 >= size)
     fc = np.fft.rfft(x, size_pad)
     conv = np.fft.irfft(fc * fc.conjugate())[:tau_max]
     return x_cumsum[w : w - tau_max : -1] + x_cumsum[w] - x_cumsum[:tau_max] - 2 * conv
