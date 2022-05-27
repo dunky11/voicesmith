@@ -6,8 +6,8 @@ vocoder_pre_training_config: Dict[str, Any] = {
     "adam_b1": 0.8,
     "adam_b2": 0.99,
     "lr_decay": 0.99975,
-    "batch_size": 2,
-    "grad_accum_steps": 5,
+    "batch_size": 8,
+    "grad_accum_steps": 2,
     "train_steps": 1000000,
     "stdout_interval": 25,
     "synth_interval": 250,
@@ -15,4 +15,4 @@ vocoder_pre_training_config: Dict[str, Any] = {
     "checkpoint_interval": 250,
     "stft_lamb": 2.5,
 }
- 
+

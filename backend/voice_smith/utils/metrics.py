@@ -4,6 +4,8 @@ from scipy.spatial.distance import euclidean
 from typing import Tuple
 import torch
 from voice_smith.utils.audio import resample
+from torchmetrics.functional.audio.stoi import short_time_objective_intelligibility
+from torchmetrics.functional.audio.pesq import perceptual_evaluation_speech_quality
 
 
 def mcd(a: np.ndarray, b: np.ndarray) -> float:
@@ -43,11 +45,27 @@ def mcd_dtw(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def calc_estoi(audio_real, audio_fake, sampling_rate):
-    return torch.FloatTensor([0.])
+    return torch.mean(
+        short_time_objective_intelligibility(
+            preds=audio_fake, target=audio_real, fs=sampling_rate, extended=True
+        )
+    )
 
 
 def calc_pesq(audio_real, audio_fake, sampling_rate):
-    return torch.FloatTensor([0.])
+    audio_real = resample(audio_real.cpu().numpy(), sampling_rate, 16000)
+    audio_fake = resample(audio_fake.cpu().numpy(), sampling_rate, 16000)
+    try:
+        pesq = perceptual_evaluation_speech_quality(
+            preds=torch.FloatTensor(audio_fake),
+            target=torch.FloatTensor(audio_real),
+            fs=16000,
+            mode="wb",
+        )
+    except Exception as e:
+        # No utterance error
+        return None
+    return torch.mean(pesq)
 
 
 def calc_rmse(audio_real, audio_fake, stft):

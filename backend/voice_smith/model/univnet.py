@@ -156,10 +156,7 @@ class KernelPredictor(torch.nn.Module):
             cond_length,
         )
         bias = b.contiguous().view(
-            batch,
-            self.conv_layers,
-            self.conv_out_channels,
-            cond_length,
+            batch, self.conv_layers, self.conv_out_channels, cond_length,
         )
 
         return kernels, bias
@@ -608,7 +605,7 @@ def stft(x, fft_size, hop_size, win_length, window):
     imag = x_stft[..., 1]
 
     # NOTE(kan-bayashi): clamp is needed to avoid nan or inf
-    return torch.sqrt(torch.clamp(real**2 + imag**2, min=1e-7)).transpose(2, 1)
+    return torch.sqrt(torch.clamp(real ** 2 + imag ** 2, min=1e-7)).transpose(2, 1)
 
 
 class SpectralConvergengeLoss(torch.nn.Module):
@@ -627,6 +624,7 @@ class SpectralConvergengeLoss(torch.nn.Module):
             Tensor: Spectral convergence loss value.
         """
         return torch.norm(y_mag - x_mag, p="fro") / torch.norm(y_mag, p="fro")
+
 
 class LogSTFTMagnitudeLoss(torch.nn.Module):
     """Log STFT magnitude loss module."""
@@ -666,7 +664,7 @@ class STFTLoss(torch.nn.Module):
         self.spectral_convergenge_loss = SpectralConvergengeLoss()
         self.log_stft_magnitude_loss = LogSTFTMagnitudeLoss()
 
-    def forward(self, x, y, mask):
+    def forward(self, x, y):
         """Calculate forward propagation.
         Args:
             x (Tensor): Predicted signal (B, T).
@@ -675,15 +673,9 @@ class STFTLoss(torch.nn.Module):
             Tensor: Spectral convergence loss value.
             Tensor: Log STFT magnitude loss value.
         """
-            
+
         x_mag = stft(x, self.fft_size, self.shift_size, self.win_length, self.window)
         y_mag = stft(y, self.fft_size, self.shift_size, self.win_length, self.window)
-
-        """"b = x.shape[0]
-        x_mag = x_mag.masked_select(~mask.bool())
-        y_mag = y_mag.masked_select(~mask.bool())
-        x_mag = x_mag.reshape((b, 1, -1))
-        y_mag = y_mag.reshape((b, 1, -1))"""
 
         sc_loss = self.spectral_convergenge_loss(x_mag, y_mag)
         mag_loss = self.log_stft_magnitude_loss(x_mag, y_mag)
@@ -705,7 +697,7 @@ class MultiResolutionSTFTLoss(torch.nn.Module):
         for fs, ss, wl in resolutions:
             self.stft_losses += [STFTLoss(device, fs, ss, wl, window)]
 
-    def forward(self, x, y, mask):
+    def forward(self, x, y):
         """Calculate forward propagation.
         Args:
             x (Tensor): Predicted signal (B, T).
@@ -718,7 +710,7 @@ class MultiResolutionSTFTLoss(torch.nn.Module):
         mag_loss = 0.0
 
         for f in self.stft_losses:
-            sc_l, mag_l = f(x, y, mask)
+            sc_l, mag_l = f(x, y)
             sc_loss += sc_l
             mag_loss += mag_l
 

@@ -147,12 +147,14 @@ class AcousticDataset(Dataset):
 class NaturalSpeechDataset(Dataset):
     def __init__(
         self,
+        assets_path: str,
         filename: str,
         batch_size: int,
         data_path: str,
         sort: bool = False,
         drop_last: bool = False,
     ):
+        self.tokenizer = BertTokenizer(assets_path)
         self.preprocessed_path = Path(data_path)
         self.batch_size = batch_size
         self.basename, self.speaker = self.process_meta(filename)
@@ -180,12 +182,21 @@ class NaturalSpeechDataset(Dataset):
             self.preprocessed_path / "data" / speaker_name / f"{basename}.pt"
         )
         mel = data["mel"]
+        durations = data["durations"]
+        raw_text = data["raw_text"]
         phone = torch.LongTensor(phones_to_token_ids(data["phones"]))
         wav_path = self.preprocessed_path / "wav" / speaker_name / f"{basename}.pt"
         audio_data = torch.load(wav_path)
         audio = audio_data["wav"]
 
-        sample = {"speaker": speaker_id, "text": phone, "mel": mel, "audio": audio}
+        sample = {
+            "speaker": speaker_id,
+            "text": phone,
+            "mel": mel,
+            "durations": durations,
+            "audio": audio,
+            "raw_text": raw_text,
+        }
 
         if mel.shape[1] < 33:
             print(
@@ -213,12 +224,25 @@ class NaturalSpeechDataset(Dataset):
         audios = [data[idx]["audio"] for idx in idxs]
         text_lens = np.array([text.shape[0] for text in texts])
         mel_lens = np.array([mel.shape[1] for mel in mels])
+        durations = [data[idx]["durations"] for idx in idxs]
+        raw_texts = [data[idx]["raw_text"] for idx in idxs]
+        encoding = self.tokenizer(raw_texts)
         speakers = np.array(speakers)
         texts = pad_1D(texts)
         mels = pad_2D(mels)
         audios = pad_1D(audios)
-
-        return (speakers, texts, mels, audios, text_lens, mel_lens)
+        durations = pad_1D(durations)
+        return (
+            speakers,
+            texts,
+            mels,
+            audios,
+            text_lens,
+            mel_lens,
+            durations,
+            encoding["input_ids"],
+            encoding["attention_mask"],
+        )
 
     def collate_fn(self, data):
         data_size = len(data)

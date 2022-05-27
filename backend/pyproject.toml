@@ -27,6 +27,8 @@ numba = "^0.55.1"
 SoundFile = "^0.10.3"
 Cython = "0.29.21"
 matplotlib = "^3.5.2"
+transformers = "^4.19.2"
+torchmetrics = {extras = ["audio"], version = "^0.8.2"}
     
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"

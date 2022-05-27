@@ -23,68 +23,13 @@ from voice_smith.model.vits_orig import slice_segments, rand_slice_segments
 # torch.backends.cudnn.benchmark = True
 
 
-def get_log_likelihoods(x, means, stds):
-    """
-    args
-    ----
-    x: torch.Tensor of shape (b, c, t)
-    means: torch.Tensor of shape (b, c, t)
-    stds: torch.Tensor of shape (b, c, t)
-
-    returns
-    -------
-    log likelihoods of shape (b, t)
-    """
-    assert x.shape == means.shape == stds.shape
-    dist = torch.distributions.Independent(torch.distributions.Normal(means, stds), 1)
-    log_probs = dist.log_prob(x)
-    return log_probs
-
-
-def kl_divergence_non_dtw(
-    x_same, means_same, stds_same, x_other, means_other, stds_other, mask
-):
-    """Calculates the soft dynamic time warped KL divergence loss between the posterior
-    and the prior as in https://arxiv.org/pdf/2205.04421.pdf equation 10 and 11.
-    args
-    ----
-    x_same: torch.Tensor of shape (b, c, m) z in the paper.
-    means_same: torch.Tensor of shape (b, c, m) Means of the isotropic gaussian
-        x was sampled from
-    stds_same: torch.Tensor of shape (b, c, m) Standard deviations of the isotropic
-        gaussian x was sampled from
-    x_other: torch.Tensor of shape (b, c, m) f^-1(z) in the paper.
-    means_other: torch.Tensor of shape (b, c, m) Means of the isotropic gaussian to evaluate
-        the likelihood of f^-1(x) on
-    stds_other: torch.Tensor of shape (b, c, m) Standard deviations of the isotropic gaussian to
-        evaluate the likelihood of f^-1(x) on
-    mask: torch.Tensor of shape (b, 1, m) Mask for the distribution of x_same and x_other.
-    """
-    mask = mask.squeeze(1)
-    log_likelihoods_same = get_log_likelihoods(
-        x_same.permute((0, 2, 1)),
-        means_same.permute((0, 2, 1)),
-        stds_same.permute((0, 2, 1)),
-    )
-    log_likelihoods_other = get_log_likelihoods(
-        x_other.permute((0, 2, 1)),
-        means_other.permute((0, 2, 1)),
-        stds_other.permute((0, 2, 1)),
-    )
-    kl_divergence = (log_likelihoods_same - log_likelihoods_other).masked_fill(
-        mask, 0.0
-    )
-    kl_divergence = torch.sum(kl_divergence, 1) / torch.sum(1 - mask.int(), 1)
-    return torch.mean(kl_divergence)
-
-
-def duration_loss(log_duration_pred, log_duration_true, mask):
-    log_duration_pred = log_duration_pred.squeeze(1)
-    log_duration_true = log_duration_true.squeeze(1)
-    mask = mask.squeeze(1)
-    diff = (log_duration_pred - log_duration_true).masked_fill(mask, 0.0)
-    mse = torch.sum(diff**2, 1) / torch.sum(1 - mask.int(), 1)
-    return torch.mean(mse)
+def duration_loss(log_duration_pred, duration_targets, mask):
+    mask = ~mask.squeeze(1)
+    log_duration_true = torch.log(duration_targets.float() + 1)
+    log_duration_pred = log_duration_pred.masked_select(mask)
+    log_duration_true = log_duration_true.masked_select(mask)
+    mse = F.mse_loss(log_duration_pred, log_duration_true)
+    return mse
 
 
 def synth_iter(
@@ -100,13 +45,23 @@ def synth_iter(
         for group in eval_loader:
             for batch in group:
                 # TODO create directly on cuda
-                speakers, texts, mel, audio, text_lens, mel_lens = to_device(
-                    batch, device
-                )
-                audio_fake = generator.infer(
+                (
+                    speakers,
+                    texts,
+                    mel,
+                    audio,
+                    text_lens,
+                    mel_lens,
+                    durations,
+                    token_ids,
+                    attention_masks,
+                ) = to_device(batch, device)
+                audio_fake = generator(
                     texts[0:1, : text_lens[0].item()],
-                    x_lengths=text_lens[0:1],
-                    sid=speakers[0:1],
+                    speakers=speakers[0:1],
+                    src_lens=text_lens[0:1],
+                    token_ids=token_ids[0:1],
+                    attention_mask=attention_masks[0:1],
                 )
 
                 logger.log_audio(
@@ -125,6 +80,7 @@ def synth_iter(
 
 
 def get_data_loaders(
+    assets_path,
     preprocess_config,
     fine_tuning,
     segment_size,
@@ -133,6 +89,7 @@ def get_data_loaders(
     preprocessed_path,
 ):
     trainset = NaturalSpeechDataset(
+        assets_path=assets_path,
         filename="train.txt",
         batch_size=batch_size,
         data_path=preprocessed_path,
@@ -151,6 +108,7 @@ def get_data_loaders(
     )
 
     validset = NaturalSpeechDataset(
+        assets_path=assets_path,
         filename="val.txt",
         batch_size=batch_size,
         data_path=preprocessed_path,
@@ -172,14 +130,37 @@ def get_data_loaders(
 
 
 def to_device(batch, device):
-    speakers, texts, mels, audios, text_lens, mel_lens = batch
+    (
+        speakers,
+        texts,
+        mels,
+        audios,
+        text_lens,
+        mel_lens,
+        durations,
+        token_ids,
+        attention_masks,
+    ) = batch
     speakers = torch.LongTensor(speakers).to(device)
     texts = torch.LongTensor(texts).to(device)
     mels = torch.FloatTensor(mels).to(device)
     audios = torch.FloatTensor(audios).to(device)
     text_lens = torch.LongTensor(text_lens).to(device)
     mel_lens = torch.LongTensor(mel_lens).to(device)
-    return speakers, texts, mels, audios, text_lens, mel_lens
+    durations = torch.LongTensor(durations).to(device)
+    token_ids = torch.LongTensor(token_ids).to(device)
+    attention_masks = torch.LongTensor(attention_masks).to(device)
+    return (
+        speakers,
+        texts,
+        mels,
+        audios,
+        text_lens,
+        mel_lens,
+        durations,
+        token_ids,
+        attention_masks,
+    )
 
 
 def get_batch(loader, device):
@@ -221,9 +202,10 @@ def train_iter(
     loss_means = {
         "total_loss_gen": 0,
         "total_loss_disc": 0,
-        "mel_loss": 0,
+        "mel_loss_dec": 0,
         "score_loss": 0,
         "kl_loss_backward": 0,
+        "kl_loss_forward": 0,
         "l_dur": 0,
     }
 
@@ -233,32 +215,60 @@ def train_iter(
 
     # Train Generator
     for _ in range(grad_accum_steps):
-        speakers, texts, mel, audio, text_lens, mel_lens = get_batch(
-            loader, device=device
-        )
+        (
+            speakers,
+            texts,
+            mel,
+            audio,
+            text_lens,
+            mel_lens,
+            durations,
+            token_ids,
+            attention_masks,
+        ) = get_batch(loader, device=device)
         audio = audio.unsqueeze(1)
 
-        (
-            fake_audio,
-            l_length,
-            attn,
-            x_mask,
-            z_mask,
-            (z, z_p, m_p, logs_p, m_q, logs_q),
-        ) = generator(
-            x=texts, x_lengths=text_lens, y=mel, y_lengths=mel_lens, sid=speakers
+        outputs = generator.forward_train(
+            x=texts,
+            speakers=speakers,
+            src_lens=text_lens,
+            specs=mel,
+            spec_lens=mel_lens,
+            durations=durations,
+            token_ids=token_ids,
+            attention_mask=attention_masks,
         )
 
-        fake_audio, ids_slice = rand_slice_segments(fake_audio, mel_lens * 256, 8192)
-        mel = slice_segments(mel, ids_slice // 256, 32)
-        audio = slice_segments(audio, ids_slice, 8192)  # slice
+        fake_audio = outputs["wave"]
+        ids_slice = outputs["sample_q_ids_slice"]
+
+        mel = slice_segments(mel, ids_slice, 32)
+        audio = slice_segments(audio, ids_slice * 256, 8192)  # slice
 
         res_fake, period_fake = discriminator(fake_audio)
 
-        loss_dur = torch.sum(l_length.float())
-        loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask)
+        loss_dur = duration_loss(
+            log_duration_pred=outputs["log_duration_pred"],
+            duration_targets=durations,
+            mask=outputs["src_mask"],
+        )
 
-        sc_loss, mag_loss = stft_criterion(fake_audio.squeeze(1), audio.squeeze(1), z_mask)
+        loss_kl_backward = kl_loss(
+            outputs["z_p"],
+            outputs["log_std_q"],
+            outputs["mu_p"],
+            outputs["log_std_p"],
+            ~outputs["spec_mask"],
+        )
+        loss_kl_forward = kl_loss(
+            outputs["z_q"],
+            outputs["log_std_p"],
+            outputs["mu_q"],
+            outputs["log_std_q"],
+            ~outputs["spec_mask"],
+        )
+
+        sc_loss, mag_loss = stft_criterion(fake_audio.squeeze(1), audio.squeeze(1))
         stft_loss = (sc_loss + mag_loss) * stft_lamb
 
         score_loss = 0.0
@@ -267,13 +277,14 @@ def train_iter(
             score_loss += torch.mean(torch.pow(score_fake - 1.0, 2))
 
         score_loss = score_loss / len(res_fake + period_fake)
-        loss_g = score_loss + stft_loss + loss_dur + loss_kl
+        loss_g = score_loss + stft_loss + loss_dur + loss_kl_backward + loss_kl_forward
         batch_size = mel.shape[0]
         len_group += batch_size
         loss_means["total_loss_gen"] += loss_g * batch_size
-        loss_means["mel_loss"] += stft_loss * batch_size
+        loss_means["mel_loss_dec"] += stft_loss * batch_size
         loss_means["score_loss"] += score_loss * batch_size
-        loss_means["kl_loss_backward"] += loss_kl * batch_size
+        loss_means["kl_loss_backward"] += loss_kl_backward * batch_size
+        loss_means["kl_loss_forward"] += loss_kl_forward * batch_size
         loss_means["l_dur"] += loss_dur * batch_size
 
         (loss_g / grad_accum_steps).backward()
@@ -305,7 +316,6 @@ def train_iter(
         (loss_d / grad_accum_steps).backward()
 
     optim_d.step()
-    loss_means["total_loss_disc"] = torch.cuda.FloatTensor([0.0])
 
     for loss_name in loss_means.keys():
         loss_means[loss_name] /= len_group
@@ -315,10 +325,12 @@ def train_iter(
 
 def evaluate(generator, loader, device, stft_criterion, stft_lamb):
     generator.eval()
+
     loss_means = {
-        "mel_loss": 0,
+        "mel_loss_dec": 0,
         "kl_loss_backward": 0,
-        "duration_loss": 0,
+        "kl_loss_forward": 0,
+        "l_dur": 0,
         "pesq": 0,
         "estoi": 0,
         "rmse": 0,
@@ -342,40 +354,61 @@ def evaluate(generator, loader, device, stft_criterion, stft_lamb):
     with torch.no_grad():
         for group in loader:
             for batch in group:
-                speakers, texts, mel, audio, text_lens, mel_lens = to_device(
-                    batch, device
-                )
-
+                (
+                    speakers,
+                    texts,
+                    mel,
+                    audio,
+                    text_lens,
+                    mel_lens,
+                    durations,
+                    token_ids,
+                    attention_masks,
+                ) = to_device(batch, device)
                 audio = audio.unsqueeze(1)
 
-                (
-                    fake_audio,
-                    l_length,
-                    attn,
-                    ids_slice,
-                    x_mask,
-                    z_mask,
-                    (z, z_p, m_p, logs_p, m_q, logs_q),
-                ) = generator(
+                outputs = generator.forward_train(
                     x=texts,
-                    x_lengths=text_lens,
-                    y=mel,
-                    y_lengths=mel_lens,
-                    sid=speakers,
+                    speakers=speakers,
+                    src_lens=text_lens,
+                    specs=mel,
+                    spec_lens=mel_lens,
+                    durations=durations,
+                    token_ids=token_ids,
+                    attention_mask=attention_masks,
                 )
 
-                mel = slice_segments(mel, ids_slice, 8192 // 256)
+                fake_audio = outputs["wave"]
+                ids_slice = outputs["sample_q_ids_slice"]
 
+                mel = slice_segments(mel, ids_slice, 32)
                 audio = slice_segments(audio, ids_slice * 256, 8192)  # slice
 
-                loss_dur = torch.sum(l_length.float())
-                loss_kl = kl_loss(z_p, logs_q, m_p, logs_p, z_mask)
+                loss_dur = duration_loss(
+                    log_duration_pred=outputs["log_duration_pred"],
+                    duration_targets=durations,
+                    mask=outputs["src_mask"],
+                )
+
+                loss_kl_backward = kl_loss(
+                    outputs["z_p"],
+                    outputs["log_std_q"],
+                    outputs["mu_p"],
+                    outputs["log_std_p"],
+                    ~outputs["spec_mask"],
+                )
+                loss_kl_forward = kl_loss(
+                    outputs["z_q"],
+                    outputs["log_std_p"],
+                    outputs["mu_q"],
+                    outputs["log_std_q"],
+                    ~outputs["spec_mask"],
+                )
 
                 sc_loss, mag_loss = stft_criterion(
-                    fake_audio.squeeze(1), audio.squeeze(1), z_mask
+                    fake_audio.squeeze(1), audio.squeeze(1)
                 )
                 stft_loss = (sc_loss + mag_loss) * stft_lamb
-
                 estoi = calc_estoi(
                     audio_real=audio,
                     audio_fake=fake_audio,
@@ -394,27 +427,30 @@ def evaluate(generator, loader, device, stft_criterion, stft_lamb):
                     len_group_pesq += batch_size
 
                 len_group += batch_size
+                loss_means["l_dur"] += loss_dur * batch_size
+                loss_means["kl_loss_backward"] += loss_kl_backward * batch_size
+                loss_means["kl_loss_forward"] += loss_kl_forward * batch_size
+                loss_means["mel_loss_dec"] += stft_loss * batch_size
                 loss_means["estoi"] += estoi * batch_size
-                loss_means["mel_loss"] += stft_loss * batch_size
                 loss_means["rmse"] += rmse * batch_size
-                loss_means["kl_loss_backward"] += loss_kl * batch_size
-                loss_means["duration_loss"] += loss_dur * batch_size
 
     if len_group_pesq > 0:
         loss_means["pesq"] /= len_group_pesq
 
     if len_group > 0:
         loss_means["estoi"] /= len_group
-        loss_means["mel_loss"] /= len_group
         loss_means["rmse"] /= len_group
+        loss_means["mel_loss_dec"] /= len_group
         loss_means["kl_loss_backward"] /= len_group
-        loss_means["duration_loss"] /= len_group
+        loss_means["kl_loss_forward"] /= len_group
+        loss_means["l_dur"] /= len_group
 
     return loss_means
 
 
 def train_vocoder(
     db_id: int,
+    assets_path,
     training_run_name,
     train_config,
     logger,
@@ -450,6 +486,7 @@ def train_vocoder(
         scheduler_g,
         scheduler_d,
     ) = get_nat_speech(
+        assets_path=assets_path,
         checkpoint=checkpoint_path,
         preprocessed_path=preprocessed_path,
         train_config=train_config,
@@ -459,6 +496,7 @@ def train_vocoder(
 
     stft_criterion = MultiResolutionSTFTLoss(device, hp["mrd"]["resolutions"])
     train_loader, validation_loader, validset = get_data_loaders(
+        assets_path=assets_path,
         preprocess_config=preprocess_config,
         fine_tuning=fine_tuning,
         segment_size=train_config["segment_size"],
@@ -472,6 +510,11 @@ def train_vocoder(
     print("Generator has a total of " + str(get_param_num(generator)) + " parameters")
     print("MRD has a total of " + str(get_param_num(discriminator.MRD)) + " parameters")
     print("MPD has a total of " + str(get_param_num(discriminator.MPD)) + " parameters")
+    print(
+        "Total number of parameters during inference: "
+        + str(get_param_num(generator) - get_param_num(generator.enc_q))
+        + " parameters"
+    )
 
     while True:
 
@@ -505,7 +548,7 @@ def train_vocoder(
                 )
             logger.log_graph(name="lr", value=optim_g.param_groups[0]["lr"], step=steps)
 
-        if steps % train_config["synth_interval"] == 0:
+        if steps % train_config["synth_interval"] == 0 and steps != 0:
             synth_iter(
                 eval_loader=validation_loader,
                 generator=generator,
@@ -610,17 +653,26 @@ if __name__ == "__main__":
 
     training_runs_path = Path(".") / ".." / ".." / "training_runs"
 
-    logger = WandBLogger("VITS orig dur detach")
+    logger = WandBLogger("Delight VITS NatSpeech Combo v2")
     train_vocoder(
         db_id=None,
+        assets_path=str(Path(".") / ".." / ".." / "assets"),
         training_run_name="univnet_pretraining",
-            train_config=vocoder_pre_training_config,
-            logger=logger,
-            device=torch.device("cuda"),
-            reset=False,
-            training_runs_path=training_runs_path,
-            checkpoint_path=Path(".") / ".." / ".." / "training_runs" / "univnet_pretraining" / "ckpt" / "vocoder" / "vocoder_66750.pt",
-            fine_tuning=False,
-            overwrite_saves=False,
-            stop_after_hour=None,
-        )
+        train_config=vocoder_pre_training_config,
+        logger=logger,
+        device=torch.device("cuda"),
+        reset=False,
+        training_runs_path=training_runs_path,
+        checkpoint_path=Path(".")
+        / ".."
+        / ".."
+        / "training_runs"
+        / "univnet_pretraining"
+        / "ckpt"
+        / "vocoder"
+        / "vocoder_56750.pt",
+        fine_tuning=False,
+        overwrite_saves=False,
+        stop_after_hour=None,
+    )
+

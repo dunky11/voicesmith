@@ -92,13 +92,14 @@ def get_param_num(model: torch.nn.Module) -> int:
 
 
 def get_nat_speech(
+    assets_path: str,
     checkpoint: str,
     preprocessed_path: str,
     train_config: Dict[str, Any],
     reset: bool,
     device: torch.device,
 ) -> Tuple[
-    SynthesizerTrn,
+    NaturalSpeech,
     Discriminator,
     int,
     torch.optim.Optimizer,
@@ -109,8 +110,8 @@ def get_nat_speech(
     with open(preprocessed_path / "speakers.json", "r", encoding="utf-8") as f:
         n_speakers = len(json.load(f))
 
-    generator = SynthesizerTrn(
-        n_speakers=n_speakers,
+    generator = NaturalSpeech(
+        assets_path, preprocess_config, acoustic_model_config, n_speakers
     )
     discriminator = Discriminator()
 
@@ -142,7 +143,7 @@ def get_nat_speech(
     )
 
     if checkpoint is not None and not reset:
-        optim_g.load_state_dict(state_dict["optim_g"])
+        # optim_g.load_state_dict(state_dict["optim_g"])
         optim_d.load_state_dict(state_dict["optim_d"])
 
     scheduler_g = torch.optim.lr_scheduler.ExponentialLR(

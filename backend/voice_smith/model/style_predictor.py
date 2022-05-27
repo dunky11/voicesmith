@@ -2,14 +2,13 @@ from torch import nn
 from torch.nn import functional as F
 from transformers import AutoModel
 from pathlib import Path
-from voice_smith import ASSETS_PATH
 
 
 class BertStylePredictor(nn.Module):
-    def __init__(self, n_layers=2, output_dim=256, lrelu_slope=0.3):
+    def __init__(self, assets_path, n_layers=2, output_dim=256, lrelu_slope=0.3):
         super().__init__()
         self.bert = AutoModel.from_pretrained(
-            ASSETS_PATH / "tiny_bert", torchscript=True
+            Path(assets_path) / "tiny_bert", torchscript=True
         )
         self.n_layers = n_layers
         self.lrelu_slope = lrelu_slope
