@@ -1,7 +1,7 @@
+import torch
 import sqlite3
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import torch
 from typing import Dict, List, Any
 from pathlib import Path
 import uuid
@@ -16,6 +16,7 @@ from voice_smith.utils.loggers import set_stream_location
 from voice_smith.utils.audio import save_audio
 import sys
 from waitress import serve
+
 
 def get_lexicon(cur: sqlite3.Cursor, model_id: int) -> Dict[str, List[str]]:
     symbols = cur.execute(
@@ -40,7 +41,13 @@ def get_symbol2id(cur: sqlite3.Cursor, model_id: int) -> Dict[str, int]:
 __model__ = None
 
 
-def get_model(cur: sqlite3.Cursor, assets_path: str, models_path: str, model_id: int, model_name: str) -> Dict[str, Any]:
+def get_model(
+    cur: sqlite3.Cursor,
+    assets_path: str,
+    models_path: str,
+    model_id: int,
+    model_name: str,
+) -> Dict[str, Any]:
     torchscript_dir = Path(models_path) / model_name / "torchscript"
     acoustic_model = load(torchscript_dir / "acoustic_model.pt")
     style_predictor = load(torchscript_dir / "style_predictor.pt")
@@ -64,8 +71,9 @@ def get_model(cur: sqlite3.Cursor, assets_path: str, models_path: str, model_id:
     }
 
 
-
-def run_server(port: int, db_path: str, audio_synth_path: str, models_path: str, assets_path: str):
+def run_server(
+    port: int, db_path: str, audio_synth_path: str, models_path: str, assets_path: str
+):
     app = Flask(__name__)
     CORS(app)
 
@@ -118,8 +126,7 @@ def run_server(port: int, db_path: str, audio_synth_path: str, models_path: str,
             return "Invalid Request.", 400
 
         row = cur.execute(
-            "SELECT name, type FROM model WHERE ID=?",
-            (model_id,),
+            "SELECT name, type FROM model WHERE ID=?", (model_id,),
         ).fetchone()
         model_name, type = row
 
@@ -129,7 +136,13 @@ def run_server(port: int, db_path: str, audio_synth_path: str, models_path: str,
         ).fetchone()
         speaker_name = row[0]
 
-        __model__ = get_model(cur=cur, assets_path=assets_path, models_path=models_path, model_id=model_id, model_name=model_name)
+        __model__ = get_model(
+            cur=cur,
+            assets_path=assets_path,
+            models_path=models_path,
+            model_id=model_id,
+            model_name=model_name,
+        )
 
         logs_dir = Path(models_path) / model_name / "logs"
         audio_dir = Path(audio_synth_path)
@@ -175,5 +188,13 @@ def run_server(port: int, db_path: str, audio_synth_path: str, models_path: str,
 
     serve(app, host="localhost", port=port)
 
+
 if __name__ == "__main__":
-    run_server(port=int(sys.argv[1]), db_path=sys.argv[2], audio_synth_path=sys.argv[3], models_path=sys.argv[4], assets_path=sys.argv[5])
+    run_server(
+        port=int(sys.argv[1]),
+        db_path=sys.argv[2],
+        audio_synth_path=sys.argv[3],
+        models_path=sys.argv[4],
+        assets_path=sys.argv[5],
+    )
+

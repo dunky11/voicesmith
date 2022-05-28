@@ -11,7 +11,7 @@ acoustic_fine_tuning_config: Dict[str, Any] = {
         "warm_up_step": 4000,
         "anneal_steps": [],
         "anneal_rate": 0.3,
-        "learning_rate": 0.0004,
+        "learning_rate": 0.0002,
         "lr_decay": 0.99999,
     },
     "step": {

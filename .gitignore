@@ -119,17 +119,12 @@ __pycache__/
 /env/
 
 # User data
-/trained_models/
-/training_runs/
 /voice_smith.db
 wandb/
-/pretrained_models/
-/models/
-/audio_synth/
-/datasets/
-/preprocessing_runs/
 /out/
 /.webpack/
 /backup/
-/INSTALLED
 /data/
+/assets/tiny_bert/
+/pretrained_models/
+/new_storage_path_plus/

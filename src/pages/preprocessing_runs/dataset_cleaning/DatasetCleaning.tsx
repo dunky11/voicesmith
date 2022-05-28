@@ -13,6 +13,7 @@ import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
+import { FETCH_CLEANING_RUN_CHANNEL } from "../../../channels";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -59,7 +60,7 @@ export default function DatasetCleaning({
       return;
     }
     ipcRenderer
-      .invoke("fetch-cleaning-run", preprocessingRun.ID)
+      .invoke(FETCH_CLEANING_RUN_CHANNEL.IN, preprocessingRun.ID)
       .then((run: DSCleaningInterface) => {
         if (!isMounted.current) {
           return;

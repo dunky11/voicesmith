@@ -53,7 +53,7 @@ class ScheduledOptimFinetuning:
     def __init__(
         self, parameters: Iterable, train_config: Dict[str, Any], current_step: int
     ):
-        self._optimizer = torch.optim.Adam(
+        self._optimizer = torch.optim.AdamW(
             parameters,
             betas=train_config["optimizer"]["betas"],
             eps=train_config["optimizer"]["eps"],

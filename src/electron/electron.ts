@@ -12,7 +12,6 @@ import {
 } from "./utils/globals";
 import "./handles/cleaningRuns";
 import "./handles/datasets";
-import "./handles/docker";
 import "./handles/files";
 import "./handles/models";
 import "./handles/preprocessingRuns";

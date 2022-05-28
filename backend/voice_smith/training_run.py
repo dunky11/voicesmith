@@ -253,6 +253,7 @@ def continue_training_run(
                     get_logger=get_logger,
                     preprocess_config=p_config,
                 )
+                quit()
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",
                     (training_run_id,),
@@ -271,6 +272,7 @@ def continue_training_run(
                 generate_vocab(
                     container, training_run_name=str(training_run_id), p_config=p_config
                 )
+                quit()
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_alignments', preprocessing_gen_vocab_progress=1.0 WHERE ID=?",
                     (training_run_id,),
@@ -288,6 +290,7 @@ def continue_training_run(
                 align(
                     container, training_run_name=str(training_run_id), p_config=p_config
                 )
+                quit()
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='extract_data', preprocessing_gen_align_progress=1.0 WHERE ID=?",
                     (training_run_id,),
@@ -312,6 +315,7 @@ def continue_training_run(
                     assets_path=assets_path,
                     training_runs_path=training_runs_path,
                 )
+                quit()
                 cur.execute(
                     "UPDATE training_run SET stage='acoustic_fine_tuning', preprocessing_stage='finished' WHERE ID=?",
                     (training_run_id,),
@@ -474,6 +478,8 @@ def continue_training_run(
                         checkpoint_acoustic=str(checkpoint_acoustic),
                         checkpoint_style=str(checkpoint_style),
                         logger=logger,
+                        assets_path=assets_path,
+                        training_runs_path=training_runs_path,
                     )
                     break
                 except RuntimeError as e:
@@ -555,7 +561,7 @@ def continue_training_run(
                     if checkpoint_path == None:
                         reset = True
                         checkpoint_path = str(
-                            Path(".") / "assets" / "vocoder_pretrained.pt"
+                            Path(assets_path) / "vocoder_pretrained.pt"
                         )
                     else:
                         reset = False

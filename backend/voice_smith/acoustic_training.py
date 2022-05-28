@@ -31,6 +31,7 @@ from voice_smith.model.acoustic_model import AcousticModel
 from voice_smith.utils.model import get_infer_vocoder
 from voice_smith.utils.loggers import Logger
 
+
 def unfreeze_torchscript(model: ScriptModule) -> None:
     for par in model.parameters():
         par.requires_grad = True
@@ -52,7 +53,7 @@ def synth_iter(
     device: torch.device,
     logger: Logger,
     data_path: str,
-    assets_path: str
+    assets_path: str,
 ) -> None:
     dataset = AcousticDataset(
         filename="val.txt",
@@ -60,7 +61,7 @@ def synth_iter(
         sort=True,
         drop_last=False,
         data_path=data_path,
-        assets_path=assets_path
+        assets_path=assets_path,
     )
     loader = DataLoader(
         dataset,
@@ -71,8 +72,7 @@ def synth_iter(
     )
     sampling_rate = preprocess_config["sampling_rate"]
     vocoder = get_infer_vocoder(
-        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"),
-        device=device,
+        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"), device=device,
     )
     with torch.no_grad():
         for batches in loader:
@@ -94,12 +94,7 @@ def synth_iter(
                 ) = batch
                 style_embeds_pred = style_predictor(token_ids, attention_masks)
                 for (speaker, text, src_len, mel, mel_len, style_pred,) in zip(
-                    speakers,
-                    texts,
-                    src_lens,
-                    mels,
-                    mel_lens,
-                    style_embeds_pred,
+                    speakers, texts, src_lens, mels, mel_lens, style_embeds_pred,
                 ):
                     y_pred = gen(
                         x=text[: src_len.item()].unsqueeze(0),
@@ -112,9 +107,7 @@ def synth_iter(
                     wav_prediction = vocoder(y_pred)
                     wav_prediction = wav_prediction.cpu().numpy()
 
-                    wav_reconstruction = vocoder(
-                        mel[:, : mel_len.item()].unsqueeze(0)
-                    )
+                    wav_reconstruction = vocoder(mel[:, : mel_len.item()].unsqueeze(0))
                     wav_reconstruction = wav_reconstruction.cpu().numpy()
 
                     logger.log_audio(
@@ -153,7 +146,7 @@ def get_data_loaders(
         sort=True,
         drop_last=True,
         data_path=data_path,
-        assets_path=assets_path
+        assets_path=assets_path,
     )
     # TODO check if this assertion is necessary
     # assert batch_size * group_size < len(dataset)
@@ -172,7 +165,7 @@ def get_data_loaders(
         sort=True,
         drop_last=False,
         data_path=data_path,
-        assets_path=assets_path
+        assets_path=assets_path,
     )
     eval_loader = DataLoader(
         dataset,
@@ -450,12 +443,7 @@ def eval_iter(
                 ) = batch
                 style_embeds_pred = style_predictor(token_ids, attention_masks)
                 for (speaker, text, src_len, mel, mel_len, style_pred,) in zip(
-                    speakers,
-                    texts,
-                    src_lens,
-                    mels,
-                    mel_lens,
-                    style_embeds_pred,
+                    speakers, texts, src_lens, mels, mel_lens, style_embeds_pred,
                 ):
                     y_pred = gen(
                         x=text[: src_len.item()].unsqueeze(0),
@@ -513,7 +501,7 @@ def train_acoustic(
     fine_tuning: bool,
     overwrite_saves: bool,
     assets_path: str,
-    training_runs_path: str
+    training_runs_path: str,
 ) -> None:
     batch_size = train_config["batch_size"]
     data_path = Path(training_runs_path) / str(training_run_name) / "data"
@@ -529,12 +517,15 @@ def train_acoustic(
         fine_tuning=fine_tuning,
         device=device,
         reset=reset,
-        assets_path=assets_path
+        assets_path=assets_path,
     )
 
     group_size = 5  # Set this larger than 1 to enable sorting in Dataset
     train_loader, validation_loader = get_data_loaders(
-        batch_size=batch_size, group_size=group_size, data_path=data_path, assets_path=assets_path
+        batch_size=batch_size,
+        group_size=group_size,
+        data_path=data_path,
+        assets_path=assets_path,
     )
     train_loader = cycle_2d(train_loader)
 
@@ -580,9 +571,7 @@ def train_acoustic(
         gen.unfreeze()
 
     for step in iter_logger(
-        iterable=range(step, total_step + 1),
-        start=step,
-        total=total_step,
+        iterable=range(step, total_step + 1), start=step, total=total_step,
     ):
         if bert_is_frozen and step >= freeze_bert_until:
             bert_is_frozen = False
@@ -633,7 +622,7 @@ def train_acoustic(
                 device=device,
                 logger=logger,
                 data_path=str(data_path),
-                assets_path=assets_path
+                assets_path=assets_path,
             )
 
         if step % save_step == 0 and step != 0 or step >= total_step:

@@ -1,5 +1,6 @@
 import { IpcMainEvent } from "electron";
 import childProcess from "child_process";
+import path from "path";
 import {
   getAudioSynthDir,
   BACKEND_PATH,
@@ -9,6 +10,7 @@ import {
   ASSETS_PATH,
 } from "./globals";
 import { DB } from "./db";
+import { CONDA_ENV_NAME } from "../../config";
 
 let serverProc: any = null;
 let pyProc: any = null;
@@ -67,26 +69,23 @@ export const createServerProc = () => {
   const port = String(selectPort());
   // Make sure database object is created
   DB.getInstance();
+  console.log(BACKEND_PATH);
   serverProc = childProcess.spawn(
-    "poetry",
-    [
-      "run",
-      "python",
-      "server.py",
-      port,
-      DB_PATH,
-      getAudioSynthDir(),
-      getModelsDir(),
-      ASSETS_PATH,
-    ],
-    { cwd: BACKEND_PATH }
+    `conda run -n ${CONDA_ENV_NAME} --no-capture-output python ${path.join(
+      BACKEND_PATH,
+      path.join("server.py")
+    )} ${port} ${DB_PATH} ${getAudioSynthDir()} ${getModelsDir()} ${ASSETS_PATH}`,
+    {
+      cwd: BACKEND_PATH,
+      env: { ...process.env, PYTHONNOUSERSITE: "True" },
+      shell: true,
+    }
   );
-  console.log("HERE 4");
-  serverProc.stderr.on("data", (data: string) => {
-    console.log("stderr: " + data);
+  serverProc.stdout.on("data", (data: any) => {
+    throw new Error(data.toString());
   });
-  serverProc.stdout.on("data", (data: string) => {
-    console.log("stdout: " + data);
+  serverProc.stderr.on("data", (data: any) => {
+    console.log("Server process stdout: " + data.toString());
   });
 
   if (serverProc != null) {

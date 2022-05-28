@@ -13,13 +13,12 @@ import MainLoading from "./pages/main_loading/MainLoading";
 import Models from "./pages/models/Models";
 import Synthesize from "./pages/models/Synthesize";
 import TrainingRuns from "./pages/training_runs/TrainingRuns";
-import { SERVER_URL } from "./config";
 import Datasets from "./pages/datasets/Datasets";
 import PreprocessingRuns from "./pages/preprocessing_runs/PreprocessingRuns";
-import Terminal from "./components/log_printer/Terminal";
-import { AppInfoInterface, RunInterface, TerminalMessage } from "./interfaces";
+import { AppInfoInterface, RunInterface } from "./interfaces";
+import { pingServer } from "./utils";
 import Settings from "./pages/settings/Settings";
-const { ipcRenderer, shell } = window.require("electron");
+const { ipcRenderer } = window.require("electron");
 
 const useStyles = createUseStyles({
   logoWrapper: {
@@ -69,64 +68,15 @@ export default function App() {
   const isMounted = useRef(false);
   const [appInfo, setAppInfo] = useState<AppInfoInterface | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<string[]>(["models"]);
-  const [hasDocker, setHasDocker] = useState(false);
-  const [downloadDockerIsOpen, setDownloadDockerIsOpen] = useState(false);
-  const [serverIsReady, setServerIsReady] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
   const [navIsDisabled, setNavIsDisabled] = useState(false);
-  const onModelSelect = (model: any) => {
-    history.push("/models/synthesize");
-    setSelectedModel(model);
-  };
   const [running, setRunning] = useState<RunInterface | null>(null);
-  const [installerIsOpen, setInstallerIsOpen] = useState(false);
-  const [installerMessages, setInstallerMessages] = useState<TerminalMessage[]>(
-    []
-  );
-  const hadInstallerError = useRef(false);
+  const [serverIsReady, setServerIsReady] = useState(false);
 
   const fetchAppInfo = () => {
     ipcRenderer.invoke("get-app-info").then((appInfo: AppInfoInterface) => {
       setAppInfo(appInfo);
     });
-  };
-
-  const onNavigationSelect = ({ key }: { key: string }) => {
-    setSelectedKeys([key]);
-    switch (key) {
-      case "models":
-        history.push("/models/selection");
-        break;
-      case "datasets":
-        history.push("/datasets/dataset-selection");
-        break;
-      case "training-runs":
-        history.push("/training-runs/run-selection");
-        break;
-      case "preprocessing-runs":
-        history.push("/preprocessing-runs/run-selection");
-        break;
-      case "settings":
-        history.push("/settings");
-        break;
-      default:
-        throw new Error(
-          `No case selected in switch-statement: '${key}' is not a valid key.`
-        );
-    }
-  };
-
-  const pushRoute = (route: string) => {
-    history.push(route);
-    if (route.includes("/models")) {
-      setSelectedKeys(["models"]);
-    } else if (route.includes("/datasets")) {
-      setSelectedKeys(["datasets"]);
-    } else if (route.includes("/preprocessing-runs")) {
-      setSelectedKeys(["preprocessing-runs"]);
-    } else {
-      throw new Error(`Route '${route}' is not a valid route.`);
-    }
   };
 
   const continueRun = (run: RunInterface) => {
@@ -216,141 +166,75 @@ export default function App() {
     });
   };
 
-  const pingServer = () => {
-    const ajax = new XMLHttpRequest();
-    ajax.open("GET", SERVER_URL);
-    ajax.onload = () => {
-      setServerIsReady(true);
-    };
-    ajax.onerror = () => {
-      pingServer();
-    };
-    ajax.send();
+  const onModelSelect = (model: any) => {
+    history.push("/models/synthesize");
+    setSelectedModel(model);
   };
 
-  const fetchHasDocker = () => {
-    ipcRenderer.invoke("fetch-has-docker").then((hasDocker: boolean) => {
-      if (hasDocker) {
-        initiateInstall();
-      } else {
-        setDownloadDockerIsOpen(true);
-      }
-      setHasDocker(hasDocker);
-    });
-  };
-
-  const startServer = () => {
-    ipcRenderer.invoke("start-server");
-    pingServer();
-  };
-
-  const initiateInstall = () => {
-    ipcRenderer.invoke("fetch-needs-install").then((needsInstall: boolean) => {
-      if (needsInstall) {
-        installBackend();
-      } else {
-        startServer();
-      }
-    });
-  };
-
-  const installBackend = () => {
-    ipcRenderer.removeAllListeners("install-backend-reply");
-    setInstallerIsOpen(true);
-    ipcRenderer.on("install-backend-reply", (event: any, reply: any) => {
-      switch (reply.type) {
-        case "finishedPoetry": {
-          if (!hadInstallerError.current) {
-            ipcRenderer.invoke("install-success").then(() => {
-              setInstallerIsOpen(false);
-              startServer();
-            });
-          }
-          break;
-        }
-        case "finishedDocker": {
-          if (!hadInstallerError.current) {
-            ipcRenderer.send("install-backend-poetry");
-          }
-          break;
-        }
-        case "error": {
-          hadInstallerError.current = true;
-          setInstallerMessages((installerMessages) => [
-            ...installerMessages,
-            { type: "error", message: reply.message },
-          ]);
-          break;
-        }
-        case "message": {
-          setInstallerMessages((installerMessages) => [
-            ...installerMessages,
-            { type: "message", message: reply.message },
-          ]);
-          break;
-        }
-        default: {
-          throw Error(
-            `No branch selected in switch-statement '${reply.type}'.`
-          );
-        }
-      }
-    });
-    ipcRenderer.send("install-backend-docker");
-  };
-
-  useEffect(() => {
-    if (serverIsReady && hasDocker) {
-      history.push("/models/selection");
+  const onNavigationSelect = ({
+    key,
+  }: {
+    key:
+      | "models"
+      | "datasets"
+      | "training-runs"
+      | "preprocessing-runs"
+      | "settings";
+  }) => {
+    setSelectedKeys([key]);
+    switch (key) {
+      case "models":
+        history.push("/models/selection");
+        break;
+      case "datasets":
+        history.push("/datasets/dataset-selection");
+        break;
+      case "training-runs":
+        history.push("/training-runs/run-selection");
+        break;
+      case "preprocessing-runs":
+        history.push("/preprocessing-runs/run-selection");
+        break;
+      case "settings":
+        history.push("/settings");
+        break;
+      default:
+        throw new Error(
+          `No case selected in switch-statement: '${key}' is not a valid key.`
+        );
     }
-  }, [serverIsReady, hasDocker]);
+  };
+
+  const onServerIsReady = () => {
+    pushRoute("/models/selection");
+    setServerIsReady(true);
+  };
+
+  const pushRoute = (route: string) => {
+    history.push(route);
+    if (route.includes("/models")) {
+      setSelectedKeys(["models"]);
+    } else if (route.includes("/datasets")) {
+      setSelectedKeys(["datasets"]);
+    } else if (route.includes("/preprocessing-runs")) {
+      setSelectedKeys(["preprocessing-runs"]);
+    } else {
+      throw new Error(`Route '${route}' is not a valid route.`);
+    }
+  };
 
   useEffect(() => {
     isMounted.current = true;
     fetchAppInfo();
-    fetchHasDocker();
+    pingServer(false, onServerIsReady);
     return () => {
       isMounted.current = false;
       ipcRenderer.removeAllListeners("continue-run-reply");
-      ipcRenderer.removeAllListeners("install-backend-reply");
     };
   }, []);
 
   return (
     <>
-      <Modal
-        title="Docker was not found on your system"
-        visible={downloadDockerIsOpen}
-        onOk={null}
-        onCancel={null}
-        // TODO find way to remove cursor on close icon area hover
-        closeIcon={<></>}
-        footer={null}
-      >
-        <p>
-          There has been no installation of Docker detected on your system.
-          Please navigate to{" "}
-          <a
-            onClick={() => {
-              shell.openExternal("https://www.docker.com/get-started/");
-            }}
-          >
-            https://www.docker.com/get-started/
-          </a>{" "}
-          to download and install Docker. Afterwards, restart this application.
-        </p>
-      </Modal>
-      <Modal
-        title="Installing Backend"
-        visible={installerIsOpen}
-        onOk={null}
-        onCancel={null}
-        // TODO find way to remove cursor on close icon area hover
-        closeIcon={<></>}
-        footer={null}
-      >
-        <Terminal messages={installerMessages}></Terminal>
-      </Modal>
       <Layout className={classes.leftLayout}>
         <Layout.Sider className={classes.sider}>
           <div className={classes.logoWrapper}>
@@ -482,7 +366,11 @@ export default function App() {
                 )}
                 path="/settings"
               ></Route>
-              <Route render={() => <MainLoading></MainLoading>}></Route>
+              <Route
+                render={() => (
+                  <MainLoading onServerIsReady={onServerIsReady}></MainLoading>
+                )}
+              ></Route>
             </Switch>
           </Layout.Content>
         </Layout>

@@ -1,8 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { notification } from "antd";
 import { GraphStatisticInterface, RunInterface } from "./interfaces";
+import { SERVER_URL } from "./config";
 
-export function useInterval(callback: any, delay: number | null) {
+export function useInterval(
+  callback: any,
+  delay: number | null
+): React.MutableRefObject<number> {
   // FROM https://stackoverflow.com/questions/53024496/state-not-updating-when-using-react-state-hook-within-setinterval
 
   const intervalRef = React.useRef<number | undefined>();
@@ -101,8 +105,7 @@ export function getCategoricalGraphStat(
   };
 }
 
-export function generateUUID() {
-  // FROM https://stackoverflow.com/questions/6860853/generate-random-string-for-div-id
+export function generateUUID(): string {
   const s4 = function () {
     return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
   };
@@ -122,17 +125,20 @@ export function generateUUID() {
   );
 }
 
-export function getProgressTitle(title: string, progress: number | null) {
+export function getProgressTitle(
+  title: string,
+  progress: number | null
+): string {
   return `${title} (${(progress === null ? 0 : progress * 100).toPrecision(
     3
   )}%)`;
 }
 
-export function numberCompare(a: number, b: number) {
+export function numberCompare(a: number, b: number): number {
   return b - a;
 }
 
-export function stringCompare(a: string, b: string) {
+export function stringCompare(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
@@ -142,7 +148,7 @@ export function getStageIsRunning(
   running: RunInterface | null,
   type: "trainingRun" | "dSCleaning" | "textNormalizationRun",
   ID: number | null
-) {
+): boolean {
   return (
     pageStates.includes(runningStage) &&
     running !== null &&
@@ -157,16 +163,33 @@ export function getWouldContinueRun(
   running: RunInterface | null,
   type: "trainingRun" | "dSCleaning" | "textNormalizationRun",
   ID: number | null
-) {
+): boolean {
   return (
     pageStates.includes(runningStage) ||
     (running !== null && (running.type !== type || running.ID !== ID))
   );
 }
 
-export const notifySave = () => {
+export const notifySave = (): void => {
   notification["success"]({
     message: "Your settings have been saved",
     placement: "top",
   });
+};
+
+export const pingServer = (
+  retryOnError: boolean,
+  onSuccess: () => void
+): void => {
+  const ajax = new XMLHttpRequest();
+  ajax.open("GET", SERVER_URL);
+  ajax.onload = onSuccess;
+  ajax.onerror = () => {
+    if (retryOnError) {
+      setTimeout(() => {
+        pingServer(retryOnError, onSuccess);
+      }, 50);
+    }
+  };
+  ajax.send();
 };

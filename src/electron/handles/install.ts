@@ -1,100 +1,77 @@
-import { ipcMain, IpcMainEvent, app } from "electron";
+import { ipcMain, IpcMainEvent } from "electron";
 import childProcess from "child_process";
-import { ASSETS_PATH, getInstalledPath, POETRY_PATH } from "../utils/globals";
+import { getInstalledPath, CONDA_PATH } from "../utils/globals";
+import {
+  INSTALL_BACKEND_CHANNEL,
+  FINISH_INSTALL_CHANNEL,
+  FETCH_HAS_CONDA_CHANNEL,
+  FETCH_NEEDS_INSTALL_CHANNEL,
+} from "../../channels";
 import { exists } from "../utils/files";
+import { CONDA_ENV_NAME } from "../../config";
 import fsNative from "fs";
+import { InstallBackendReplyInterface } from "../../interfaces";
 const fsPromises = fsNative.promises;
 
-ipcMain.handle("fetch-needs-install", async () => {
+ipcMain.handle(FETCH_HAS_CONDA_CHANNEL.IN, async () => {
+  return await new Promise((resolve, reject) => {
+    childProcess.exec("conda info", (error, stdout, stderr) => {
+      return resolve(error === null);
+    });
+  });
+});
+
+ipcMain.handle(FETCH_NEEDS_INSTALL_CHANNEL.IN, async () => {
   return !(await exists(getInstalledPath()));
 });
 
-ipcMain.handle("install-success", async () => {
+ipcMain.handle(FINISH_INSTALL_CHANNEL.IN, async () => {
   const installedPath = getInstalledPath();
   if (!(await exists(installedPath))) {
     await fsPromises.writeFile(installedPath, "");
   }
 });
 
-ipcMain.on("install-backend-docker", async (event: IpcMainEvent) => {
-  const dockerInstallProcess = childProcess.spawn(
-    "docker",
-    ["build", "--rm", "-t", "voice_smith", "."],
-    {
-      cwd: ASSETS_PATH,
-    }
-  );
+ipcMain.on(INSTALL_BACKEND_CHANNEL.IN, async (event: IpcMainEvent) => {
+  const removeCondaProcess = childProcess.spawn(`conda`, [
+    "env",
+    "remove",
+    "--name",
+    CONDA_ENV_NAME,
+    "-y",
+  ]);
+  removeCondaProcess.on("exit", () => {
+    const condaInstallerProcess = childProcess.spawn(
+      "conda",
+      ["env", "create", "-f", "environment.yml"],
+      {
+        cwd: CONDA_PATH,
+      }
+    );
 
-  dockerInstallProcess.stdout.on("data", (data: any) => {
-    event.reply("install-backend-reply", {
-      type: "message",
-      message: data.toString(),
+    condaInstallerProcess.on("exit", (exitCode: number | null) => {
+      const reply: InstallBackendReplyInterface = {
+        type: "finished",
+        message: "",
+        success: exitCode === 0,
+      };
+      event.reply(INSTALL_BACKEND_CHANNEL.REPLY, reply);
     });
-  });
 
-  dockerInstallProcess.stderr.on("data", (data: any) => {
-    event.reply("install-backend-reply", {
-      type: "error",
-      message: data.toString(),
+    condaInstallerProcess.stderr.on("data", (data: any) => {
+      const reply: InstallBackendReplyInterface = {
+        type: "error",
+        message: data.toString(),
+      };
+      event.reply(INSTALL_BACKEND_CHANNEL.REPLY, reply);
     });
-  });
 
-  dockerInstallProcess.on("exit", () => {
-    event.reply("install-backend-reply", {
-      type: "finishedDocker",
-    });
-  });
-});
-
-ipcMain.on("install-backend-poetry", async (event: IpcMainEvent) => {
-  const hasPoetry = await new Promise((resolve, reject) => {
-    childProcess.exec("poetry", (error, stdout, stderr) => {
-      return resolve(error === null);
-    });
-  });
-  if (!hasPoetry) {
-    if (process.platform === "win32") {
-      await new Promise((resolve, reject) => {
-        childProcess.exec(
-          "(Invoke-WebRequest -Uri https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -UseBasicParsing).Content | python -",
-          (error, stdout, stderr) => {
-            return resolve(error === null);
-          }
-        );
-      });
-    } else {
-      await new Promise((resolve, reject) => {
-        childProcess.exec(
-          "curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -",
-          (error, stdout, stderr) => {
-            return resolve(error === null);
-          }
-        );
-      });
-    }
-  }
-
-  const poetryInstallProcess = childProcess.spawn("poetry", ["install"], {
-    cwd: POETRY_PATH,
-  });
-
-  poetryInstallProcess.on("exit", () => {
-    event.reply("install-backend-reply", {
-      type: "finishedPoetry",
-    });
-  });
-
-  poetryInstallProcess.stderr.on("data", (data: any) => {
-    event.reply("install-backend-reply", {
-      type: "error",
-      message: data.toString(),
-    });
-  });
-
-  poetryInstallProcess.stdout.on("data", (data: any) => {
-    event.reply("install-backend-reply", {
-      type: "message",
-      message: data.toString(),
+    condaInstallerProcess.stdout.on("data", (data: any) => {
+      const reply: InstallBackendReplyInterface = {
+        type: "message",
+        message: data.toString(),
+      };
+      event.reply(INSTALL_BACKEND_CHANNEL.REPLY, reply);
     });
   });
 });

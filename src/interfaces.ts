@@ -285,3 +285,18 @@ export interface AppInfoInterface {
     | "netbsd";
   version: string;
 }
+
+export interface InstallBackendReplyInterface {
+  type: "message" | "error" | "finished";
+  message: string;
+  success?: boolean;
+}
+
+export interface ContinueTrainingRunReplyInterface {
+  type: "notEnoughSpeakers" | "notEnoughSamples";
+}
+
+export interface FinishCleaningRunReplyInterface {
+  type: "progress" | "finished";
+  progress?: number;
+}

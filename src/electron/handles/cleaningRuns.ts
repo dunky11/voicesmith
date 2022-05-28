@@ -1,5 +1,14 @@
 import { ipcMain, IpcMainInvokeEvent, IpcMainEvent } from "electron";
 import path from "path";
+import {
+  CONTINUE_CLEANING_RUN_CHANNEL,
+  FETCH_CLEANING_RUN_CHANNEL,
+  FETCH_CLEANING_RUN_CONFIG_CHANNEL,
+  UPDATE_CLEANING_RUN_CONFIG_CHANNEL,
+  FETCH_NOISY_SAMPLES_CHANNEL,
+  REMOVE_NOISY_SAMPLES_CHANNEL,
+  FINISH_CLEANING_RUN_CHANNEL,
+} from "../../channels";
 import { safeUnlink } from "../utils/files";
 import { getCleaningRunsDir, getDatasetsDir, DB_PATH } from "../utils/globals";
 import { DB, getSpeakersWithSamples } from "../utils/db";
@@ -7,47 +16,56 @@ import {
   DSCleaningInterface,
   CleaningRunConfigInterface,
   SpeakerInterface,
+  ContinueTrainingRunReplyInterface,
+  FinishCleaningRunReplyInterface,
 } from "../../interfaces";
 import { startRun } from "../utils/processes";
 
-ipcMain.on("continue-cleaning-run", (event: IpcMainEvent, runID: number) => {
-  const datasetID = DB.getInstance()
-    .prepare("SELECT dataset_id AS datasetID FROM cleaning_run WHERE ID=@runID")
-    .get({ runID }).datasetID;
-  const speakers = getSpeakersWithSamples(datasetID);
+ipcMain.on(
+  CONTINUE_CLEANING_RUN_CHANNEL.IN,
+  (event: IpcMainEvent, runID: number) => {
+    const datasetID = DB.getInstance()
+      .prepare(
+        "SELECT dataset_id AS datasetID FROM cleaning_run WHERE ID=@runID"
+      )
+      .get({ runID }).datasetID;
+    const speakers = getSpeakersWithSamples(datasetID);
 
-  if (speakers.length <= 1) {
-    event.reply("continue-run-reply", {
-      type: "notEnoughSpeakers",
+    if (speakers.length <= 1) {
+      const reply: ContinueTrainingRunReplyInterface = {
+        type: "notEnoughSpeakers",
+      };
+      event.reply(CONTINUE_CLEANING_RUN_CHANNEL.REPLY, reply);
+      return;
+    }
+
+    let sampleCount = 0;
+    speakers.forEach((speaker: SpeakerInterface) => {
+      sampleCount += speaker.samples.length;
     });
-    return;
-  }
 
-  let sampleCount = 0;
-  speakers.forEach((speaker: SpeakerInterface) => {
-    sampleCount += speaker.samples.length;
-  });
-
-  if (sampleCount == 0) {
-    event.reply("continue-run-reply", {
-      type: "notEnoughSamples",
-    });
-    return;
+    if (sampleCount == 0) {
+      const reply: ContinueTrainingRunReplyInterface = {
+        type: "notEnoughSamples",
+      };
+      event.reply(CONTINUE_CLEANING_RUN_CHANNEL.REPLY, reply);
+      return;
+    }
+    startRun(event, "cleaning_run.py", [
+      "--cleaning_run_id",
+      String(runID),
+      "--db_path",
+      DB_PATH,
+      "--cleaning_runs_dir",
+      getCleaningRunsDir(),
+      "--datasets_path",
+      getDatasetsDir(),
+    ]);
   }
-  startRun(event, "cleaning_run.py", [
-    "--cleaning_run_id",
-    String(runID),
-    "--db_path",
-    DB_PATH,
-    "--cleaning_runs_dir",
-    getCleaningRunsDir(),
-    "--datasets_path",
-    getDatasetsDir(),
-  ]);
-});
+);
 
 ipcMain.handle(
-  "fetch-cleaning-run",
+  FETCH_CLEANING_RUN_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number) => {
     const run: DSCleaningInterface = DB.getInstance()
       .prepare("SELECT ID, name, stage FROM cleaning_run WHERE ID=@ID")
@@ -57,7 +75,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "fetch-cleaning-run-config",
+  FETCH_CLEANING_RUN_CONFIG_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number) => {
     return DB.getInstance()
       .prepare(
@@ -68,7 +86,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "update-cleaning-run-config",
+  UPDATE_CLEANING_RUN_CONFIG_CHANNEL.IN,
   (
     event: IpcMainInvokeEvent,
     ID: number,
@@ -86,7 +104,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "fetch-noisy-samples",
+  FETCH_NOISY_SAMPLES_CHANNEL.IN,
   (event: IpcMainInvokeEvent, cleaningRunID: number) => {
     return DB.getInstance()
       .prepare(
@@ -118,7 +136,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "remove-noisy-samples",
+  REMOVE_NOISY_SAMPLES_CHANNEL.IN,
   (event: IpcMainInvokeEvent, sampleIDs: number[]) => {
     const removeSample = DB.getInstance().prepare(
       "DELETE FROM noisy_sample WHERE ID=@sampleID"
@@ -132,7 +150,7 @@ ipcMain.handle(
 );
 
 ipcMain.on(
-  "finish-cleaning-run",
+  FINISH_CLEANING_RUN_CHANNEL.IN,
   async (event: IpcMainEvent, cleaningRunID: number) => {
     const samples = DB.getInstance()
       .prepare(
@@ -159,15 +177,17 @@ ipcMain.on(
         deleteSampleStmt.run({ sampleID: sample.sampleID });
       }
     })();
-    event.reply("finish-cleaning-run-reply", {
+    const reply: FinishCleaningRunReplyInterface = {
       type: "progress",
       progress: 0.5,
-    });
+    };
+    event.reply(FINISH_CLEANING_RUN_CHANNEL.REPLY, reply);
     for (let i = 0; i < samples.length; i++) {
-      event.reply("finish-cleaning-run-reply", {
+      const reply: FinishCleaningRunReplyInterface = {
         type: "progress",
         progress: 0.5 + i / samples.length / 2,
-      });
+      };
+      event.reply(FINISH_CLEANING_RUN_CHANNEL.REPLY, reply);
       const sample = samples[i];
       const audioPath = path.join(
         getDatasetsDir(),
@@ -178,8 +198,9 @@ ipcMain.on(
       );
       await safeUnlink(audioPath);
     }
-    event.reply("finish-cleaning-run-reply", {
+    const finishReply: FinishCleaningRunReplyInterface = {
       type: "finished",
-    });
+    };
+    event.reply(FINISH_CLEANING_RUN_CHANNEL.REPLY, finishReply);
   }
 );

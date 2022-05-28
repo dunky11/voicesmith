@@ -24,7 +24,7 @@ def get_acoustic_models(
     fine_tuning: bool,
     device: torch.device,
     reset: bool,
-    assets_path: str
+    assets_path: str,
 ) -> Tuple[
     acoustic_model.AcousticModel,
     ScriptModule,
@@ -39,14 +39,14 @@ def get_acoustic_models(
         preprocess_config=preprocess_config,
         model_config=model_config,
         fine_tuning=fine_tuning,
-        n_speakers=n_speakers
+        n_speakers=n_speakers,
     ).to(device)
     if checkpoint_acoustic != None:
         ckpt = torch.load(checkpoint_acoustic)
         if reset:
             del ckpt["gen"]["speaker_embed"]
             del ckpt["gen"]["pitch_adaptor.pitch_bins"]
-            del ckpt["gen"]["pitch_adaptor.pitch_embedding.embeddings"]
+            # del ckpt["gen"]["pitch_adaptor.pitch_embedding.embeddings"]
             step = 0
         else:
             step = ckpt["steps"] + 1
@@ -88,10 +88,7 @@ def get_param_num(model: torch.nn.Module) -> int:
 
 
 def get_vocoder(
-    checkpoint: str,
-    train_config: Dict[str, Any],
-    reset: bool,
-    device: torch.device,
+    checkpoint: str, train_config: Dict[str, Any], reset: bool, device: torch.device,
 ) -> Tuple[
     UnivNet,
     Discriminator,

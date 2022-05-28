@@ -97,21 +97,24 @@ def ground_truth_alignment(
     checkpoint_style: str,
     device: torch.device,
     logger: Optional[Logger],
+    assets_path: str,
+    training_runs_path: str,
     log_every: int = 200,
 ):
     print("Generating ground truth aligned data ... \n")
-    data_path = Path(".") / "training_runs" / str(training_run_name) / "data"
     # TODO change group size automatically
+    data_path = Path(training_runs_path) / str(training_run_name) / "data"
     group_size = 5
     train_loader, eval_loader = get_data_loaders(
-        batch_size=batch_size, group_size=group_size, data_path=str(data_path)
+        batch_size=batch_size,
+        group_size=group_size,
+        data_path=str(data_path),
+        assets_path=assets_path,
     )
     with open(data_path / "speakers.json", "r", encoding="utf-8") as f:
         speakers = json.load(f)
 
     id2speaker = {speakers[key]: key for key in speakers.keys()}
-
-    embeddings = get_embeddings(data_path=str(data_path), device=device)
 
     gen, style_predictor, _, _ = get_acoustic_models(
         checkpoint_acoustic=checkpoint_acoustic,
@@ -123,11 +126,8 @@ def ground_truth_alignment(
         fine_tuning=True,
         device=device,
         reset=False,
-        embeddings=embeddings,
+        assets_path=assets_path,
     )
-
-    del embeddings
-    del _
 
     print("Generating GTA for training set ... \n")
     save_gta(

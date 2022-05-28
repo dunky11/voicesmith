@@ -1,7 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, ReactElement } from "react";
 import { Button, Form, Input, Select, notification } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
+import {
+  UPDATE_CLEANING_RUN_CONFIG_CHANNEL,
+  FETCH_CLEANING_RUN_CONFIG_CHANNEL,
+  FETCH_DATASET_CANDIATES_CHANNEL,
+} from "../../../channels";
 import {
   DatasetInterface,
   RunInterface,
@@ -36,7 +41,7 @@ export default function Configuration({
     | "apply_changes"
     | "finished"
     | null;
-}) {
+}): ReactElement {
   const [names, setNames] = useState<string[]>([]);
   const isMounted = useRef(false);
   const [datasetsIsLoaded, setDatastsIsLoaded] = useState(false);
@@ -81,8 +86,8 @@ export default function Configuration({
     };
 
     ipcRenderer
-      .invoke("update-cleaning-run-config", selectedID, values)
-      .then((event: any) => {
+      .invoke(UPDATE_CLEANING_RUN_CONFIG_CHANNEL.IN, selectedID, values)
+      .then(() => {
         if (!isMounted.current) {
           return;
         }
@@ -106,7 +111,7 @@ export default function Configuration({
       return;
     }
     ipcRenderer
-      .invoke("fetch-cleaning-run-config", selectedID)
+      .invoke(FETCH_CLEANING_RUN_CONFIG_CHANNEL.IN, selectedID)
       .then((configuration: CleaningRunConfigInterface) => {
         if (!isMounted.current) {
           return;
@@ -134,7 +139,7 @@ export default function Configuration({
 
   const fetchDatasets = () => {
     ipcRenderer
-      .invoke("fetch-dataset-candidates")
+      .invoke(FETCH_DATASET_CANDIATES_CHANNEL.IN)
       .then((datasets: DatasetInterface[]) => {
         if (!isMounted.current) {
           return;

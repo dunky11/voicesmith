@@ -44,7 +44,7 @@ ipcMain.handle(
         device
       ) VALUES(
         @name,
-        @maximum_workers,
+        @maximumWorkers,
         @validationSize, 
         @minSeconds, 
         @maxSeconds, 

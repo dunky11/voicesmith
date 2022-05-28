@@ -43,7 +43,7 @@ export const getTextNormalizationRunsDir = joinUserData(
 export const getInstalledPath = joinUserData("INSTALLED");
 export const PY_DIST_FOLDER = "backend_dist";
 export const PY_FOLDER = "voice_smith";
-export const POETRY_PATH = path.join(
+export const CONDA_PATH = path.join(
   isDev ? BASE_PATH : process.resourcesPath,
   "backend"
 );
@@ -51,7 +51,7 @@ export const ASSETS_PATH = path.join(
   isDev ? BASE_PATH : process.resourcesPath,
   "assets"
 );
-export const BACKEND_PATH = path.join(POETRY_PATH, "voice_smith");
+export const BACKEND_PATH = path.join(CONDA_PATH, "voice_smith");
 export const DB_PATH = path.join(
   app.getPath("userData"),
   "db",
