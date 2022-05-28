@@ -26,6 +26,7 @@ from voice_smith.config.symbols import symbol2id
 from voice_smith.utils.tools import warnings_to_stdout
 from voice_smith.preprocessing.generate_vocab import generate_vocab
 from voice_smith.preprocessing.merge_lexika import merge_lexica
+from voice_smith.preprocessing.align import align
 
 warnings_to_stdout()
 
@@ -289,16 +290,16 @@ def continue_training_run(
 
             elif preprocessing_stage == "gen_alignments":
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
-                """container = reload_docker(
-                    user_data_path=user_data_path, db_path=db_path
-                )
                 p_config, _, _ = get_acoustic_configs(
                     cur=cur, training_run_id=training_run_id
                 )
                 align(
-                    container, training_run_name=str(training_run_id), p_config=p_config
-                )"""
-                quit()
+                    environment_name=environment_name,
+                    in_path=str(Path(data_path) / "raw_data"),
+                    lexicon_path=str(Path(data_path / "data" / "lexicon_post.txt")),
+                    out_path=(Path(data_path) / "data" / "textgrid"),
+                    n_workers=p_config["workers"],
+                )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='extract_data', preprocessing_gen_align_progress=1.0 WHERE ID=?",
                     (training_run_id,),
@@ -323,7 +324,6 @@ def continue_training_run(
                     assets_path=assets_path,
                     training_runs_path=training_runs_path,
                 )
-                quit()
                 cur.execute(
                     "UPDATE training_run SET stage='acoustic_fine_tuning', preprocessing_stage='finished' WHERE ID=?",
                     (training_run_id,),
