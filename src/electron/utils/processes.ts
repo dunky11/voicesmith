@@ -15,6 +15,13 @@ import { CONDA_ENV_NAME } from "../../config";
 let serverProc: ChildProcess = null;
 let pyProc: ChildProcess = null;
 
+const killLastRun = () => {
+  const pid = DB.getInstance().prepare("SELECT pid FROM settings").get().pid;
+  if (pid !== null) {
+    exec(`kill -15 ${pid}`);
+  }
+};
+
 const spawnCondaShell = (cmd: string): ChildProcess => {
   return spawn(
     `conda run -n ${CONDA_ENV_NAME} --no-capture-output python ${cmd}`,
@@ -40,6 +47,7 @@ export const startRun = (
   });
 
   pyProc.stderr.on("data", (data: any) => {
+    console.log("ERROR DATA");
     event.reply("continue-run-reply", {
       type: "error",
       errorMessage: data.toString(),
@@ -55,7 +63,7 @@ export const killServerProc = (): void => {
   if (serverProc === null) {
     return;
   }
-  serverProc.kill("SIGKILL");
+  serverProc.kill();
   serverProc = null;
 };
 
@@ -63,7 +71,8 @@ export const killPyProc = (): void => {
   if (pyProc === null) {
     return;
   }
-  pyProc.kill("SIGKILL");
+  pyProc.kill();
+  killLastRun();
   pyProc = null;
 };
 

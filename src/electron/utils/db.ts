@@ -236,7 +236,8 @@ const createTables = (db: any) => {
     `
     CREATE TABLE IF NOT EXISTS settings (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        data_path TEXT DEFAULT NULL
+        data_path TEXT DEFAULT NULL,
+        pid INTEGER DEFAULT NULL
     );
     `
   ).run();

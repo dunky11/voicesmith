@@ -21,7 +21,7 @@ from voice_smith.config.vocoder_fine_tuning_config import vocoder_fine_tuning_co
 from voice_smith.utils.sql_logger import SQLLogger
 from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchscript
 from voice_smith.utils.loggers import set_stream_location
-from voice_smith.sql import get_con
+from voice_smith.sql import get_con, save_current_pid
 from voice_smith.config.symbols import symbol2id
 from voice_smith.utils.tools import warnings_to_stdout
 from voice_smith.preprocessing.generate_vocab import generate_vocab
@@ -161,6 +161,7 @@ def continue_training_run(
 ):
     con = get_con(db_path)
     cur = con.cursor()
+    save_current_pid(con=con, cur=cur)
     data_path = Path(training_runs_path) / str(training_run_id)
     model_path = Path(models_path)
     dataset_path = Path(datasets_path)
