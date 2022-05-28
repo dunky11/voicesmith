@@ -15,14 +15,23 @@ import { CONDA_ENV_NAME } from "../../config";
 let serverProc: ChildProcess = null;
 let pyProc: ChildProcess = null;
 
+const spawnCondaShell = (cmd: string): ChildProcess => {
+  return spawn(
+    `conda run -n ${CONDA_ENV_NAME} --no-capture-output python ${cmd}`,
+    {
+      cwd: BACKEND_PATH,
+      env: { ...process.env, PYTHONNOUSERSITE: "True" },
+      shell: true,
+    }
+  );
+};
+
 export const startRun = (
   event: IpcMainEvent,
   scriptName: string,
   args: string[]
 ): void => {
-  pyProc = spawn("poetry", ["run", "python", scriptName, ...args], {
-    cwd: BACKEND_PATH,
-  });
+  pyProc = spawnCondaShell([scriptName, ...args].join(" "));
 
   pyProc.on("exit", () => {
     event.reply("continue-run-reply", {
@@ -66,21 +75,16 @@ export const createServerProc = (): void => {
   const port = String(selectPort());
   // Make sure database object is created
   DB.getInstance();
-  serverProc = spawn(
-    `conda run -n ${CONDA_ENV_NAME} --no-capture-output python ${path.join(
+  serverProc = spawnCondaShell(
+    `${path.join(
       BACKEND_PATH,
       path.join("server.py")
-    )} ${port} ${DB_PATH} ${getAudioSynthDir()} ${getModelsDir()} ${ASSETS_PATH}`,
-    {
-      cwd: BACKEND_PATH,
-      env: { ...process.env, PYTHONNOUSERSITE: "True" },
-      shell: true,
-    }
+    )} ${port} ${DB_PATH} ${getAudioSynthDir()} ${getModelsDir()} ${ASSETS_PATH}`
   );
-  serverProc.stdout.on("data", (data: any) => {
+  serverProc.stderr.on("data", (data: any) => {
     throw new Error(data.toString());
   });
-  serverProc.stderr.on("data", (data: any) => {
+  serverProc.stdout.on("data", (data: any) => {
     console.log("Server process stdout: " + data.toString());
   });
 
