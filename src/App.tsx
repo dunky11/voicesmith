@@ -38,10 +38,7 @@ const useStyles = createUseStyles({
   logoVersion: { color: "#fff !important", fontWeight: "bold", fontSize: 12 },
   sider: {
     overflow: "auto",
-    height: "100vh",
-    left: 0,
-    top: 0,
-    bottom: 0,
+    minHeight: "100vh",
     background: "#161619 !important",
   },
   navMenu: {
@@ -56,7 +53,7 @@ const useStyles = createUseStyles({
   },
   navIcon: { marginRight: 4, fontSize: 16 },
   divider: { borderColor: "#27272A" },
-  leftLayout: { minHeight: "100vh" },
+  leftLayout: { minHeight: "100%" },
   contentLayout: {},
   content: { margin: "24px !important" },
 });
