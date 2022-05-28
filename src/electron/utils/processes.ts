@@ -1,5 +1,5 @@
 import { IpcMainEvent } from "electron";
-import childProcess from "child_process";
+import { spawn, exec, ChildProcess } from "child_process";
 import path from "path";
 import {
   getAudioSynthDir,
@@ -12,19 +12,17 @@ import {
 import { DB } from "./db";
 import { CONDA_ENV_NAME } from "../../config";
 
-let serverProc: any = null;
-let pyProc: any = null;
+let serverProc: ChildProcess = null;
+let pyProc: ChildProcess = null;
 
 export const startRun = (
   event: IpcMainEvent,
   scriptName: string,
   args: string[]
-) => {
-  pyProc = childProcess.spawn(
-    "poetry",
-    ["run", "python", scriptName, ...args],
-    { cwd: BACKEND_PATH }
-  );
+): void => {
+  pyProc = spawn("poetry", ["run", "python", scriptName, ...args], {
+    cwd: BACKEND_PATH,
+  });
 
   pyProc.on("exit", () => {
     event.reply("continue-run-reply", {
@@ -33,7 +31,6 @@ export const startRun = (
   });
 
   pyProc.stderr.on("data", (data: any) => {
-    console.log(data.toString());
     event.reply("continue-run-reply", {
       type: "error",
       errorMessage: data.toString(),
@@ -45,7 +42,7 @@ export const startRun = (
   });
 };
 
-export const killServerProc = () => {
+export const killServerProc = (): void => {
   if (serverProc === null) {
     return;
   }
@@ -53,7 +50,7 @@ export const killServerProc = () => {
   serverProc = null;
 };
 
-export const killPyProc = () => {
+export const killPyProc = (): void => {
   if (pyProc === null) {
     return;
   }
@@ -61,16 +58,15 @@ export const killPyProc = () => {
   pyProc = null;
 };
 
-const selectPort = () => {
+const selectPort = (): number => {
   return PORT;
 };
 
-export const createServerProc = () => {
+export const createServerProc = (): void => {
   const port = String(selectPort());
   // Make sure database object is created
   DB.getInstance();
-  console.log(BACKEND_PATH);
-  serverProc = childProcess.spawn(
+  serverProc = spawn(
     `conda run -n ${CONDA_ENV_NAME} --no-capture-output python ${path.join(
       BACKEND_PATH,
       path.join("server.py")
@@ -93,12 +89,7 @@ export const createServerProc = () => {
   }
 };
 
-const killDockerProc = () => {
-  childProcess.exec("docker kill voice_smith");
-};
-
-export const exit = () => {
+export const exit = (): void => {
   killServerProc();
   killPyProc();
-  killDockerProc();
 };
