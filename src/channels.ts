@@ -52,3 +52,40 @@ export const FINISH_CLEANING_RUN_CHANNEL = {
 export const FETCH_DATASET_CANDIATES_CHANNEL = {
   IN: "fetch-dataset-candidates",
 };
+
+export const REMOVE_TRAINING_RUN_CHANNEL = {
+  IN: "remove-training-run",
+};
+
+export const CONTINUE_TRAINING_RUN_CHANNEL = {
+  IN: "continue-training-run",
+  REPLY: "continue-training-run-reply",
+};
+
+export const FETCH_TRAINING_RUN_NAMES_CHANNEL = {
+  IN: "fetch-trainng-run-names",
+};
+
+export const FETCH_TRAINING_RUN_PROGRESS_CHANNEL = {
+  IN: "fetch-training-run-progress",
+};
+
+export const FETCH_TRAINING_RUNS_CHANNEL = {
+  IN: "fetch-training-runs",
+};
+
+export const FETCH_TRAINING_RUN_STATISTICS_CHANNEL = {
+  IN: "fetch-training-run-statistics",
+};
+
+export const FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL = {
+  IN: "fetch-training-run-configuration",
+};
+
+export const CREATE_TRAINING_RUN_CHANNEL = {
+  IN: "create-training-run",
+};
+
+export const UPDATE_TRAINING_RUN_CONFIG_CHANNEL = {
+  IN: "update-training-run-config",
+};

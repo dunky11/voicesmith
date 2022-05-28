@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Route, Switch, useHistory } from "react-router-dom";
+import { REMOVE_TRAINING_RUN_CHANNEL } from "../../channels";
 import { RunInterface } from "../../interfaces";
 import CreateModel from "./CreateModel";
 import RunSelection from "./RunSelection";
@@ -34,13 +35,16 @@ export default function TrainingRuns({
       removeTrainingRunID.current = ID;
       setSelectedTrainingRunID(null);
     } else {
-      ipcRenderer.invoke("remove-training-run", ID);
+      ipcRenderer.invoke(REMOVE_TRAINING_RUN_CHANNEL.IN, ID);
     }
   };
 
   useEffect(() => {
     if (removeTrainingRunID.current !== null) {
-      ipcRenderer.invoke("remove-training-run", removeTrainingRunID.current);
+      ipcRenderer.invoke(
+        REMOVE_TRAINING_RUN_CHANNEL.IN,
+        removeTrainingRunID.current
+      );
       removeTrainingRunID.current = null;
     } else if (selectedTrainingRunID != null) {
       history.push("/training-runs/create-model");

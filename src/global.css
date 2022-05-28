@@ -9,7 +9,7 @@ body {
     outline:none;
 } 
 
-@font-face {
+@font-face { 
     font-family: 'atmospheric';
     src: url('./fonts/atmospheric.ttf');
 }

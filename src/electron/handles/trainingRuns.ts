@@ -4,7 +4,22 @@ import fsNative from "fs";
 const fsPromises = fsNative.promises;
 import { startRun } from "../utils/processes";
 import { exists } from "../utils/files";
-import { ConfigurationInterface, SpeakerInterface } from "../../interfaces";
+import {
+  ConfigurationInterface,
+  SpeakerInterface,
+  ContinueTrainingRunReplyInterface,
+} from "../../interfaces";
+import {
+  REMOVE_TRAINING_RUN_CHANNEL,
+  CONTINUE_TRAINING_RUN_CHANNEL,
+  FETCH_TRAINING_RUN_NAMES_CHANNEL,
+  FETCH_TRAINING_RUN_PROGRESS_CHANNEL,
+  FETCH_TRAINING_RUNS_CHANNEL,
+  FETCH_TRAINING_RUN_STATISTICS_CHANNEL,
+  FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL,
+  CREATE_TRAINING_RUN_CHANNEL,
+  UPDATE_TRAINING_RUN_CONFIG_CHANNEL,
+} from "../../channels";
 import {
   ASSETS_PATH,
   getDatasetsDir,
@@ -17,7 +32,7 @@ import { DB, bool2int, getSpeakersWithSamples } from "../utils/db";
 import { CONDA_ENV_NAME, trainingRunInitialValues } from "../../config";
 
 ipcMain.handle(
-  "create-training-run",
+  CREATE_TRAINING_RUN_CHANNEL.IN,
   (event: IpcMainInvokeEvent, name: string) => {
     const info = DB.getInstance()
       .prepare(
@@ -70,7 +85,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "update-training-run-config",
+  UPDATE_TRAINING_RUN_CONFIG_CHANNEL.IN,
   async (
     event: IpcMainInvokeEvent,
     config: ConfigurationInterface,
@@ -109,7 +124,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "remove-training-run",
+  REMOVE_TRAINING_RUN_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, ID: number) => {
     DB.getInstance().transaction(() => {
       DB.getInstance()
@@ -138,48 +153,54 @@ ipcMain.handle(
   }
 );
 
-ipcMain.on("continue-training-run", (event: IpcMainEvent, runID: number) => {
-  const datasetID = DB.getInstance()
-    .prepare("SELECT dataset_id AS datasetID FROM training_run WHERE ID=@runID")
-    .get({ runID }).datasetID;
-  const speakers = getSpeakersWithSamples(datasetID);
-  let sampleCount = 0;
-  speakers.forEach((speaker: SpeakerInterface) => {
-    sampleCount += speaker.samples.length;
-  });
-  if (sampleCount == 0) {
-    event.reply("continue-run-reply", {
-      type: "notEnoughSamples",
+ipcMain.on(
+  CONTINUE_TRAINING_RUN_CHANNEL.IN,
+  (event: IpcMainEvent, runID: number) => {
+    const datasetID = DB.getInstance()
+      .prepare(
+        "SELECT dataset_id AS datasetID FROM training_run WHERE ID=@runID"
+      )
+      .get({ runID }).datasetID;
+    const speakers = getSpeakersWithSamples(datasetID);
+    let sampleCount = 0;
+    speakers.forEach((speaker: SpeakerInterface) => {
+      sampleCount += speaker.samples.length;
     });
-    return;
+    if (sampleCount == 0) {
+      const reply: ContinueTrainingRunReplyInterface = {
+        type: "notEnoughSamples",
+      };
+      event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, reply);
+      return;
+    }
+    startRun(
+      event,
+      "training_run.py",
+      [
+        "--training_run_id",
+        String(runID),
+        "--training_runs_path",
+        getTrainingRunsDir(),
+        "--assets_path",
+        ASSETS_PATH,
+        "--db_path",
+        DB_PATH,
+        "--models_path",
+        getModelsDir(),
+        "--datasets_path",
+        getDatasetsDir(),
+        "--user_data_path",
+        UserDataPath().getPath(),
+        "--environment_name",
+        CONDA_ENV_NAME,
+      ],
+      true
+    );
   }
-  startRun(
-    event,
-    "training_run.py",
-    [
-      "--training_run_id",
-      String(runID),
-      "--training_runs_path",
-      getTrainingRunsDir(),
-      "--assets_path",
-      ASSETS_PATH,
-      "--db_path",
-      DB_PATH,
-      "--models_path",
-      getModelsDir(),
-      "--datasets_path",
-      getDatasetsDir(),
-      "--user_data_path",
-      UserDataPath().getPath(),
-      "--environment_name",
-      CONDA_ENV_NAME,
-    ],
-    true
-  );
-});
+);
 
 ipcMain.handle(
-  "fetch-training-run-names",
+  FETCH_TRAINING_RUN_NAMES_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, trainingRunID: number) => {
     let names;
     if (trainingRunID == null) {
@@ -195,7 +216,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "fetch-training-run-configuration",
+  FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL.IN,
   (event: IpcMainInvokeEvent, trainingRunID: number) => {
     const configuration = DB.getInstance()
       .prepare(
@@ -227,7 +248,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "fetch-training-run-statistics",
+  FETCH_TRAINING_RUN_STATISTICS_CHANNEL.IN,
   (event: IpcMainInvokeEvent, trainingRunID: number, stage: string) => {
     const graphStatistics = DB.getInstance()
       .prepare(
@@ -281,7 +302,7 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("fetch-training-runs", async () => {
+ipcMain.handle(FETCH_TRAINING_RUNS_CHANNEL.IN, async () => {
   const trainingRuns = DB.getInstance()
     .prepare(
       `SELECT training_run.ID AS ID, training_run.name AS name, stage, dataset.name AS datasetName FROM training_run LEFT JOIN dataset ON training_run.dataset_id = dataset.ID`
@@ -291,7 +312,7 @@ ipcMain.handle("fetch-training-runs", async () => {
 });
 
 ipcMain.handle(
-  "fetch-training-run-progress",
+  FETCH_TRAINING_RUN_PROGRESS_CHANNEL.IN,
   (event: IpcMainInvokeEvent, trainingRunID: number) => {
     const progress = DB.getInstance()
       .prepare(

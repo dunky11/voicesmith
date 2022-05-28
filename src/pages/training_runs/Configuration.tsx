@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, ReactElement } from "react";
 import {
   Card,
   Button,
@@ -19,8 +19,15 @@ import {
   RunInterface,
 } from "../../interfaces";
 import { SERVER_URL, trainingRunInitialValues } from "../../config";
-import { notifySave, useStateCallback } from "../../utils";
+import { notifySave } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
+import {
+  CREATE_TRAINING_RUN_CHANNEL,
+  UPDATE_TRAINING_RUN_CONFIG_CHANNEL,
+  FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL,
+  FETCH_TRAINING_RUN_NAMES_CHANNEL,
+  FETCH_DATASET_CANDIATES_CHANNEL,
+} from "../../channels";
 const { ipcRenderer, shell } = window.require("electron");
 
 export default function Configuration({
@@ -45,7 +52,7 @@ export default function Configuration({
     | "save_model"
     | "finished"
     | null;
-}) {
+}): ReactElement {
   const [modelNames, setModelNames] = useState<string[]>([]);
   const isMounted = useRef(false);
   const [datasetsIsLoaded, setDatastsIsLoaded] = useState(false);
@@ -84,10 +91,16 @@ export default function Configuration({
     };
 
     if (selectedTrainingRunID === null) {
-      ipcRenderer.invoke("create-training-run", values).then(afterUpdate);
+      ipcRenderer
+        .invoke(CREATE_TRAINING_RUN_CHANNEL.IN, values)
+        .then(afterUpdate);
     } else {
       ipcRenderer
-        .invoke("update-training-run-config", values, selectedTrainingRunID)
+        .invoke(
+          UPDATE_TRAINING_RUN_CONFIG_CHANNEL.IN,
+          values,
+          selectedTrainingRunID
+        )
         .then(afterUpdate);
     }
   };
@@ -113,7 +126,10 @@ export default function Configuration({
 
   const fetchConfiguration = () => {
     ipcRenderer
-      .invoke("fetch-training-run-configuration", selectedTrainingRunID)
+      .invoke(
+        FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL.IN,
+        selectedTrainingRunID
+      )
       .then((configuration: ConfigurationInterface) => {
         if (!isMounted.current) {
           return;
@@ -132,7 +148,7 @@ export default function Configuration({
 
   const fetchNamesInUse = () => {
     ipcRenderer
-      .invoke("fetch-training-run-names", selectedTrainingRunID)
+      .invoke(FETCH_TRAINING_RUN_NAMES_CHANNEL.IN, selectedTrainingRunID)
       .then((names: string[]) => {
         if (!isMounted.current) {
           return;
@@ -143,7 +159,7 @@ export default function Configuration({
 
   const fetchDatasets = () => {
     ipcRenderer
-      .invoke("fetch-dataset-candidates")
+      .invoke(FETCH_DATASET_CANDIATES_CHANNEL.IN)
       .then((datasets: DatasetInterface[]) => {
         if (!isMounted.current) {
           return;
