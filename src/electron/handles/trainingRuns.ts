@@ -14,7 +14,7 @@ import {
   UserDataPath,
 } from "../utils/globals";
 import { DB, bool2int, getSpeakersWithSamples } from "../utils/db";
-import { trainingRunInitialValues } from "../../config";
+import { CONDA_ENV_NAME, trainingRunInitialValues } from "../../config";
 
 ipcMain.handle(
   "create-training-run",
@@ -168,6 +168,8 @@ ipcMain.on("continue-training-run", (event: IpcMainEvent, runID: number) => {
     getDatasetsDir(),
     "--user_data_path",
     UserDataPath().getPath(),
+    "--environment_name",
+    CONDA_ENV_NAME,
   ]);
 });
 

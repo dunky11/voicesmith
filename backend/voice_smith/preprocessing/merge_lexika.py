@@ -1,5 +1,4 @@
 from pathlib import Path
-import fire
 
 
 def lex_to_dict(path: str):
@@ -18,22 +17,17 @@ def lex_to_dict(path: str):
     return dic
 
 
-def merge_lexica(training_run_name: str):
-    training_run_name = str(training_run_name)
+def merge_lexica(base_lexica_path: str, lang: str, assets_path: str, out_path: str):
     dic_final = {}
-    training_run_path = Path(".") / "data" / "training_runs" / training_run_name / "data"
-    for lex in list((Path(".") / "lexica" / "english").iterdir()) + [
-        training_run_path / "lexicon_pre.txt"
+    for lex in list((Path(assets_path) / "lexica" / lang).iterdir()) + [
+        base_lexica_path
     ]:
         dic = lex_to_dict(str(lex))
         for key in dic.keys():
             if not key in dic_final:
                 dic_final[key] = dic[key]
 
-    with open(training_run_path / "lexicon_post.txt", "w", encoding="utf-8") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         for key in dic_final.keys():
             f.write(key + " " + dic_final[key] + "\n")
 
-
-if __name__ == "__main__":
-    fire.Fire(merge_lexica)

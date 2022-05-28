@@ -23,8 +23,9 @@ from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchsc
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con
 from voice_smith.config.symbols import symbol2id
-from voice_smith.docker.api import generate_vocab, align, reload_docker
 from voice_smith.utils.tools import warnings_to_stdout
+from voice_smith.preprocessing.generate_vocab import generate_vocab
+from voice_smith.preprocessing.merge_lexika import merge_lexica
 
 warnings_to_stdout()
 
@@ -156,6 +157,7 @@ def continue_training_run(
     models_path: str,
     datasets_path: str,
     user_data_path: str,
+    environment_name: str,
 ):
     con = get_con(db_path)
     cur = con.cursor()
@@ -253,7 +255,6 @@ def continue_training_run(
                     get_logger=get_logger,
                     preprocess_config=p_config,
                 )
-                quit()
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",
                     (training_run_id,),
@@ -263,16 +264,22 @@ def continue_training_run(
             elif preprocessing_stage == "gen_vocab":
                 (data_path / "data").mkdir(exist_ok=True, parents=True)
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
-                container = reload_docker(
-                    user_data_path=user_data_path, db_path=db_path
-                )
                 p_config, _, _ = get_acoustic_configs(
                     cur=cur, training_run_id=training_run_id
                 )
+                base_lexica_path = str(Path(data_path) / "data" / "lexicon_pre.txt")
                 generate_vocab(
-                    container, training_run_name=str(training_run_id), p_config=p_config
+                    environment_name=environment_name,
+                    in_path=str(Path(data_path) / "raw_data"),
+                    out_path=base_lexica_path,
+                    n_workers=p_config["workers"],
                 )
-                quit()
+                merge_lexica(
+                    base_lexica_path=base_lexica_path,
+                    lang="en",
+                    assets_path=assets_path,
+                    out_path=str(Path(data_path / "data" / "lexicon_post.txt")),
+                )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_alignments', preprocessing_gen_vocab_progress=1.0 WHERE ID=?",
                     (training_run_id,),
@@ -281,7 +288,7 @@ def continue_training_run(
 
             elif preprocessing_stage == "gen_alignments":
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
-                container = reload_docker(
+                """container = reload_docker(
                     user_data_path=user_data_path, db_path=db_path
                 )
                 p_config, _, _ = get_acoustic_configs(
@@ -289,7 +296,7 @@ def continue_training_run(
                 )
                 align(
                     container, training_run_name=str(training_run_id), p_config=p_config
-                )
+                )"""
                 quit()
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='extract_data', preprocessing_gen_align_progress=1.0 WHERE ID=?",
@@ -764,6 +771,7 @@ if __name__ == "__main__":
     parser.add_argument("--models_path", type=str, required=True)
     parser.add_argument("--datasets_path", type=str, required=True)
     parser.add_argument("--user_data_path", type=str, required=True)
+    parser.add_argument("--environment_name", type=str, required=True)
     args = parser.parse_args()
 
     continue_training_run(
@@ -774,4 +782,5 @@ if __name__ == "__main__":
         models_path=args.models_path,
         datasets_path=args.datasets_path,
         user_data_path=args.user_data_path,
+        environment_name=args.environment_name,
     )
