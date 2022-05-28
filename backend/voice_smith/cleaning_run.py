@@ -6,7 +6,7 @@ import argparse
 from voice_smith.preprocessing.copy_files import copy_files
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.preprocessing.dataset_cleaning import get_issues, load_embeddings
-from voice_smith.sql import get_con
+from voice_smith.sql import get_con, save_current_pid
 from voice_smith.utils.sql_logger import SQLLogger
 from voice_smith.preprocessing.get_txt_from_files import get_txt_from_files
 from voice_smith.preprocessing.gen_speaker_embeddings import (
@@ -22,6 +22,7 @@ def continue_cleaning_run(
 ):
     con = get_con(db_path)
     cur = con.cursor()
+    save_current_pid(con=con, cur=cur)
     data_path = (
         Path(cleaning_runs_dir) / str(cleaning_run_id)
     )

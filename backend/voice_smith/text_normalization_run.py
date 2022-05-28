@@ -2,7 +2,7 @@ from pathlib import Path
 import shutil
 import argparse
 from voice_smith.utils.loggers import set_stream_location
-from voice_smith.sql import get_con
+from voice_smith.sql import get_con, save_current_pid
 from voice_smith.docker.api import reload_docker, text_normalize
 
 
@@ -14,6 +14,7 @@ def continue_text_normalization_run(
 ):
     con = get_con(db_path)
     cur = con.cursor()
+    save_current_pid(con=con, cur=cur)
     data_path = Path(text_normalization_runs_path) / str(text_normalization_run_id)
     stage = None
 
