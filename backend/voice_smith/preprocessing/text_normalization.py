@@ -2,12 +2,11 @@ from pathlib import Path
 import fire
 from nemo_text_processing.text_normalization.normalize import Normalizer
 import multiprocessing as mp
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Callable
 import multiprocessing as mp
 from joblib import Parallel, delayed
 import sqlite3
 import argparse
-from spacy.tokenizer import Tokenizer
 from spacy.lang.en import English
 from spacy.lang.es import Spanish
 from spacy.lang.ru import Russian
@@ -149,7 +148,9 @@ class DetShouldNormalizeBase:
     or words inside the text and only normalize if necessary.
     """
 
-    def should_normalize(self, text: str, tokenizer: Tokenizer) -> Tuple[bool, str]:
+    def should_normalize(
+        self, text: str, tokenizer, assets_path: str
+    ) -> Tuple[bool, str]:
         raise NotImplementedError()
 
     def get_reasons(
@@ -158,7 +159,7 @@ class DetShouldNormalizeBase:
         abbreviations: Dict[str, Any],
         initialisms: Dict[str, Any],
         allowed_characters: Dict[str, Any],
-        tokenizer: Tokenizer,
+        tokenizer,
     ) -> List[str]:
         reasons, abbr_detected, inits_detected, unusual_chars_detected = [], [], [], []
         for token in tokenizer(text):
@@ -188,36 +189,34 @@ class DetShouldNormalizeBase:
 
         return reasons
 
-    def fetch_word_list(self, name: str):
+    def fetch_word_list(self, name: str, assets_path: str):
         lines = []
-        with open(Path(".") / "word_lists" / name, "r", encoding="utf-8") as f:
+        with open(Path(assets_path) / "word_lists" / name, "r", encoding="utf-8") as f:
             for line in f:
                 lines.append(line.strip())
         return lines
 
 
 class DetShouldNormalizeEN(DetShouldNormalizeBase):
-    def __init__(self):
+    def __init__(self, assets_path: str):
         super().__init__()
         en_punctuation = MULTILINGUAL_PUNCTUATION + ENGLISH_PUNCTUATION
         self.allowed_characters = set(LATIN_CHARACTERS + SPECIALS + en_punctuation)
         abbr = (
             MULTILINGUAL_ABBREVIATIONS
             + ENGLISH_ABBREVIATIONS
-            + self.fetch_word_list("english_abbreviations.txt")
+            + self.fetch_word_list("english_abbreviations.txt", assets_path=assets_path)
         )
         initialisms = (
             MULTILINGUAL_INITIALISMS
             + ENGLISH_INITIALISMS
-            + self.fetch_word_list("english_initialisms.txt")
+            + self.fetch_word_list("english_initialisms.txt", assets_path=assets_path)
         )
 
         self.abbreviations = set(abbr)
         self.initialisms = set(initialisms)
 
-    def should_normalize(
-        self, text: str, tokenizer: Tokenizer
-    ) -> Tuple[bool, List[str]]:
+    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
             text,
             self.abbreviations,
@@ -230,7 +229,7 @@ class DetShouldNormalizeEN(DetShouldNormalizeBase):
 
 
 class DetShouldNormalizeES(DetShouldNormalizeBase):
-    def __init__(self):
+    def __init__(self, assets_path: str):
         super().__init__()
         es_punctuation = MULTILINGUAL_PUNCTUATION + SPANISH_PUNCTUATION
         self.allowed_characters = set(
@@ -239,19 +238,17 @@ class DetShouldNormalizeES(DetShouldNormalizeBase):
         abbr = (
             MULTILINGUAL_ABBREVIATIONS
             + SPANISH_ABBREVIATIONS
-            + self.fetch_word_list("spanish_abbreviations.txt")
+            + self.fetch_word_list("spanish_abbreviations.txt", assets_path=assets_path)
         )
         initialisms = (
             MULTILINGUAL_INITIALISMS
-            + self.fetch_word_list("spanish_initialisms.txt")
+            + self.fetch_word_list("spanish_initialisms.txt", assets_path=assets_path)
             + SPANISH_INITIALISMS
         )
         self.abbreviations = set(abbr, es_punctuation)
         self.initialisms = set(initialisms, es_punctuation)
 
-    def should_normalize(
-        self, text: str, tokenizer: Tokenizer
-    ) -> Tuple[bool, List[str]]:
+    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
             text,
             self.abbreviations,
@@ -264,7 +261,7 @@ class DetShouldNormalizeES(DetShouldNormalizeBase):
 
 
 class DetShouldNormalizeDE(DetShouldNormalizeBase):
-    def __init__(self):
+    def __init__(self, assets_path: str):
         super().__init__()
         de_punctuation = MULTILINGUAL_PUNCTUATION + GERMAN_PUNCTUATION
         self.allowed_characters = set(
@@ -273,19 +270,17 @@ class DetShouldNormalizeDE(DetShouldNormalizeBase):
         abbr = (
             MULTILINGUAL_ABBREVIATIONS
             + GERMAN_ABBREVIATIONS
-            + self.fetch_word_list("german_abbreviations.txt")
+            + self.fetch_word_list("german_abbreviations.txt", assets_path=assets_path)
         )
         initialisms = (
             MULTILINGUAL_INITIALISMS
-            + self.fetch_word_list("german_initialisms.txt")
+            + self.fetch_word_list("german_initialisms.txt", assets_path=assets_path)
             + GERMAN_INITIALISMS
         )
         self.abbreviations = set(abbr)
         self.initialisms = set(initialisms)
 
-    def should_normalize(
-        self, text: str, tokenizer: Tokenizer
-    ) -> Tuple[bool, List[str]]:
+    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
             text,
             self.abbreviations,
@@ -298,24 +293,23 @@ class DetShouldNormalizeDE(DetShouldNormalizeBase):
 
 
 class DetShouldNormalizeRU(DetShouldNormalizeBase):
-    def __init__(self):
+    def __init__(self, assets_path: str):
         super().__init__()
         ru_punctuation = MULTILINGUAL_PUNCTUATION + RUSSIAN_PUNCTUATION
         self.allowed_characters = set(RUSSIAN_CHARACTERS + SPECIALS + ru_punctuation)
         abbr = (
             MULTILINGUAL_ABBREVIATIONS
             + RUSSIAN_ABBREVIATIONS
-            + self.fetch_word_list("russian_abbreviations.txt")
+            + self.fetch_word_list("russian_abbreviations.txt", assets_path=assets_path)
         )
         initialisms = (
-            self.fetch_word_list("russian_initialisms.txt") + RUSSIAN_INITIALISMS
+            self.fetch_word_list("russian_initialisms.txt", assets_path=assets_path)
+            + RUSSIAN_INITIALISMS
         )
         self.abbreviations = set(abbr, ru_punctuation)
         self.initialisms = set(initialisms, ru_punctuation)
 
-    def should_normalize(
-        self, text: str, tokenizer: Tokenizer
-    ) -> Tuple[bool, List[str]]:
+    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
             text,
             self.abbreviations,
@@ -351,13 +345,13 @@ def apply_nemo_normalization(text: str, normalizer: Normalizer):
     return text_out
 
 
-def normalize_text(
+def normalize_sample(
     text_in: str,
     char_normalizer: CharNormalizer,
     detector: DetShouldNormalizeEN,
     normalizer: Normalizer,
     deterministic: bool,
-    tokenizer: Tokenizer,
+    tokenizer,
 ):
     text_out, reasons_char_norm = char_normalizer.normalize(text_in)
     should_normalize, reasons_det = detector.should_normalize(text_out, tokenizer)
@@ -381,55 +375,35 @@ def load_text(text_path: Path):
     return text
 
 
-def normalize(ID: int, run_type: str, lang: str):
-    con = sqlite3.connect(Path(".") / "db" / "voice_smith.db")
-    cur = con.cursor()
-    id_text_pairs = []
-    if run_type == "textNormalizationRun":
-        cur.execute(
-            "DELETE FROM text_normalization_sample WHERE text_normalization_run_id = ?",
-            (ID,),
-        )
-        con.commit()
-
-        for (sample_id, text) in cur.execute(
-            """
-            SELECT sample.ID AS sampleID, sample.text FROM sample
-            INNER JOIN speaker ON sample.speaker_id = speaker.ID
-            INNER JOIN dataset on speaker.dataset_id = dataset.ID
-            INNER JOIN text_normalization_run ON text_normalization_run.dataset_id = dataset.ID
-            WHERE text_normalization_run.ID = ?
-            """,
-            (ID,),
-        ).fetchall():
-            id_text_pairs.append((sample_id, text))
-    else:
-        raise Exception(
-            f"No case selected in switch-statement, '{run_type}' is not a valid case ..."
-        )
-
+def text_normalize(
+    id_text_pairs: List[Tuple[int, str]],
+    assets_path: str,
+    lang: str,
+    progress_cb: Callable[[float], None],
+    callback_every: int = 50,
+) -> List[Tuple[int, str, str, str]]:
     if lang == "en":
-        detector = DetShouldNormalizeEN()
+        detector = DetShouldNormalizeEN(assets_path)
         deterministic = True
         nlp = English()
     elif lang == "es":
-        detector = DetShouldNormalizeES()
+        detector = DetShouldNormalizeES(assets_path)
         deterministic = True
         nlp = Spanish()
     elif lang == "de":
-        detector = DetShouldNormalizeDE()
+        detector = DetShouldNormalizeDE(assets_path)
         deterministic = True
         nlp = German()
     elif lang == "ru":
-        detector = DetShouldNormalizeRU()
+        detector = DetShouldNormalizeRU(assets_path)
         deterministic = False
         nlp = Russian()
     else:
         raise Exception(
             f"No case selected in switch-statement, '{lang}' is not a valid case ..."
         )
-    tokenizer = nlp.tokenizer
 
+    tokenizer = nlp.tokenizer
     char_normalizer = CharNormalizer()
     normalizer = Normalizer(
         input_case="cased",
@@ -438,10 +412,10 @@ def normalize(ID: int, run_type: str, lang: str):
         deterministic=deterministic,
     )
 
-    rets = []
+    normalizations = []
 
-    for i, (_, text) in enumerate(id_text_pairs):
-        ret = normalize_text(
+    for i, (sample_id, text) in enumerate(id_text_pairs):
+        ret = normalize_sample(
             text_in=text,
             char_normalizer=char_normalizer,
             detector=detector,
@@ -449,57 +423,17 @@ def normalize(ID: int, run_type: str, lang: str):
             deterministic=deterministic,
             tokenizer=tokenizer,
         )
-        rets.append(ret)
-        normalized, text_in, text_out, reason = ret
-        if normalized:
+        is_normalized, text_in, text_out, reason = ret
+        if is_normalized:
+            normalizations.append((sample_id, text_in, text_out, reason))
             print("Text in: ", text_in, flush=True)
             print("Text normalized: ", text_out, flush=True)
             print("Reason: ", reason, flush=True)
             print("", flush=True)
 
-        if i % 100 == 0 and i != 0:
-            progress = ((i + 1) / len(id_text_pairs)) * 0.9
-            cur.execute(
-                "UPDATE text_normalization_run SET text_normalization_progress = ? WHERE ID=?",
-                (progress, ID),
-            )
-            con.commit()
+        if i % callback_every == 0 and i != 0:
+            progress_cb((i + 1) / len(id_text_pairs))
 
-    cur.execute(
-        "UPDATE text_normalization_run SET text_normalization_progress=0.9 WHERE ID=?",
-        (ID,),
-    )
-    con.commit()
+    progress_cb(1.0)
 
-    for (sample_id, _), (has_normalized, text_in, text_out, reason) in zip(
-        id_text_pairs, rets
-    ):
-        if run_type == "textNormalizationRun":
-            if has_normalized:
-                cur.execute(
-                    """
-                    INSERT INTO text_normalization_sample (old_text, new_text, reason, sample_id, text_normalization_run_id) 
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (text_in, text_out, reason, sample_id, ID),
-                )
-        else:
-            raise Exception(
-                f"No case selected in switch-statement, '{run_type}' is not a valid case ..."
-            )
-
-    cur.execute(
-        "UPDATE text_normalization_run SET text_normalization_progress=1.0 WHERE ID=?",
-        (ID,),
-    )
-    con.commit()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--training_run_id", type=int, required=True)
-    parser.add_argument("--run_type", type=str, required=True)
-    parser.add_argument("--lang", type=str, required=True)
-    args = parser.parse_args()
-
-    normalize(ID=args.training_run_id, run_type=args.run_type, lang=args.lang)
+    return normalizations

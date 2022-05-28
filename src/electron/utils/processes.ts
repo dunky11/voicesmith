@@ -36,7 +36,8 @@ const spawnCondaShell = (cmd: string): ChildProcess => {
 export const startRun = (
   event: IpcMainEvent,
   scriptName: string,
-  args: string[]
+  args: string[],
+  logErr: boolean
 ): void => {
   pyProc = spawnCondaShell([scriptName, ...args].join(" "));
 
@@ -46,13 +47,14 @@ export const startRun = (
     });
   });
 
-  pyProc.stderr.on("data", (data: any) => {
-    console.log("ERROR DATA");
-    event.reply("continue-run-reply", {
-      type: "error",
-      errorMessage: data.toString(),
+  if (logErr) {
+    pyProc.stderr.on("data", (data: any) => {
+      event.reply("continue-run-reply", {
+        type: "error",
+        errorMessage: data.toString(),
+      });
     });
-  });
+  }
 
   event.reply("continue-run-reply", {
     type: "startedRun",

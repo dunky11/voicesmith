@@ -51,16 +51,21 @@ ipcMain.on(
       event.reply(CONTINUE_CLEANING_RUN_CHANNEL.REPLY, reply);
       return;
     }
-    startRun(event, "cleaning_run.py", [
-      "--cleaning_run_id",
-      String(runID),
-      "--db_path",
-      DB_PATH,
-      "--cleaning_runs_dir",
-      getCleaningRunsDir(),
-      "--datasets_path",
-      getDatasetsDir(),
-    ]);
+    startRun(
+      event,
+      "cleaning_run.py",
+      [
+        "--cleaning_run_id",
+        String(runID),
+        "--db_path",
+        DB_PATH,
+        "--cleaning_runs_dir",
+        getCleaningRunsDir(),
+        "--datasets_path",
+        getDatasetsDir(),
+      ],
+      true
+    );
   }
 );
 

@@ -39,7 +39,6 @@ const useStyles = createUseStyles({
   sider: {
     overflow: "auto",
     height: "100vh",
-    position: "fixed",
     left: 0,
     top: 0,
     bottom: 0,
@@ -58,7 +57,7 @@ const useStyles = createUseStyles({
   navIcon: { marginRight: 4, fontSize: 16 },
   divider: { borderColor: "#27272A" },
   leftLayout: { minHeight: "100vh" },
-  contentLayout: { marginLeft: 200 },
+  contentLayout: {},
   content: { margin: "24px !important" },
 });
 

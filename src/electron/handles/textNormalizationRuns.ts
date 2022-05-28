@@ -5,6 +5,7 @@ import {
   DB_PATH,
   getTextNormalizationRunsDir,
   UserDataPath,
+  ASSETS_PATH,
 } from "../utils/globals";
 import { DB } from "../utils/db";
 import {
@@ -16,16 +17,23 @@ import { startRun } from "../utils/processes";
 ipcMain.on(
   "continue-text-normalization-run",
   (event: IpcMainEvent, runID: number) => {
-    startRun(event, "text_normalization_run.py", [
-      "--text_normalization_run_id",
-      String(runID),
-      "--db_path",
-      DB_PATH,
-      "--text_normalization_runs_path",
-      getTextNormalizationRunsDir(),
-      "--user_data_path",
-      UserDataPath().getPath(),
-    ]);
+    startRun(
+      event,
+      "text_normalization_run.py",
+      [
+        "--text_normalization_run_id",
+        String(runID),
+        "--db_path",
+        DB_PATH,
+        "--text_normalization_runs_path",
+        getTextNormalizationRunsDir(),
+        "--user_data_path",
+        UserDataPath().getPath(),
+        "--assets_path",
+        ASSETS_PATH,
+      ],
+      false
+    );
   }
 );
 
