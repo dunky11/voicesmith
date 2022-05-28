@@ -14,7 +14,7 @@ If you want to play around with a model trained on a highly emotional emotional 
 * RAM: 8GB of RAM, you can try with less but it may not work.
 
 #### Software
-* Anaconda or Miniconda, you can [download it here]("https://www.anaconda.com/").
+* Anaconda or Miniconda, you can [download it here](https://www.anaconda.com).
 
 ## How to install
 
