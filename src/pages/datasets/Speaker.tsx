@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, ReactElement } from "react";
 import { Card, Button, Table, Breadcrumb, Space, Typography } from "antd";
 import { Link } from "react-router-dom";
 import { defaultPageOptions } from "../../config";
@@ -9,6 +9,12 @@ import {
   SpeakerSampleInterface,
   FileInterface,
 } from "../../interfaces";
+import {
+  REMOVE_SAMPLES_CHANNEL,
+  PICK_SPEAKER_FILES_CHANNEL,
+  ADD_SAMPLES_CHANNEL,
+  EDIT_SAMPLE_TEXT_CHANNEL,
+} from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
 export default function Speaker({
@@ -25,7 +31,7 @@ export default function Speaker({
   datasetID: number | null;
   datasetName: string | null;
   referencedBy: string | null;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const onSpeakerBackClick = () => {
@@ -45,7 +51,7 @@ export default function Speaker({
       return sampleIDs.includes(sample.ID);
     });
     ipcRenderer
-      .invoke("remove-samples", datasetID, speaker.ID, samples)
+      .invoke(REMOVE_SAMPLES_CHANNEL.IN, datasetID, speaker.ID, samples)
       .then(() => {
         if (!isMounted.current) {
           return;
@@ -56,7 +62,7 @@ export default function Speaker({
 
   const onFilesAddClick = () => {
     ipcRenderer
-      .invoke("pick-speaker-files")
+      .invoke(PICK_SPEAKER_FILES_CHANNEL.IN)
       .then((filePaths: FileInterface[]) => {
         if (speaker === null || !isMounted.current || filePaths.length === 0) {
           return;
@@ -70,7 +76,7 @@ export default function Speaker({
       return;
     }
     ipcRenderer
-      .invoke("add-samples-to-speaker", speaker, filePaths, datasetID)
+      .invoke(ADD_SAMPLES_CHANNEL.IN, speaker, filePaths, datasetID)
       .then(fetchDataset);
   };
 
@@ -96,7 +102,7 @@ export default function Speaker({
 
   const onTextChange = (sampleID: number, newText: string) => {
     ipcRenderer
-      .invoke("edit-sample-text", sampleID, newText.trim())
+      .invoke(EDIT_SAMPLE_TEXT_CHANNEL.IN, sampleID, newText.trim())
       .then(fetchDataset);
   };
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Tabs, Card, Button, Steps } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import RunCard from "../../components/cards/RunCard";
@@ -31,7 +31,7 @@ export default function VocoderFineTuning({
     | "finished"
     | null;
   usageStats: UsageStatsInterface[];
-}) {
+}): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
 
   const stageIsRunning = getStageIsRunning(

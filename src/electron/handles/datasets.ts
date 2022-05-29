@@ -12,14 +12,31 @@ import { safeUnlink, exists, safeMkdir, copyDir } from "../utils/files";
 import { getDatasetsDir } from "../utils/globals";
 import { DB, getSpeakersWithSamples, getReferencedBy } from "../utils/db";
 import {
+  ADD_SPEAKER_CHANNEL,
+  FETCH_DATASETS_CHANNEL,
+  CREATE_DATASET_CHANNEL,
+  REMOVE_DATASET_CHANNEL,
+  EXPORT_DATASET_CHANNEL,
+  EDIT_DATASET_NAME_CHANNEL,
+  ADD_SAMPLES_CHANNEL,
+  REMOVE_SAMPLES_CHANNEL,
+  EDIT_SPEAKER_NAME_CHANNEL,
+  PICK_SPEAKERS_CHANNEL,
+  REMOVE_SPEAKERS_CHANNEL,
+  PICK_SPEAKER_FILES_CHANNEL,
+  FETCH_DATASET_CANDIDATES_CHANNEL,
+  EDIT_SAMPLE_TEXT_CHANNEL,
+  FETCH_DATASET_CHANNEL,
+} from "../../channels";
+import { AUDIO_EXTENSIONS, TEXT_EXTENSIONS } from "../../config";
+import {
   SpeakerSampleInterface,
   FileInterface,
   DatasetInterface,
   SpeakerInterface,
 } from "../../interfaces";
-import { AUDIO_EXTENSIONS, TEXT_EXTENSIONS } from "../../config";
 
-ipcMain.handle("fetch-datasets", async () => {
+ipcMain.handle(FETCH_DATASETS_CHANNEL.IN, async () => {
   const datasets = DB.getInstance()
     .prepare(
       `
@@ -39,7 +56,7 @@ ipcMain.handle("fetch-datasets", async () => {
 });
 
 ipcMain.handle(
-  "add-speaker",
+  ADD_SPEAKER_CHANNEL.IN,
   (event: IpcMainInvokeEvent, speakerName: string, datasetID: number) => {
     DB.getInstance()
       .prepare(
@@ -59,7 +76,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "create-dataset",
+  CREATE_DATASET_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, name: string) => {
     DB.getInstance()
       .prepare(`INSERT INTO dataset (name) VALUES (@name)`)
@@ -68,7 +85,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "remove-dataset",
+  REMOVE_DATASET_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, ID: number) => {
     const datasetPath = path.join(getDatasetsDir(), String(ID));
     if (await exists(datasetPath)) {
@@ -100,7 +117,7 @@ ipcMain.handle(
 );
 
 ipcMain.on(
-  "export-datasets",
+  EXPORT_DATASET_CHANNEL.IN,
   (event: IpcMainEvent, datasets: DatasetInterface[]) => {
     const options: OpenDialogOptions = {
       properties: ["openDirectory"],
@@ -108,7 +125,7 @@ ipcMain.on(
 
     dialog.showOpenDialog(null, options).then(async (response) => {
       if (response.canceled) {
-        event.reply("export-datasets-reply");
+        EXPORT_DATASET_CHANNEL.REPLY;
         return;
       }
       const outDatasetDir = response.filePaths[0];
@@ -137,7 +154,7 @@ ipcMain.on(
         }
       }
       const total = speakersToCopy.length;
-      event.reply("export-datasets-progress-reply", 0, total);
+      event.reply(EXPORT_DATASET_CHANNEL.PROGRESS_REPLY, 0, total);
       for (let i = 0; i < speakersToCopy.length; i++) {
         const speakerToCopy = speakersToCopy[i];
         await copyDir(speakerToCopy.inPath, speakerToCopy.outPath);
@@ -152,15 +169,15 @@ ipcMain.on(
             )
           )
         );
-        event.reply("export-datasets-progress-reply", i + 1, total);
+        event.reply(EXPORT_DATASET_CHANNEL.PROGRESS_REPLY, i + 1, total);
       }
-      event.reply("export-datasets-reply");
+      event.reply(EXPORT_DATASET_CHANNEL.REPLY);
     });
   }
 );
 
 ipcMain.handle(
-  "edit-dataset-name",
+  EDIT_DATASET_NAME_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number, newName: string) => {
     DB.getInstance().prepare("UPDATE dataset SET name=@name WHERE ID=@ID").run({
       ID,
@@ -196,7 +213,7 @@ const filesToSamples = async (audioFiles: string[], txtFiles: string[]) => {
 };
 
 ipcMain.handle(
-  "add-samples-to-speaker",
+  ADD_SAMPLES_CHANNEL.IN,
   async (
     event: IpcMainInvokeEvent,
     speaker: SpeakerInterface,
@@ -247,7 +264,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "remove-samples",
+  REMOVE_SAMPLES_CHANNEL.IN,
   async (
     event: IpcMainInvokeEvent,
     datasetID: number,
@@ -301,116 +318,119 @@ const copySpeakerFiles = async (
   }
 };
 
-ipcMain.on("pick-speakers", async (event: IpcMainEvent, datasetID: number) => {
-  const options: OpenDialogOptions = {
-    properties: ["openDirectory", "multiSelections"],
-  };
+ipcMain.on(
+  PICK_SPEAKERS_CHANNEL.IN,
+  async (event: IpcMainEvent, datasetID: number) => {
+    const options: OpenDialogOptions = {
+      properties: ["openDirectory", "multiSelections"],
+    };
 
-  const textExtensions = TEXT_EXTENSIONS.map((ext) => `.${ext}`);
-  const audioExtensions = AUDIO_EXTENSIONS.map((ext) => `.${ext}`);
+    const textExtensions = TEXT_EXTENSIONS.map((ext) => `.${ext}`);
+    const audioExtensions = AUDIO_EXTENSIONS.map((ext) => `.${ext}`);
 
-  dialog.showOpenDialog(null, options).then(async (response) => {
-    if (response.canceled) {
-      event.reply("pick-speakers-reply");
-      return;
-    }
-    const speakers = DB.getInstance()
-      .prepare("SELECT name FROM speaker WHERE dataset_id=@datasetID")
-      .all({ datasetID });
-    const stmtSpeakerID = DB.getInstance().prepare(
-      "SELECT ID FROM speaker WHERE dataset_id=@datasetID AND name=@name"
-    );
+    dialog.showOpenDialog(null, options).then(async (response) => {
+      if (response.canceled) {
+        event.reply(PICK_SPEAKERS_CHANNEL.REPLY);
+        return;
+      }
+      const speakers = DB.getInstance()
+        .prepare("SELECT name FROM speaker WHERE dataset_id=@datasetID")
+        .all({ datasetID });
+      const stmtSpeakerID = DB.getInstance().prepare(
+        "SELECT ID FROM speaker WHERE dataset_id=@datasetID AND name=@name"
+      );
 
-    const stmtInsertSample = DB.getInstance().prepare(
-      "INSERT OR IGNORE INTO sample (txt_path, audio_path, speaker_id, text) VALUES(@txtPath, @audioPath, @speakerId, @text)"
-    );
+      const stmtInsertSample = DB.getInstance().prepare(
+        "INSERT OR IGNORE INTO sample (txt_path, audio_path, speaker_id, text) VALUES(@txtPath, @audioPath, @speakerId, @text)"
+      );
 
-    const stmtInsertSpeaker = DB.getInstance().prepare(
-      "INSERT INTO speaker (name, dataset_id) VALUES (@name, @datasetID)"
-    );
+      const stmtInsertSpeaker = DB.getInstance().prepare(
+        "INSERT INTO speaker (name, dataset_id) VALUES (@name, @datasetID)"
+      );
 
-    const insertManySamples = DB.getInstance().transaction((els: any[]) => {
-      for (const el of els) stmtInsertSample.run(el);
-    });
-
-    const speakerNames = speakers.map((speaker: any) => speaker.name);
-    for (
-      let progress = 1;
-      progress < response.filePaths.length + 1;
-      progress++
-    ) {
-      const speakerPath = response.filePaths[progress - 1];
-      const split = speakerPath.split(path.sep);
-      const speakerName = split[split.length - 1];
-      const textFiles: string[] = [];
-      const audioFiles: string[] = [];
-      const files = await fsPromises.readdir(speakerPath, {
-        withFileTypes: true,
+      const insertManySamples = DB.getInstance().transaction((els: any[]) => {
+        for (const el of els) stmtInsertSample.run(el);
       });
-      files.forEach((file) => {
-        if (!file.isFile()) {
-          return;
-        }
-        const filePath = path.join(speakerPath, file.name);
-        const ext = path.extname(filePath);
-        if (textExtensions.includes(ext)) {
-          textFiles.push(filePath);
-        } else if (audioExtensions.includes(ext)) {
-          audioFiles.push(filePath);
-        }
-      });
-      const samples = await filesToSamples(audioFiles, textFiles);
 
-      if (samples.length === 0) {
+      const speakerNames = speakers.map((speaker: any) => speaker.name);
+      for (
+        let progress = 1;
+        progress < response.filePaths.length + 1;
+        progress++
+      ) {
+        const speakerPath = response.filePaths[progress - 1];
+        const split = speakerPath.split(path.sep);
+        const speakerName = split[split.length - 1];
+        const textFiles: string[] = [];
+        const audioFiles: string[] = [];
+        const files = await fsPromises.readdir(speakerPath, {
+          withFileTypes: true,
+        });
+        files.forEach((file) => {
+          if (!file.isFile()) {
+            return;
+          }
+          const filePath = path.join(speakerPath, file.name);
+          const ext = path.extname(filePath);
+          if (textExtensions.includes(ext)) {
+            textFiles.push(filePath);
+          } else if (audioExtensions.includes(ext)) {
+            audioFiles.push(filePath);
+          }
+        });
+        const samples = await filesToSamples(audioFiles, textFiles);
+
+        if (samples.length === 0) {
+          event.reply(
+            "pick-speakers-progress-reply",
+            progress,
+            response.filePaths.length
+          );
+          continue;
+        }
+        if (speakerNames.includes(speakerName)) {
+          const speakerID = stmtSpeakerID.get({
+            datasetID,
+            name: speakerName,
+          }).ID;
+          copySpeakerFiles(datasetID, speakerID, samples);
+          insertManySamples(
+            samples.map((sample) => ({
+              txtPath: path.basename(sample.txtPath),
+              audioPath: path.basename(sample.audioPath),
+              speakerId: speakerID,
+              text: sample.text,
+            }))
+          );
+        } else {
+          const info = stmtInsertSpeaker.run({
+            name: speakerName,
+            datasetID,
+          });
+          const speakerID = info.lastInsertRowid;
+          copySpeakerFiles(datasetID, speakerID, samples);
+          insertManySamples(
+            samples.map((sample) => ({
+              txtPath: path.basename(sample.txtPath),
+              audioPath: path.basename(sample.audioPath),
+              speakerId: speakerID,
+              text: sample.text,
+            }))
+          );
+        }
         event.reply(
-          "pick-speakers-progress-reply",
+          PICK_SPEAKERS_CHANNEL.PROGRESS_REPLY,
           progress,
           response.filePaths.length
         );
-        continue;
       }
-      if (speakerNames.includes(speakerName)) {
-        const speakerID = stmtSpeakerID.get({
-          datasetID,
-          name: speakerName,
-        }).ID;
-        copySpeakerFiles(datasetID, speakerID, samples);
-        insertManySamples(
-          samples.map((sample) => ({
-            txtPath: path.basename(sample.txtPath),
-            audioPath: path.basename(sample.audioPath),
-            speakerId: speakerID,
-            text: sample.text,
-          }))
-        );
-      } else {
-        const info = stmtInsertSpeaker.run({
-          name: speakerName,
-          datasetID,
-        });
-        const speakerID = info.lastInsertRowid;
-        copySpeakerFiles(datasetID, speakerID, samples);
-        insertManySamples(
-          samples.map((sample) => ({
-            txtPath: path.basename(sample.txtPath),
-            audioPath: path.basename(sample.audioPath),
-            speakerId: speakerID,
-            text: sample.text,
-          }))
-        );
-      }
-      event.reply(
-        "pick-speakers-progress-reply",
-        progress,
-        response.filePaths.length
-      );
-    }
-    event.reply("pick-speakers-reply");
-  });
-});
+      event.reply(PICK_SPEAKERS_CHANNEL.REPLY);
+    });
+  }
+);
 
 ipcMain.handle(
-  "edit-speaker-name",
+  EDIT_SPEAKER_NAME_CHANNEL.IN,
   (event: IpcMainInvokeEvent, speakerID: number, newName: string) => {
     DB.getInstance().prepare("UPDATE speaker SET name=@name WHERE ID=@ID").run({
       name: newName,
@@ -420,7 +440,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "remove-speakers",
+  REMOVE_SPEAKERS_CHANNEL.IN,
   async (
     event: IpcMainInvokeEvent,
     datasetID: number,
@@ -453,39 +473,42 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("pick-speaker-files", async (event: IpcMainInvokeEvent) => {
-  const files: FileInterface[] = await new Promise((resolve, reject) => {
-    const options: OpenDialogOptions = {
-      properties: ["openFile", "multiSelections"],
-      filters: [
-        {
-          name: "all",
-          extensions: [...TEXT_EXTENSIONS, ...AUDIO_EXTENSIONS],
-        },
-      ],
-    };
-    dialog.showOpenDialog(null, options).then((response) => {
-      if (response.canceled) {
-        resolve([]);
-        return;
-      }
-      resolve(
-        response.filePaths.map((filePath: string) => {
-          const p = path.parse(filePath);
-          return {
-            path: filePath,
-            extname: p.ext,
-            name: p.name,
-            basename: p.base,
-          };
-        })
-      );
+ipcMain.handle(
+  PICK_SPEAKER_FILES_CHANNEL.IN,
+  async (event: IpcMainInvokeEvent) => {
+    const files: FileInterface[] = await new Promise((resolve, reject) => {
+      const options: OpenDialogOptions = {
+        properties: ["openFile", "multiSelections"],
+        filters: [
+          {
+            name: "all",
+            extensions: [...TEXT_EXTENSIONS, ...AUDIO_EXTENSIONS],
+          },
+        ],
+      };
+      dialog.showOpenDialog(null, options).then((response) => {
+        if (response.canceled) {
+          resolve([]);
+          return;
+        }
+        resolve(
+          response.filePaths.map((filePath: string) => {
+            const p = path.parse(filePath);
+            return {
+              path: filePath,
+              extname: p.ext,
+              name: p.name,
+              basename: p.base,
+            };
+          })
+        );
+      });
     });
-  });
-  return files;
-});
+    return files;
+  }
+);
 
-ipcMain.handle("fetch-dataset-candidates", () => {
+ipcMain.handle(FETCH_DATASET_CANDIDATES_CHANNEL.IN, () => {
   const datasets = DB.getInstance()
     .prepare(
       `SELECT  
@@ -525,17 +548,20 @@ ipcMain.handle("fetch-dataset-candidates", () => {
   return datasets;
 });
 
-ipcMain.handle("edit-sample-text", (event: IpcMainEvent, sampleID, newText) => {
-  DB.getInstance()
-    .prepare("UPDATE sample SET text=@newText WHERE ID=@sampleID")
-    .run({
-      newText,
-      sampleID,
-    });
-});
+ipcMain.handle(
+  EDIT_SAMPLE_TEXT_CHANNEL.IN,
+  (event: IpcMainEvent, sampleID, newText) => {
+    DB.getInstance()
+      .prepare("UPDATE sample SET text=@newText WHERE ID=@sampleID")
+      .run({
+        newText,
+        sampleID,
+      });
+  }
+);
 
 ipcMain.handle(
-  "fetch-dataset",
+  FETCH_DATASET_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, datasetID: number) => {
     const speakers = getSpeakersWithSamples(datasetID);
     const ds = DB.getInstance()

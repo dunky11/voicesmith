@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -15,6 +15,7 @@ import {
 } from "../../interfaces";
 import { useInterval, getProgressTitle } from "../../utils";
 import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../config";
+import { FETCH_TRAINING_RUN_PROGRESS_CHANNEL } from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
@@ -51,7 +52,7 @@ export default function CreateModel({
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
@@ -65,7 +66,7 @@ export default function CreateModel({
 
   const pollProgress = () => {
     ipcRenderer
-      .invoke("fetch-training-run-progress", selectedTrainingRunID)
+      .invoke(FETCH_TRAINING_RUN_PROGRESS_CHANNEL.IN, selectedTrainingRunID)
       .then((progress: TrainingRunProgressInterface) => {
         if (!isMounted.current) {
           return;

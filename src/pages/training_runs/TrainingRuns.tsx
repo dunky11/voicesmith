@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, ReactElement } from "react";
 import { Route, Switch, useHistory } from "react-router-dom";
 import { REMOVE_TRAINING_RUN_CHANNEL } from "../../channels";
 import { RunInterface } from "../../interfaces";
@@ -14,7 +14,7 @@ export default function TrainingRuns({
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-}) {
+}): ReactElement {
   const history = useHistory();
   const removeTrainingRunID = useRef<number | null>();
   const [selectedTrainingRunID, setSelectedTrainingRunID] = useState<

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactElement } from "react";
 import { Typography, Tree } from "antd";
 import HelpButton from "../../components/help/HelpButton";
 
@@ -45,7 +45,7 @@ const treeData = [
   },
 ];
 
-export default function InfoButton({}: {}) {
+export default function InfoButton(): ReactElement {
   return (
     <HelpButton modalTitle="Help">
       <>

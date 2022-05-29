@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { ReactElement, useState } from "react";
 import { Tabs, Card, Button, Steps } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import RunCard from "../../components/cards/RunCard";
@@ -31,7 +31,7 @@ export default function GroundTruthAlignment({
     | "finished"
     | null;
   usageStats: UsageStatsInterface[];
-}) {
+}): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
 
   const stageIsRunning = getStageIsRunning(

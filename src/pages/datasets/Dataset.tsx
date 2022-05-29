@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, ReactElement } from "react";
 import {
   Card,
   Button,
@@ -9,14 +9,26 @@ import {
   Breadcrumb,
 } from "antd";
 import { Link, useHistory } from "react-router-dom";
+import { IpcRendererEvent } from "electron";
 import Speaker from "./Speaker";
 import InfoButton from "./InfoButton";
 import { defaultPageOptions } from "../../config";
 import { stringCompare, numberCompare } from "../../utils";
 import { DatasetInterface, SpeakerInterface } from "../../interfaces";
+import {
+  ADD_SPEAKER_CHANNEL,
+  REMOVE_SPEAKERS_CHANNEL,
+  EDIT_SPEAKER_NAME_CHANNEL,
+  PICK_SPEAKERS_CHANNEL,
+  FETCH_DATASET_CHANNEL,
+} from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
-export default function Dataset({ datasetID }: { datasetID: number | null }) {
+export default function Dataset({
+  datasetID,
+}: {
+  datasetID: number | null;
+}): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
   const [isDisabled, setIsDisabled] = useState(false);
@@ -42,19 +54,19 @@ export default function Dataset({ datasetID }: { datasetID: number | null }) {
     }
 
     ipcRenderer
-      .invoke("edit-speaker-name", speakerID, newName)
+      .invoke(EDIT_SPEAKER_NAME_CHANNEL.IN, speakerID, newName)
       .then(fetchDataset);
   };
 
   const onRemoveSpeakers = () => {
     ipcRenderer
-      .invoke("remove-speakers", datasetID, selectedRowKeys)
+      .invoke(REMOVE_SPEAKERS_CHANNEL.IN, datasetID, selectedRowKeys)
       .then(fetchDataset);
   };
 
   const addSpeaker = (speakerName: string) => {
     ipcRenderer
-      .invoke("add-speaker", speakerName, datasetID)
+      .invoke(ADD_SPEAKER_CHANNEL.IN, speakerName, datasetID)
       .then(fetchDataset);
   };
 
@@ -84,11 +96,11 @@ export default function Dataset({ datasetID }: { datasetID: number | null }) {
     if (datasetID === null) {
       return;
     }
-    ipcRenderer.removeAllListeners("pick-speakers-progress-reply");
-    ipcRenderer.removeAllListeners("pick-speakers-reply");
+    ipcRenderer.removeAllListeners(PICK_SPEAKERS_CHANNEL.REPLY);
+    ipcRenderer.removeAllListeners(PICK_SPEAKERS_CHANNEL.PROGRESS_REPLY);
     ipcRenderer.on(
-      "pick-speakers-progress-reply",
-      (event: any, current: number, total: number) => {
+      PICK_SPEAKERS_CHANNEL.PROGRESS_REPLY,
+      (event: IpcRendererEvent, current: number, total: number) => {
         if (!isMounted.current) {
           return;
         }
@@ -98,7 +110,7 @@ export default function Dataset({ datasetID }: { datasetID: number | null }) {
         });
       }
     );
-    ipcRenderer.once("pick-speakers-reply", () => {
+    ipcRenderer.once(PICK_SPEAKERS_CHANNEL.REPLY, () => {
       if (!isMounted.current) {
         return;
       }
@@ -107,7 +119,7 @@ export default function Dataset({ datasetID }: { datasetID: number | null }) {
       fetchDataset();
     });
     setIsDisabled(true);
-    ipcRenderer.send("pick-speakers", datasetID);
+    ipcRenderer.send(PICK_SPEAKERS_CHANNEL.IN, datasetID);
   };
 
   const columns = [
@@ -171,7 +183,7 @@ export default function Dataset({ datasetID }: { datasetID: number | null }) {
       return;
     }
     ipcRenderer
-      .invoke("fetch-dataset", datasetID)
+      .invoke(FETCH_DATASET_CHANNEL.IN, datasetID)
       .then((dataset: DatasetInterface) => {
         if (!isMounted.current) {
           return;
@@ -210,8 +222,8 @@ export default function Dataset({ datasetID }: { datasetID: number | null }) {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      ipcRenderer.removeAllListeners("pick-speakers-progress-reply");
-      ipcRenderer.removeAllListeners("pick-speakers-reply");
+      ipcRenderer.removeAllListeners(PICK_SPEAKERS_CHANNEL.REPLY);
+      ipcRenderer.removeAllListeners(PICK_SPEAKERS_CHANNEL.PROGRESS_REPLY);
     };
   }, []);
 

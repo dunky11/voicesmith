@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactElement } from "react";
 import { Card, Row, Col } from "antd";
 import {
   AudioStatisticInterface,
@@ -17,7 +17,7 @@ export default function VocoderStatistics({
   imageStatistics: ImageStatisticInterface[];
   graphStatistics: GraphStatisticInterface[];
   audioStatistics: AudioStatisticInterface[];
-}) {
+}): ReactElement {
   const learningRates = graphStatistics.filter((graphStatistic) => {
     return graphStatistic.name === "lr";
   });

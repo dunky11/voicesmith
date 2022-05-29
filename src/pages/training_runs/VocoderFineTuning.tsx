@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Tabs, Card, Button } from "antd";
 import VocoderStatistics from "./VocoderStatistics";
 import LogPrinter from "../../components/log_printer/LogPrinter";
@@ -42,7 +42,7 @@ export default function VocoderFineTuning({
     | "finished"
     | null;
   usageStats: UsageStatsInterface[];
-}) {
+}): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
 
   const [graphStatistics, setGraphStatistics] = useState<

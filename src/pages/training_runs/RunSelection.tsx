@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import {
   Table,
   Button,
@@ -13,6 +13,10 @@ import { SyncOutlined } from "@ant-design/icons";
 import { RunInterface, TrainingRunBasicInterface } from "../../interfaces";
 import { POLL_LOGFILE_INTERVALL, defaultPageOptions } from "../../config";
 import { useInterval, stringCompare } from "../../utils";
+import {
+  FETCH_TRAINING_RUNS_CHANNEL,
+  CREATE_TRAINING_RUN_CHANNEL,
+} from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
 export default function RunSelection({
@@ -27,7 +31,7 @@ export default function RunSelection({
   running: RunInterface | null;
   stopRun: () => void;
   continueRun: (run: RunInterface) => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const [trainingRuns, setTrainingRuns] = useState<TrainingRunBasicInterface[]>(
     []
@@ -48,7 +52,7 @@ export default function RunSelection({
 
   const pollTrainingRuns = () => {
     ipcRenderer
-      .invoke("fetch-training-runs")
+      .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN)
       .then((trainingRuns: TrainingRunBasicInterface[]) => {
         if (!isMounted.current) {
           return;
@@ -59,7 +63,9 @@ export default function RunSelection({
 
   const createRun = () => {
     const name = getFirstPossibleName();
-    ipcRenderer.invoke("create-training-run", name).then(pollTrainingRuns);
+    ipcRenderer
+      .invoke(CREATE_TRAINING_RUN_CHANNEL.IN, name)
+      .then(pollTrainingRuns);
   };
 
   const columns = [

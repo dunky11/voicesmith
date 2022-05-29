@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { ReactElement, useEffect, useRef, useState } from "react";
 import {
   Table,
   Button,
@@ -9,7 +9,15 @@ import {
   Typography,
   Progress,
 } from "antd";
+import { IpcRendererEvent } from "electron";
 import InfoButton from "./InfoButton";
+import {
+  EDIT_DATASET_NAME_CHANNEL,
+  FETCH_DATASETS_CHANNEL,
+  REMOVE_DATASET_CHANNEL,
+  EXPORT_DATASET_CHANNEL,
+  CREATE_DATASET_CHANNEL,
+} from "../../channels";
 import { defaultPageOptions } from "../../config";
 import { DatasetInterface } from "../../interfaces";
 import { numberCompare, stringCompare } from "../../utils";
@@ -19,7 +27,7 @@ export default function DatasetSelection({
   setSelectedDatasetID,
 }: {
   setSelectedDatasetID: (ID: number | null) => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const [datasets, setDatasets] = useState<DatasetInterface[]>([]);
   const [isDisabled, setIsDisabled] = useState(false);
@@ -49,34 +57,35 @@ export default function DatasetSelection({
     if (!datasetNameIsValid(newName)) {
       return;
     }
-
     ipcRenderer
-      .invoke("edit-dataset-name", datasetID, newName)
+      .invoke(EDIT_DATASET_NAME_CHANNEL.IN, datasetID, newName)
       .then(fetchDatasets);
   };
 
   const fetchDatasets = () => {
-    ipcRenderer.invoke("fetch-datasets").then((ds: DatasetInterface[]) => {
-      if (!isMounted.current) {
-        return;
-      }
-      setDatasets(ds);
-    });
+    ipcRenderer
+      .invoke(FETCH_DATASETS_CHANNEL.IN)
+      .then((ds: DatasetInterface[]) => {
+        if (!isMounted.current) {
+          return;
+        }
+        setDatasets(ds);
+      });
   };
 
   const removeDataset = (ID: number) => {
-    ipcRenderer.invoke("remove-dataset", ID).then(fetchDatasets);
+    ipcRenderer.invoke(REMOVE_DATASET_CHANNEL.IN, ID).then(fetchDatasets);
   };
 
   const exportDatasets = () => {
-    ipcRenderer.removeAllListeners("export-datasets-progress-reply");
-    ipcRenderer.removeAllListeners("export-datasets-reply");
+    ipcRenderer.removeAllListeners(EXPORT_DATASET_CHANNEL.REPLY);
+    ipcRenderer.removeAllListeners(EXPORT_DATASET_CHANNEL.PROGRESS_REPLY);
     const exportedDatasets = datasets.filter((dataset: DatasetInterface) =>
       selectedRowKeys.includes(dataset.ID)
     );
     ipcRenderer.on(
-      "export-datasets-progress-reply",
-      (event: any, current: number, total: number) => {
+      EXPORT_DATASET_CHANNEL.PROGRESS_REPLY,
+      (event: IpcRendererEvent, current: number, total: number) => {
         if (!isMounted.current) {
           return;
         }
@@ -86,7 +95,7 @@ export default function DatasetSelection({
         });
       }
     );
-    ipcRenderer.once("export-datasets-reply", () => {
+    ipcRenderer.once(EXPORT_DATASET_CHANNEL.REPLY, () => {
       if (!isMounted.current) {
         return;
       }
@@ -94,12 +103,12 @@ export default function DatasetSelection({
       setDirProgress(null);
     });
     setIsDisabled(true);
-    ipcRenderer.send("export-datasets", exportedDatasets);
+    ipcRenderer.send(EXPORT_DATASET_CHANNEL.IN, exportedDatasets);
   };
 
   const createDataset = () => {
     const name = getFirstPossibleName();
-    ipcRenderer.invoke("create-dataset", name).then(fetchDatasets);
+    ipcRenderer.invoke(CREATE_DATASET_CHANNEL.IN, name).then(fetchDatasets);
   };
 
   const columns = [
@@ -179,8 +188,8 @@ export default function DatasetSelection({
     fetchDatasets();
     return () => {
       isMounted.current = false;
-      ipcRenderer.removeAllListeners("export-datasets-progress-reply");
-      ipcRenderer.removeAllListeners("export-datasets-reply");
+      ipcRenderer.removeAllListeners(EXPORT_DATASET_CHANNEL.REPLY);
+      ipcRenderer.removeAllListeners(EXPORT_DATASET_CHANNEL.PROGRESS_REPLY);
     };
   }, []);
 

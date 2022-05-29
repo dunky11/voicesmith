@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, Route, useHistory } from "react-router-dom";
 import Dataset from "./Dataset";
 import DatasetSelection from "./DatasetSelection";
 
-export default function Datasets() {
+export default function Datasets(): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
   const [selectedDatasetID, setSelectedDatasetID] = useState<number | null>(
@@ -35,7 +35,7 @@ export default function Datasets() {
   return (
     <Switch>
       <Route
-        render={(props) => (
+        render={() => (
           <DatasetSelection
             setSelectedDatasetID={passSelectedSpeakerID}
           ></DatasetSelection>
@@ -43,7 +43,7 @@ export default function Datasets() {
         path="/datasets/dataset-selection"
       ></Route>
       <Route
-        render={(props) => <Dataset datasetID={selectedDatasetID}></Dataset>}
+        render={() => <Dataset datasetID={selectedDatasetID}></Dataset>}
         path="/datasets/dataset-edit"
       ></Route>
     </Switch>
