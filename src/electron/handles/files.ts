@@ -10,7 +10,14 @@ import fsNative from "fs";
 import fs from "fs-extra";
 const fsPromises = fsNative.promises;
 import {
-  getAudioSynthDir,
+  GET_IMAGE_DATA_URL_CHANNEL,
+  GET_AUDIO_DATA_URL_CHANNEL,
+  FETCH_LOGFILE_CHANNEL,
+  EXPORT_FILES_CHANNEL,
+  PICK_SINGLE_FOLDER_CHANNEL,
+  EXPORT_FILE_CHANNEL,
+} from "../../channels";
+import {
   getTrainingRunsDir,
   getModelsDir,
   getCleaningRunsDir,
@@ -19,7 +26,7 @@ import {
 import { DB } from "../utils/db";
 
 ipcMain.handle(
-  "get-image-data-url",
+  GET_IMAGE_DATA_URL_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, path: string) => {
     const extension = path.split(".").pop();
     let base64 = fs.readFileSync(path).toString("base64");
@@ -29,7 +36,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "get-audio-data-url",
+  GET_AUDIO_DATA_URL_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, path: string) => {
     const extension = path.split(".").pop();
     let base64 = fs.readFileSync(path).toString("base64");
@@ -38,34 +45,8 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("fetch-audios-synth", async (event: IpcMainInvokeEvent) => {
-  const audios = DB.getInstance()
-    .prepare(
-      `
-        SELECT 
-        ID, 
-        file_name AS fileName, 
-        text, 
-        speaker_name AS speakerName, 
-        model_name AS modelName,
-        created_at AS createdAt,
-        sampling_rate as samplingRate,
-        dur_secs AS durSecs
-        FROM audio_synth
-        ORDER BY created_at DESC
-      `
-    )
-    .all()
-    .map((audio: any) => {
-      audio.filePath = path.join(getAudioSynthDir(), audio.fileName);
-      delete audio.fileName;
-      return audio;
-    });
-  return audios;
-});
-
 ipcMain.handle(
-  "fetch-logfile",
+  FETCH_LOGFILE_CHANNEL.IN,
   async (
     event: IpcMainInvokeEvent,
     name: string,
@@ -108,7 +89,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "export-files",
+  EXPORT_FILES_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, inPaths: string[]) => {
     const options: OpenDialogOptions = {
       title: "Export Files",
@@ -129,7 +110,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "pick-single-folder",
+  PICK_SINGLE_FOLDER_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, inPath: string) => {
     const options: OpenDialogOptions = {
       title: "Set a new storage path",
@@ -145,7 +126,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "export-file",
+  EXPORT_FILE_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, inPath: string) => {
     const options: SaveDialogOptions = {
       title: "Export File",

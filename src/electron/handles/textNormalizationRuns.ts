@@ -1,6 +1,16 @@
 import { ipcMain, IpcMainInvokeEvent, IpcMainEvent } from "electron";
 import path from "path";
 import {
+  EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL,
+  CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL,
+  FETCH_TEXT_NORMALIZATION_RUN_CHANNEL,
+  UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
+  FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
+  FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
+  FINISH_TEXT_NORMALIZATION_RUN_CHANNEL,
+  REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
+} from "../../channels";
+import {
   getDatasetsDir,
   DB_PATH,
   getTextNormalizationRunsDir,
@@ -15,7 +25,7 @@ import {
 import { startRun } from "../utils/processes";
 
 ipcMain.on(
-  "continue-text-normalization-run",
+  CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL.IN,
   (event: IpcMainEvent, runID: number) => {
     startRun(
       event,
@@ -37,8 +47,9 @@ ipcMain.on(
   }
 );
 
+// TODO merge all different edits into one API
 ipcMain.handle(
-  "edit-text-normalization-sample-new-text",
+  EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL.IN,
   (event: IpcMainEvent, ID: number, newText: string) => {
     DB.getInstance()
       .prepare(
@@ -49,7 +60,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "fetch-text-normalization-run",
+  FETCH_TEXT_NORMALIZATION_RUN_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number) => {
     const run: TextNormalizationInterface = DB.getInstance()
       .prepare(
@@ -61,7 +72,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "update-text-normalization-run-config",
+  UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN,
   (
     event: IpcMainInvokeEvent,
     ID: number,
@@ -79,7 +90,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "fetch-text-normalization-run-config",
+  FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number) => {
     return DB.getInstance()
       .prepare(
@@ -90,7 +101,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "fetch-text-normalization-samples",
+  FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number) => {
     return DB.getInstance()
       .prepare(
@@ -123,7 +134,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "remove-text-normalization-samples",
+  REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL.IN,
   (event: IpcMainInvokeEvent, sampleIDs: number[]) => {
     const removeSample = DB.getInstance().prepare(
       "DELETE FROM text_normalization_sample WHERE ID=@sampleID"
@@ -136,8 +147,8 @@ ipcMain.handle(
   }
 );
 
-ipcMain.on(
-  "finish-text-normalization-run",
+ipcMain.handle(
+  FINISH_TEXT_NORMALIZATION_RUN_CHANNEL.IN,
   (event: IpcMainEvent, runID: number) => {
     const samples = DB.getInstance()
       .prepare(
@@ -152,8 +163,5 @@ ipcMain.on(
         updateSampleStmt.run({ text: sample.newText, ID: sample.sampleID });
       }
     })();
-    event.reply("finish-text-normalization-run-reply", {
-      type: "finished",
-    });
   }
 );

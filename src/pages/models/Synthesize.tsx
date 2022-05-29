@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import {
   Row,
   Col,
@@ -26,6 +26,12 @@ import {
   SynthConfigInterface,
 } from "../../interfaces";
 import { SERVER_URL, defaultPageOptions } from "../../config";
+import {
+  FETCH_AUDIOS_SYNTH_CHANNEL,
+  GET_AUDIO_DATA_URL_CHANNEL,
+  EXPORT_FILES_CHANNEL,
+  REMOVE_AUDIOS_SYNTH_CHANNEL,
+} from "../../channels";
 const { ipcRenderer } = window.require("electron");
 const useStyles = createUseStyles({});
 
@@ -34,7 +40,7 @@ export default function Synthesize({
   ...props
 }: {
   selectedModel: ModelInterface | null;
-}) {
+}): ReactElement {
   const classes = useStyles();
   const [selectedAudios, setSelectedAudios] = useState<AudioSynthInterface[]>(
     []
@@ -56,7 +62,7 @@ export default function Synthesize({
 
   const fetchAudios = (playOnLoad: boolean) => {
     ipcRenderer
-      .invoke("fetch-audios-synth")
+      .invoke(FETCH_AUDIOS_SYNTH_CHANNEL.IN)
       .then((audios: AudioSynthInterface[]) => {
         if (!isMounted.current) {
           return;
@@ -113,7 +119,7 @@ export default function Synthesize({
 
   const loadAudio = (filePath: string) => {
     ipcRenderer
-      .invoke("get-audio-data-url", filePath)
+      .invoke(GET_AUDIO_DATA_URL_CHANNEL.IN, filePath)
       .then((dataUrl: string) => {
         setAudioDataURL(dataUrl);
         if (playFuncRef.current != null) {
@@ -124,15 +130,17 @@ export default function Synthesize({
 
   const onExportSelected = () => {
     ipcRenderer.invoke(
-      "export-files",
+      EXPORT_FILES_CHANNEL.IN,
       selectedAudios.map((audio: AudioSynthInterface) => audio.filePath)
     );
   };
 
   const onRemoveSelected = () => {
-    ipcRenderer.invoke("remove-audios-synth", selectedAudios).then(() => {
-      fetchAudios(false);
-    });
+    ipcRenderer
+      .invoke(REMOVE_AUDIOS_SYNTH_CHANNEL.IN, selectedAudios)
+      .then(() => {
+        fetchAudios(false);
+      });
   };
 
   const columns = [

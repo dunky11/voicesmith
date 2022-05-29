@@ -2,12 +2,15 @@ import { ipcMain, IpcMainInvokeEvent } from "electron";
 import path from "path";
 import fsNative from "fs";
 const fsPromises = fsNative.promises;
-import { exists } from "../utils/files";
 import {
-  CleaningRunInterface,
-  PreprocessingRunInterface,
-  TextNormalizationInterface,
-} from "../../interfaces";
+  CREATE_PREPROCESSING_RUN_CHANNEL,
+  FETCH_PREPROCESSING_RUNS_CHANNEL,
+  EDIT_PREPROCESSING_RUN_NAME_CHANNEL,
+  REMOVE_PREPROCESSING_RUN_CHANNEL,
+  FETCH_PREPROCESSING_NAMES_USED_CHANNEL,
+} from "../../channels";
+import { exists } from "../utils/files";
+import { PreprocessingRunInterface } from "../../interfaces";
 import {
   getCleaningRunsDir,
   getTextNormalizationRunsDir,
@@ -15,7 +18,7 @@ import {
 import { DB } from "../utils/db";
 
 ipcMain.handle(
-  "create-preprocessing-run",
+  CREATE_PREPROCESSING_RUN_CHANNEL.IN,
   (event: IpcMainInvokeEvent, name: string, type: string) => {
     switch (type) {
       case "dSCleaningRun":
@@ -40,7 +43,7 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("fetch-preprocessing-runs", (event: IpcMainInvokeEvent) => {
+ipcMain.handle(FETCH_PREPROCESSING_RUNS_CHANNEL.IN, () => {
   const cleaningRuns = DB.getInstance()
     .prepare(
       `SELECT cleaning_run.ID AS ID, cleaning_run.name AS name, stage, dataset_id, dataset.name AS datasetName FROM cleaning_run LEFT JOIN dataset ON cleaning_run.dataset_id = dataset.ID`
@@ -63,7 +66,7 @@ ipcMain.handle("fetch-preprocessing-runs", (event: IpcMainInvokeEvent) => {
 });
 
 ipcMain.handle(
-  "edit-preprocessing-run-name",
+  EDIT_PREPROCESSING_RUN_NAME_CHANNEL.IN,
   (
     event: IpcMainInvokeEvent,
     preprocessingRun: PreprocessingRunInterface,
@@ -95,7 +98,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "remove-preprocessing-run",
+  REMOVE_PREPROCESSING_RUN_CHANNEL.IN,
   async (
     event: IpcMainInvokeEvent,
     preprocessingRun: PreprocessingRunInterface
@@ -157,7 +160,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "fetch-preprocessing-names-used",
+  FETCH_PREPROCESSING_NAMES_USED_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number | null) => {
     const names: string[] = [];
     for (const tableName of ["cleaning_run", "text_normalization_run"]) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, Route, useHistory } from "react-router-dom";
 import { PreprocessingRunInterface, RunInterface } from "../../interfaces";
 import PreprocessingRunSelection from "./PreprocessingRunSelection";
@@ -13,7 +13,7 @@ export default function PreprcocessingRuns({
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
   const [selectedPreprocessingRun, setSelectedPreprocessingRun] =

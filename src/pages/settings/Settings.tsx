@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { ReactElement, useEffect, useRef, useState } from "react";
 import {
   Breadcrumb,
   Card,
@@ -13,6 +13,7 @@ import RunCard from "../../components/cards/RunCard";
 import { RunInterface, SettingsInterface } from "../../interfaces";
 import { notifySave } from "../../utils";
 import { createUseStyles } from "react-jss";
+import { SAVE_SETTINGS_CHANNEL, START_SERVER_CHANNEL } from "../../channels";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -26,7 +27,7 @@ export default function Settings({
 }: {
   running: RunInterface | null;
   setNavIsDisabled: (navIsDisabled: boolean) => void;
-}) {
+}): ReactElement {
   const classes = useStyles();
   const formRef = useRef<FormInstance | null>();
   const isMounted = useRef(false);
@@ -35,9 +36,9 @@ export default function Settings({
   const onFinish = () => {
     setIsLoading(true);
     setNavIsDisabled(true);
-    ipcRenderer.removeAllListeners("save-settings-reply");
+    ipcRenderer.removeAllListeners(SAVE_SETTINGS_CHANNEL.REPLY);
     ipcRenderer.on(
-      "save-settings-reply",
+      SAVE_SETTINGS_CHANNEL.REPLY,
       (
         _: any,
         message: {
@@ -59,7 +60,7 @@ export default function Settings({
         }
       }
     );
-    ipcRenderer.send("save-settings", formRef.current.getFieldsValue());
+    ipcRenderer.send(START_SERVER_CHANNEL.IN, formRef.current.getFieldsValue());
   };
 
   const fetchConfig = () => {

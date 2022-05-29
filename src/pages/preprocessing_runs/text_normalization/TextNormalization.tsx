@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -13,6 +13,7 @@ import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
+import { FETCH_TEXT_NORMALIZATION_RUN_CHANNEL } from "../../../channels";
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
@@ -41,7 +42,7 @@ export default function TextNormalization({
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
@@ -58,7 +59,7 @@ export default function TextNormalization({
       return;
     }
     ipcRenderer
-      .invoke("fetch-text-normalization-run", preprocessingRun.ID)
+      .invoke(FETCH_TEXT_NORMALIZATION_RUN_CHANNEL.IN, preprocessingRun.ID)
       .then((run: TextNormalizationInterface) => {
         if (!isMounted.current) {
           return;

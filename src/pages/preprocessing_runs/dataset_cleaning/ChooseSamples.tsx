@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, ReactElement } from "react";
 import { Button, Table, Space } from "antd";
 import { useHistory } from "react-router-dom";
 import { defaultPageOptions } from "../../../config";
@@ -29,7 +29,7 @@ export default function ChooseSamples({
     | "finished"
     | null;
   stopRun: () => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
   const [noisySamples, setNoisySamples] = useState<NoisySampleInterface[]>([]);

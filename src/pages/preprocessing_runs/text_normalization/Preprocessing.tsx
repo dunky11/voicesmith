@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { ReactElement, useState } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
@@ -34,7 +34,7 @@ export default function Preprocessing({
   textNormalizationProgress: number;
   usageStats: UsageStatsInterface[];
   stopRun: () => void;
-}) {
+}): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
 
   const stageIsRunning = getStageIsRunning(

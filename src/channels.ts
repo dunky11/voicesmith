@@ -161,3 +161,102 @@ export const FETCH_MODELS_CHANNEL = {
 export const REMOVE_MODEL_CHANNEL = {
   IN: "remove-model",
 };
+
+export const CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL = {
+  IN: "continue-text-normalization-sample",
+};
+
+// TODO below should be suffixed with channel
+
+export const EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL = {
+  IN: "edit-text-normalization-sample-new-text",
+};
+
+export const FETCH_TEXT_NORMALIZATION_RUN_CHANNEL = {
+  IN: "fetch-text-normalization-run",
+};
+
+export const UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL = {
+  IN: "update-text-normalization-run-config",
+};
+
+export const FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL = {
+  IN: "fetch-text-normalization-run-config",
+};
+
+export const FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL = {
+  IN: "fetch-text-normalization-samples",
+};
+
+export const REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL = {
+  IN: "remove-text-normalization-samples",
+};
+
+export const GET_IMAGE_DATA_URL_CHANNEL = {
+  IN: "get-image-data-url",
+};
+
+export const GET_AUDIO_DATA_URL_CHANNEL = {
+  IN: "get-audio-data-url",
+};
+
+export const FETCH_LOGFILE_CHANNEL = {
+  IN: "fetch-logfile",
+};
+
+export const EXPORT_FILES_CHANNEL = {
+  IN: "export-files",
+};
+
+export const PICK_SINGLE_FOLDER_CHANNEL = {
+  IN: "pick-single-folder",
+};
+
+export const EXPORT_FILE_CHANNEL = {
+  IN: "export-file",
+};
+
+export const CREATE_PREPROCESSING_RUN_CHANNEL = {
+  IN: "create-preprocessing-run",
+};
+
+export const FETCH_PREPROCESSING_RUNS_CHANNEL = {
+  IN: "fetch-preprocessing-runs",
+};
+
+export const EDIT_PREPROCESSING_RUN_NAME_CHANNEL = {
+  IN: "edit-preprocessing-run-name",
+};
+
+export const REMOVE_PREPROCESSING_RUN_CHANNEL = {
+  IN: "remove-preprocessing-run",
+};
+
+export const FETCH_PREPROCESSING_NAMES_USED_CHANNEL = {
+  IN: "fetch-preprocessing-names-used",
+};
+
+export const GET_APP_INFO_CHANNEL = {
+  IN: "get-app-info",
+};
+
+export const SAVE_SETTINGS_CHANNEL = {
+  IN: "save-settings",
+  REPLY: "save-settings-reply",
+};
+
+export const FETCH_SETTINGS_CHANNEL = {
+  IN: "fetch-settings",
+};
+
+export const FETCH_AUDIOS_SYNTH_CHANNEL = {
+  IN: "fetch-audios-synth",
+};
+
+export const REMOVE_AUDIOS_SYNTH_CHANNEL = {
+  IN: "remove-audios-synth",
+};
+
+export const FINISH_TEXT_NORMALIZATION_RUN_CHANNEL = {
+  IN: "finish-text-normalization-run",
+};

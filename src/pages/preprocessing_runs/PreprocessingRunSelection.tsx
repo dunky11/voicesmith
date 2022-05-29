@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { ReactElement, useEffect, useRef, useState } from "react";
 import { SyncOutlined } from "@ant-design/icons";
 import {
   Table,
@@ -13,6 +13,12 @@ import {
 import { defaultPageOptions } from "../../config";
 import { PreprocessingRunInterface, RunInterface } from "../../interfaces";
 import { stringCompare } from "../../utils";
+import {
+  CREATE_PREPROCESSING_RUN_CHANNEL,
+  EDIT_PREPROCESSING_RUN_NAME_CHANNEL,
+  FETCH_PREPROCESSING_RUNS_CHANNEL,
+  REMOVE_PREPROCESSING_RUN_CHANNEL,
+} from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
 const prettyType = (
@@ -42,7 +48,7 @@ export default function PreprocessingRunSelection({
   running: RunInterface | null;
   stopRun: () => void;
   continueRun: (run: RunInterface) => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const [preprocessingRuns, setPreprocessingRuns] = useState<
     PreprocessingRunInterface[]
@@ -77,13 +83,13 @@ export default function PreprocessingRunSelection({
       return;
     }
     ipcRenderer
-      .invoke("edit-preprocessing-run-name", preprocessingRun, newName)
+      .invoke(EDIT_PREPROCESSING_RUN_NAME_CHANNEL.IN, preprocessingRun, newName)
       .then(fetchPreprocessingRuns);
   };
 
   const fetchPreprocessingRuns = () => {
     ipcRenderer
-      .invoke("fetch-preprocessing-runs")
+      .invoke(FETCH_PREPROCESSING_RUNS_CHANNEL.IN)
       .then((ds: PreprocessingRunInterface[]) => {
         if (!isMounted.current) {
           return;
@@ -96,7 +102,7 @@ export default function PreprocessingRunSelection({
     preprocessingRun: PreprocessingRunInterface
   ) => {
     ipcRenderer
-      .invoke("remove-preprocessing-run", preprocessingRun)
+      .invoke(REMOVE_PREPROCESSING_RUN_CHANNEL.IN, preprocessingRun)
       .then(fetchPreprocessingRuns);
   };
 
@@ -105,7 +111,7 @@ export default function PreprocessingRunSelection({
   ) => {
     const name = getFirstPossibleName();
     ipcRenderer
-      .invoke("create-preprocessing-run", name, type)
+      .invoke(CREATE_PREPROCESSING_RUN_CHANNEL.IN, name, type)
       .then(fetchPreprocessingRuns);
   };
 

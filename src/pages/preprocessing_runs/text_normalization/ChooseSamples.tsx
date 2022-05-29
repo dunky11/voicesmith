@@ -1,9 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, ReactElement } from "react";
 import { Table, Space, Input, Button, Typography, notification } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import type { FilterConfirmProps } from "antd/lib/table/interface";
 import type { ColumnType } from "antd/lib/table";
 import type { InputRef } from "antd";
+import {
+  FINISH_TEXT_NORMALIZATION_RUN_CHANNEL,
+  REMOVE_PREPROCESSING_RUN_CHANNEL,
+  FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
+  REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
+  EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL,
+} from "../../../channels";
 import { useHistory } from "react-router-dom";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { defaultPageOptions } from "../../../config";
@@ -33,7 +40,7 @@ export default function ChooseSamples({
     | "finished"
     | null;
   stopRun: () => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
   const [samples, setSamples] = useState<TextNormalizationSampleInterface[]>(
@@ -62,7 +69,11 @@ export default function ChooseSamples({
     newText: string
   ) => {
     ipcRenderer
-      .invoke("edit-text-normalization-sample-new-text", record.ID, newText)
+      .invoke(
+        EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL.IN,
+        record.ID,
+        newText
+      )
       .then(fetchSamples);
   };
 
@@ -132,7 +143,7 @@ export default function ChooseSamples({
     }
 
     ipcRenderer
-      .invoke("remove-text-normalization-samples", sampleIDs)
+      .invoke(REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL.IN, sampleIDs)
       .then(fetchSamples);
   };
 
@@ -154,7 +165,7 @@ export default function ChooseSamples({
       return;
     }
     ipcRenderer
-      .invoke("fetch-text-normalization-samples", selectedID)
+      .invoke(FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL.IN, selectedID)
       .then((samples: TextNormalizationSampleInterface[]) => {
         setSamples(samples);
       });
@@ -175,51 +186,28 @@ export default function ChooseSamples({
     if (selectedID === null) {
       return;
     }
-    ipcRenderer.removeAllListeners("finish-text-normalization-run-reply");
-    ipcRenderer.on(
-      "finish-text-normalization-run-reply",
-      (
-        _: any,
-        message: {
-          type: string;
-          progress?: number;
-        }
-      ) => {
-        switch (message.type) {
-          case "progress": {
-            break;
-          }
-          case "finished": {
-            ipcRenderer
-              .invoke("remove-preprocessing-run", {
-                ID: selectedID,
-                type: "textNormalizationRun",
-              })
-              .then(() => {
-                notification["success"]({
-                  message: "Your dataset has been normalized",
-                  placement: "top",
-                });
-                history.push("/preprocessing-runs/run-selection");
-              });
-            break;
-          }
-          default: {
-            throw new Error(
-              `No branch selected in switch-statement, '${message.type}' is not a valid case ...`
-            );
-          }
-        }
-      }
-    );
-    ipcRenderer.send("finish-text-normalization-run", selectedID);
+    ipcRenderer
+      .invoke(FINISH_TEXT_NORMALIZATION_RUN_CHANNEL.IN, selectedID)
+      .then(() => {
+        ipcRenderer
+          .invoke(REMOVE_PREPROCESSING_RUN_CHANNEL.IN, {
+            ID: selectedID,
+            type: "textNormalizationRun",
+          })
+          .then(() => {
+            notification["success"]({
+              message: "Your dataset has been normalized",
+              placement: "top",
+            });
+            history.push("/preprocessing-runs/run-selection");
+          });
+      });
   };
 
   useEffect(() => {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      ipcRenderer.removeAllListeners("finish-text-normalization-run-reply");
     };
   });
 

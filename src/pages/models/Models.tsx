@@ -14,7 +14,7 @@ import {
 import { defaultPageOptions } from "../../config";
 import { ModelInterface, ModelSpeakerInterface } from "../../interfaces";
 import { stringCompare } from "../../utils";
-import { FETCH_MODELS_CHANNEL, REMOVE_MODEL_CHANNEL } from "src/channels";
+import { FETCH_MODELS_CHANNEL, REMOVE_MODEL_CHANNEL } from "../../channels";
 const { ipcRenderer } = window.require("electron");
 const MAX_SHOW_SPEAKERS = 12;
 
