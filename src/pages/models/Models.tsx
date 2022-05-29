@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { ReactElement, useEffect, useRef, useState } from "react";
 import { useHistory, Link } from "react-router-dom";
 import {
   Card,
@@ -14,6 +14,7 @@ import {
 import { defaultPageOptions } from "../../config";
 import { ModelInterface, ModelSpeakerInterface } from "../../interfaces";
 import { stringCompare } from "../../utils";
+import { FETCH_MODELS_CHANNEL, REMOVE_MODEL_CHANNEL } from "src/channels";
 const { ipcRenderer } = window.require("electron");
 const MAX_SHOW_SPEAKERS = 12;
 
@@ -23,7 +24,7 @@ export default function Models({
 }: {
   onModelSelect: (model: ModelInterface) => void;
   pushRoute: (route: string) => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [deleteModelConfirmOpen, setDeleteModelConfirmOpen] = useState(false);
@@ -123,7 +124,7 @@ export default function Models({
     }
     setDeleteModelConfirmOpen(false);
     ipcRenderer
-      .invoke("remove-model", modelToDeleteID.current)
+      .invoke(REMOVE_MODEL_CHANNEL.IN, modelToDeleteID.current)
       .then(fetchModels);
   };
 
@@ -132,13 +133,15 @@ export default function Models({
   };
 
   const fetchModels = () => {
-    ipcRenderer.invoke("fetch-models").then((models: ModelInterface[]) => {
-      if (!isMounted.current) {
-        return;
-      }
-      setModels(models);
-      setHasLoaded(true);
-    });
+    ipcRenderer
+      .invoke(FETCH_MODELS_CHANNEL.IN)
+      .then((models: ModelInterface[]) => {
+        if (!isMounted.current) {
+          return;
+        }
+        setModels(models);
+        setHasLoaded(true);
+      });
   };
 
   useEffect(() => {

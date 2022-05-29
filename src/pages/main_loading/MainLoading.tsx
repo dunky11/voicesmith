@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { IpcRendererEvent } from "electron";
 import { Spin } from "antd";
 import { createUseStyles } from "react-jss";
@@ -31,7 +31,7 @@ export default function MainLoading({
   onServerIsReady,
 }: {
   onServerIsReady: () => void;
-}) {
+}): ReactElement {
   const [initStep, setInitStep] = useState<
     | "fetchConda"
     | "noConda"

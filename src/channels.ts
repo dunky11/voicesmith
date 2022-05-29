@@ -153,3 +153,11 @@ export const EDIT_SAMPLE_TEXT_CHANNEL = {
 export const FETCH_DATASET_CHANNEL = {
   IN: "fetch-dataset",
 };
+
+export const FETCH_MODELS_CHANNEL = {
+  IN: "fetch-models",
+};
+
+export const REMOVE_MODEL_CHANNEL = {
+  IN: "remove-model",
+};
