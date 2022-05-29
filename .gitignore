@@ -128,3 +128,6 @@ wandb/
 /assets/tiny_bert/
 /pretrained_models/
 /new_storage_path_plus/
+/g2p/checkpoints/
+/g2p/datasets/
+/g2p/dictionaries/

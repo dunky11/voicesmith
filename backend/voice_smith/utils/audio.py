@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from typing import Tuple, List, Union, Optional
 import torchaudio.functional as audio_F
 import torchaudio
-import librosa
 from voice_smith.utils.librosa import mel as librosa_mel_fn
 
 torchaudio.set_audio_backend("soundfile")
@@ -30,15 +29,30 @@ def get_mel_from_wav(audio: np.ndarray, to_mel: torch.nn.Module) -> np.ndarray:
 def resample(wav: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
     # Some audios are corrupted and contain uneven sampling rates
     # resample will silently crash on them, so even out sampling rate.
-    wav = librosa.resample(wav, orig_sr, target_sr)
+    is_odd = orig_sr % 2 == 1
+    if is_odd:
+        orig_sr -= 1
+
+    wav = audio_F.resample(torch.FloatTensor(wav), orig_sr, target_sr).numpy()
     return wav
 
 
 def safe_load(
     path: str, sr: Union[int, None], verbose: bool = True
 ) -> Tuple[np.ndarray, int]:
-    audio, sr_actual = librosa.load(path, sr=sr)
+    audio, sr_actual = torchaudio.load(
+        filepath=path,
+    )
+    audio = audio.numpy()
+    if audio.shape[0] > 1:
+        audio = stereo_to_mono(audio)
+    if sr != None and sr != sr_actual:
+        audio = resample(wav=audio, orig_sr=sr_actual, target_sr=sr)
+        sr_actual = sr
+
+    audio = audio.squeeze(0)
     return audio, sr_actual
+
 
 
 class MelSpec2MFCC(torch.nn.Module):
