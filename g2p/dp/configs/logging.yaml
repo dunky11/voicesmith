@@ -1,0 +1,14 @@
+version: 1
+
+formatters:
+  extended:
+    format: "%(asctime)s.%(msecs)01d %(levelname)s %(module)s:  %(message).1066s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: extended
+
+root:
+  handlers: [console]
+  level: DEBUG
