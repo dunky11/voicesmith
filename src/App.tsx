@@ -30,6 +30,7 @@ import {
   CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL,
   CONTINUE_TRAINING_RUN_CHANNEL,
   GET_APP_INFO_CHANNEL,
+  STOP_RUN_CHANNEL,
 } from "./channels";
 const { ipcRenderer } = window.require("electron");
 
@@ -169,7 +170,7 @@ export default function App(): ReactElement {
   };
 
   const stopRun = () => {
-    ipcRenderer.invoke("stop-run").then(() => {
+    ipcRenderer.invoke(STOP_RUN_CHANNEL.IN).then(() => {
       if (!isMounted.current) {
         return;
       }

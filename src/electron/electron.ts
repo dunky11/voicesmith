@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, WebContents, Event } from "electron";
 import path from "path";
 import { safeMkdir } from "./utils/files";
+import { START_SERVER_CHANNEL, STOP_RUN_CHANNEL } from "../channels";
 import { exit, killPyProc, createServerProc } from "./utils/processes";
 import {
   getModelsDir,
@@ -112,5 +113,5 @@ app.on("window-all-closed", () => {
 
 app.on("will-quit", exit);
 
-ipcMain.handle("start-server", createServerProc);
-ipcMain.handle("stop-run", killPyProc);
+ipcMain.handle(START_SERVER_CHANNEL.IN, createServerProc);
+ipcMain.handle(STOP_RUN_CHANNEL.IN, killPyProc);

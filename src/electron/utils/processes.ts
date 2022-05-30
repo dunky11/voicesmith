@@ -11,6 +11,7 @@ import {
 } from "./globals";
 import { DB } from "./db";
 import { CONDA_ENV_NAME } from "../../config";
+import { CONTINUE_TRAINING_RUN_CHANNEL } from "../../channels";
 
 let serverProc: ChildProcess = null;
 let pyProc: ChildProcess = null;
@@ -42,21 +43,21 @@ export const startRun = (
   pyProc = spawnCondaShell([scriptName, ...args].join(" "));
 
   pyProc.on("exit", () => {
-    event.reply("continue-run-reply", {
+    event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
       type: "finishedRun",
     });
   });
 
   if (logErr) {
     pyProc.stderr.on("data", (data: any) => {
-      event.reply("continue-run-reply", {
+      event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
         type: "error",
         errorMessage: data.toString(),
       });
     });
   }
 
-  event.reply("continue-run-reply", {
+  event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
     type: "startedRun",
   });
 };

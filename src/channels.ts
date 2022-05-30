@@ -259,3 +259,7 @@ export const REMOVE_AUDIOS_SYNTH_CHANNEL = {
 export const FINISH_TEXT_NORMALIZATION_RUN_CHANNEL = {
   IN: "finish-text-normalization-run",
 };
+
+export const STOP_RUN_CHANNEL = {
+  IN: "stop-run",
+};
