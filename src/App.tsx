@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, ReactElement } from "react";
 import { Route, Switch, useHistory } from "react-router-dom";
-import { Layout, Menu, Typography, notification, Divider, Modal } from "antd";
+import { Layout, Menu, Typography, notification, Divider } from "antd";
 import {
   ShareAltOutlined,
   FundFilled,
@@ -71,7 +71,7 @@ const useStyles = createUseStyles({
   content: { margin: "24px !important" },
 });
 
-export default function App() {
+export default function App(): ReactElement {
   const classes = useStyles();
   const history = useHistory();
   const isMounted = useRef(false);
@@ -223,11 +223,11 @@ export default function App() {
 
   const pushRoute = (route: string) => {
     history.push(route);
-    if (route.includes("/models")) {
+    if (route.includes(MODELS_ROUTE.ROUTE)) {
       setSelectedKeys(["models"]);
-    } else if (route.includes("/datasets")) {
+    } else if (route.includes(DATASETS_ROUTE.ROUTE)) {
       setSelectedKeys(["datasets"]);
-    } else if (route.includes("/preprocessing-runs")) {
+    } else if (route.includes(PREPROCESSING_RUNS_ROUTE.ROUTE)) {
       setSelectedKeys(["preprocessing-runs"]);
     } else {
       throw new Error(`Route '${route}' is not a valid route.`);
