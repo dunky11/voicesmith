@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, ReactElement } from "react";
 import { Route, Switch, useHistory } from "react-router-dom";
+import { TRAINING_RUNS_ROUTE } from "../../routes";
 import { REMOVE_TRAINING_RUN_CHANNEL } from "../../channels";
 import { RunInterface } from "../../interfaces";
 import CreateModel from "./CreateModel";
@@ -24,7 +25,7 @@ export default function TrainingRuns({
   const selectTrainingRun = (ID: number) => {
     removeTrainingRunID.current = null;
     if (selectedTrainingRunID == ID) {
-      history.push("/training-runs/create-model");
+      history.push(TRAINING_RUNS_ROUTE.CREATE_MODEL.ROUTE);
     } else {
       setSelectedTrainingRunID(ID);
     }
@@ -47,7 +48,7 @@ export default function TrainingRuns({
       );
       removeTrainingRunID.current = null;
     } else if (selectedTrainingRunID != null) {
-      history.push("/training-runs/create-model");
+      history.push(TRAINING_RUNS_ROUTE.CREATE_MODEL.ROUTE);
     }
   }, [selectedTrainingRunID]);
 
@@ -63,7 +64,7 @@ export default function TrainingRuns({
             stopRun={stopRun}
           />
         )}
-        path="/training-runs/create-model"
+        path={TRAINING_RUNS_ROUTE.CREATE_MODEL.ROUTE}
       ></Route>
       <Route
         render={() => (
@@ -75,7 +76,7 @@ export default function TrainingRuns({
             continueRun={continueRun}
           />
         )}
-        path="/training-runs/run-selection"
+        path={TRAINING_RUNS_ROUTE.RUN_SELECTION.ROUTE}
       ></Route>
     </Switch>
   );

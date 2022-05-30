@@ -14,14 +14,15 @@ import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
 import { FETCH_TEXT_NORMALIZATION_RUN_CHANNEL } from "../../../channels";
+import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
   [key: number]: string;
 } = {
-  0: "/preprocessing-runs/text-normalization/configuration",
-  1: "/preprocessing-runs/text-normalization/running",
-  2: "/preprocessing-runs/text-normalization/choose-samples",
+  0: PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.CONFIGURATION.ROUTE,
+  1: PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.RUNNING.ROUTE,
+  2: PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.CHOOSE_SAMPLES.ROUTE,
 };
 
 const stepToTitle: {

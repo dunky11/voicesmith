@@ -17,7 +17,20 @@ import Datasets from "./pages/datasets/Datasets";
 import PreprocessingRuns from "./pages/preprocessing_runs/PreprocessingRuns";
 import { AppInfoInterface, RunInterface } from "./interfaces";
 import { pingServer } from "./utils";
+import {
+  DATASETS_ROUTE,
+  MODELS_ROUTE,
+  PREPROCESSING_RUNS_ROUTE,
+  SETTINGS_ROUTE,
+  TRAINING_RUNS_ROUTE,
+} from "./routes";
 import Settings from "./pages/settings/Settings";
+import {
+  CONTINUE_CLEANING_RUN_CHANNEL,
+  CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL,
+  CONTINUE_TRAINING_RUN_CHANNEL,
+  GET_APP_INFO_CHANNEL,
+} from "./channels";
 const { ipcRenderer } = window.require("electron");
 
 const useStyles = createUseStyles({
@@ -70,9 +83,11 @@ export default function App() {
   const [serverIsReady, setServerIsReady] = useState(false);
 
   const fetchAppInfo = () => {
-    ipcRenderer.invoke("get-app-info").then((appInfo: AppInfoInterface) => {
-      setAppInfo(appInfo);
-    });
+    ipcRenderer
+      .invoke(GET_APP_INFO_CHANNEL.IN)
+      .then((appInfo: AppInfoInterface) => {
+        setAppInfo(appInfo);
+      });
   };
 
   const continueRun = (run: RunInterface) => {
@@ -83,9 +98,9 @@ export default function App() {
       });
       return;
     }
-    ipcRenderer.removeAllListeners("continue-run-reply");
+    ipcRenderer.removeAllListeners(CONTINUE_TRAINING_RUN_CHANNEL.REPLY);
     ipcRenderer.on(
-      "continue-run-reply",
+      CONTINUE_TRAINING_RUN_CHANNEL.REPLY,
       (
         _: any,
         message: {
@@ -138,13 +153,13 @@ export default function App() {
     );
     switch (run.type) {
       case "trainingRun":
-        ipcRenderer.send("continue-training-run", run.ID);
+        ipcRenderer.send(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, run.ID);
         break;
       case "dSCleaningRun":
-        ipcRenderer.send("continue-cleaning-run", run.ID);
+        ipcRenderer.send(CONTINUE_CLEANING_RUN_CHANNEL.REPLY, run.ID);
         break;
       case "textNormalizationRun":
-        ipcRenderer.send("continue-text-normalization-run", run.ID);
+        ipcRenderer.send(CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL.REPLY, run.ID);
         break;
       default:
         throw new Error(
@@ -163,7 +178,7 @@ export default function App() {
   };
 
   const onModelSelect = (model: any) => {
-    history.push("/models/synthesize");
+    history.push(MODELS_ROUTE.SYNTHESIZE.ROUTE);
     setSelectedModel(model);
   };
 
@@ -180,19 +195,19 @@ export default function App() {
     setSelectedKeys([key]);
     switch (key) {
       case "models":
-        history.push("/models/selection");
+        history.push(MODELS_ROUTE.SELECTION.ROUTE);
         break;
       case "datasets":
-        history.push("/datasets/dataset-selection");
+        history.push(DATASETS_ROUTE.SELECTION.ROUTE);
         break;
       case "training-runs":
-        history.push("/training-runs/run-selection");
+        history.push(TRAINING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
         break;
       case "preprocessing-runs":
-        history.push("/preprocessing-runs/run-selection");
+        history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
         break;
       case "settings":
-        history.push("/settings");
+        history.push(SETTINGS_ROUTE.ROUTE);
         break;
       default:
         throw new Error(
@@ -202,7 +217,7 @@ export default function App() {
   };
 
   const onServerIsReady = () => {
-    pushRoute("/models/selection");
+    pushRoute(MODELS_ROUTE.SELECTION.ROUTE);
     setServerIsReady(true);
   };
 
@@ -225,7 +240,7 @@ export default function App() {
     pingServer(false, onServerIsReady);
     return () => {
       isMounted.current = false;
-      ipcRenderer.removeAllListeners("continue-run-reply");
+      ipcRenderer.removeAllListeners(CONTINUE_TRAINING_RUN_CHANNEL.REPLY);
     };
   }, []);
 
@@ -317,17 +332,17 @@ export default function App() {
                           pushRoute={pushRoute}
                         />
                       )}
-                      path="/models/selection"
+                      path={MODELS_ROUTE.SELECTION.ROUTE}
                     ></Route>
                     <Route
                       render={(props) => (
                         <Synthesize {...props} selectedModel={selectedModel} />
                       )}
-                      path="/models/synthesize"
+                      path={MODELS_ROUTE.SYNTHESIZE.ROUTE}
                     ></Route>
                   </Switch>
                 )}
-                path="/models"
+                path={MODELS_ROUTE.ROUTE}
               ></Route>
               <Route
                 render={() => (
@@ -337,11 +352,11 @@ export default function App() {
                     stopRun={stopRun}
                   ></TrainingRuns>
                 )}
-                path="/training-runs"
+                path={TRAINING_RUNS_ROUTE.ROUTE}
               ></Route>
               <Route
                 render={() => <Datasets></Datasets>}
-                path="/datasets"
+                path={DATASETS_ROUTE.ROUTE}
               ></Route>
               <Route
                 render={() => (
@@ -351,7 +366,7 @@ export default function App() {
                     stopRun={stopRun}
                   ></PreprocessingRuns>
                 )}
-                path="/preprocessing-runs"
+                path={PREPROCESSING_RUNS_ROUTE.ROUTE}
               ></Route>
               <Route
                 render={() => (
@@ -360,7 +375,7 @@ export default function App() {
                     setNavIsDisabled={setNavIsDisabled}
                   ></Settings>
                 )}
-                path="/settings"
+                path={SETTINGS_ROUTE.ROUTE}
               ></Route>
               <Route
                 render={() => (

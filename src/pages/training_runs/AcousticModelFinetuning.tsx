@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Tabs, Card, Button } from "antd";
 import AcousticStatistics from "./AcousticStatistics";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
@@ -17,6 +17,7 @@ import {
   getWouldContinueRun,
 } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
+import { FETCH_TRAINING_RUN_STATISTICS_CHANNEL } from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
 export default function AcousticModelFinetuning({
@@ -43,7 +44,7 @@ export default function AcousticModelFinetuning({
     | "finished"
     | null;
   usageStats: UsageStatsInterface[];
-}) {
+}): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
   const [graphStatistics, setGraphStatistics] = useState<
     GraphStatisticInterface[]
@@ -74,7 +75,7 @@ export default function AcousticModelFinetuning({
   const pollStatistics = () => {
     ipcRenderer
       .invoke(
-        "fetch-training-run-statistics",
+        FETCH_TRAINING_RUN_STATISTICS_CHANNEL.IN,
         selectedTrainingRunID,
         "acoustic"
       )

@@ -16,17 +16,18 @@ import {
 import { useInterval, getProgressTitle } from "../../utils";
 import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../config";
 import { FETCH_TRAINING_RUN_PROGRESS_CHANNEL } from "../../channels";
+import { TRAINING_RUNS_ROUTE } from "../../routes";
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
   [key: number]: string;
 } = {
-  0: "/training-runs/create-model/configuration",
-  1: "/training-runs/create-model/data-preprocessing",
-  2: "/training-runs/create-model/acoustic-training",
-  3: "/training-runs/create-model/generating-gta",
-  4: "/training-runs/create-model/vocododer-training",
-  5: "/training-runs/create-model/save-model",
+  0: TRAINING_RUNS_ROUTE.CREATE_MODEL.CONFIGURATION.ROUTE,
+  1: TRAINING_RUNS_ROUTE.CREATE_MODEL.DATA_PREPROCESSING.ROUTE,
+  2: TRAINING_RUNS_ROUTE.CREATE_MODEL.ACOUSTIC_TRAINING.ROUTE,
+  3: TRAINING_RUNS_ROUTE.CREATE_MODEL.GENERATE_GTA.ROUTE,
+  4: TRAINING_RUNS_ROUTE.CREATE_MODEL.VOCODER_TRAINING.ROUTE,
+  5: TRAINING_RUNS_ROUTE.CREATE_MODEL.SAVE_MODEL.ROUTE,
 };
 
 const stepToTitle: {
@@ -131,7 +132,9 @@ export default function CreateModel({
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
         <Breadcrumb.Item>
-          <Link to="/training-runs/run-selection">Training Runs</Link>
+          <Link to={TRAINING_RUNS_ROUTE.RUN_SELECTION.ROUTE}>
+            Training Runs
+          </Link>
         </Breadcrumb.Item>
         <Breadcrumb.Item>{stepToTitle[current]}</Breadcrumb.Item>
       </Breadcrumb>

@@ -21,7 +21,7 @@ export const FINISH_INSTALL_CHANNEL = {
 
 export const CONTINUE_CLEANING_RUN_CHANNEL = {
   IN: "continue-cleaning-run",
-  REPLY: "continue-cleaning-run-reply",
+  REPLY: "run-reply",
 };
 
 export const FETCH_CLEANING_RUN_CHANNEL = {
@@ -59,7 +59,7 @@ export const REMOVE_TRAINING_RUN_CHANNEL = {
 
 export const CONTINUE_TRAINING_RUN_CHANNEL = {
   IN: "continue-training-run",
-  REPLY: "continue-training-run-reply",
+  REPLY: "run-reply",
 };
 
 export const FETCH_TRAINING_RUN_NAMES_CHANNEL = {
@@ -164,9 +164,8 @@ export const REMOVE_MODEL_CHANNEL = {
 
 export const CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL = {
   IN: "continue-text-normalization-sample",
+  REPLY: "run-reply",
 };
-
-// TODO below should be suffixed with channel
 
 export const EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL = {
   IN: "edit-text-normalization-sample-new-text",

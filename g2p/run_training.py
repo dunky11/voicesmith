@@ -6,17 +6,30 @@ from parse_dictionary import parse_dictionary
 import random
 import argparse
 
+perform_benchmark = False
+
+if perform_benchmark:
+    SPLIT_SIZE = 12753
+else:
+    SPLIT_SIZE = 5000
+
 if __name__ == '__main__':
+    if perform_benchmark:
+        print("Benchmarking on CMUDict ...")
+    else:
+        print("Training model for production ...")
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint', type=str, default=None)
     args = parser.parse_args()
 
-    data, phones, text_symbols = parse_dictionary("english_us_arpa.dict", "en_us", skip_duplicates=True)
+    data, phones, text_symbols = parse_dictionary("english_us_arpa.dict", "en")
     config = read_config(Path(".") / "dp" / "configs" / "autoreg_config.yaml")
     config["preprocessing"]["phoneme_symbols"] = phones
     config["preprocessing"]["text_symbols"] = text_symbols
-    random.shuffle(data)
-    train_data, val_data = data[5000:], data[:5000]
+    if not perform_benchmark:
+        random.shuffle(data)
+    train_data, val_data = data[SPLIT_SIZE:], data[:SPLIT_SIZE]
 
     if args.checkpoint == None:
         preprocess(

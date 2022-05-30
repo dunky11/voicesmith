@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, ReactElement } from "react";
 import { Slider, Card, Empty, Form } from "antd";
 import { STATISTIC_HEIGHT } from "../../config";
 import "./ImageStatistic.css";
@@ -13,7 +13,7 @@ export default function ImageStatistic({
   name: string;
   steps: number[];
   paths: string[];
-}) {
+}): ReactElement {
   const [selectedPath, setSelectedPath] = useState("");
   const formRef = useRef<FormInstance | null>();
 

@@ -28,6 +28,7 @@ import {
   FETCH_TRAINING_RUN_NAMES_CHANNEL,
   FETCH_DATASET_CANDIATES_CHANNEL,
 } from "../../channels";
+import { TRAINING_RUNS_ROUTE } from "../../routes";
 const { ipcRenderer, shell } = window.require("electron");
 
 export default function Configuration({
@@ -66,7 +67,7 @@ export default function Configuration({
   const formRef = useRef<FormInstance | null>();
 
   const onBackClick = () => {
-    history.push("/training-runs/run-selection");
+    history.push(TRAINING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
   };
 
   const afterUpdate = () => {

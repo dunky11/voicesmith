@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, Route, useHistory } from "react-router-dom";
+import { PREPROCESSING_RUNS_ROUTE } from "../../routes";
 import { PreprocessingRunInterface, RunInterface } from "../../interfaces";
 import PreprocessingRunSelection from "./PreprocessingRunSelection";
 import TextNormalization from "./text_normalization/TextNormalization";
@@ -25,10 +26,14 @@ export default function PreprcocessingRuns({
     }
     switch (selectedPreprocessingRun.type) {
       case "textNormalizationRun":
-        history.push("/preprocessing-runs/text-normalization/configuration");
+        history.push(
+          PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.CONFIGURATION.ROUTE
+        );
         break;
       case "dSCleaningRun":
-        history.push("/preprocessing-runs/dataset-cleaning/configuration");
+        history.push(
+          PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.CONFIGURATION.ROUTE
+        );
         break;
       default:
         throw new Error(
@@ -55,10 +60,10 @@ export default function PreprcocessingRuns({
             continueRun={continueRun}
           ></TextNormalization>
         )}
-        path="/preprocessing-runs/text-normalization"
+        path={PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.ROUTE}
       ></Route>
       <Route
-        path="/preprocessing-runs/dataset-cleaning"
+        path={PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.ROUTE}
         render={() => (
           <DatasetCleaning
             preprocessingRun={selectedPreprocessingRun}
@@ -77,7 +82,7 @@ export default function PreprcocessingRuns({
             stopRun={stopRun}
           ></PreprocessingRunSelection>
         )}
-        path="/preprocessing-runs/run-selection"
+        path={PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE}
       ></Route>
     </Switch>
   );

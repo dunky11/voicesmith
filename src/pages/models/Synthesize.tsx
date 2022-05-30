@@ -32,7 +32,10 @@ import {
   EXPORT_FILES_CHANNEL,
   REMOVE_AUDIOS_SYNTH_CHANNEL,
 } from "../../channels";
+import { MODELS_ROUTE } from "../../routes";
+
 const { ipcRenderer } = window.require("electron");
+
 const useStyles = createUseStyles({});
 
 export default function Synthesize({
@@ -208,7 +211,7 @@ export default function Synthesize({
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
         <Breadcrumb.Item>
-          <Link to="/models/selection">Models</Link>
+          <Link to={MODELS_ROUTE.SELECTION.ROUTE}>Models</Link>
         </Breadcrumb.Item>
         <Breadcrumb.Item>Synthesize</Breadcrumb.Item>
       </Breadcrumb>

@@ -16,6 +16,7 @@ import {
   FETCH_PREPROCESSING_NAMES_USED_CHANNEL,
   FETCH_DATASET_CANDIATES_CHANNEL,
 } from "../../../channels";
+import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
 
 const initialValues: TextNormalizationConfigInterface = {
@@ -52,7 +53,7 @@ export default function Configuration({
   const formRef = useRef<FormInstance | null>();
 
   const onBackClick = () => {
-    history.push("/preprocessing-runs/run-selection");
+    history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
   };
 
   const onNextClick = () => {

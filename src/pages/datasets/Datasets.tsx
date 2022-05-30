@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, Route, useHistory } from "react-router-dom";
 import Dataset from "./Dataset";
 import DatasetSelection from "./DatasetSelection";
+import { DATASETS_ROUTE } from "../../routes";
 
 export default function Datasets(): ReactElement {
   const isMounted = useRef(false);
@@ -12,7 +13,7 @@ export default function Datasets(): ReactElement {
 
   const passSelectedSpeakerID = (ID: number | null) => {
     if (ID === selectedDatasetID && ID !== null) {
-      history.push("/datasets/dataset-edit");
+      history.push(DATASETS_ROUTE.EDIT.ROUTE);
     } else {
       setSelectedDatasetID(ID);
     }
@@ -22,7 +23,7 @@ export default function Datasets(): ReactElement {
     if (selectedDatasetID === null) {
       return;
     }
-    history.push("/datasets/dataset-edit");
+    history.push(DATASETS_ROUTE.EDIT.ROUTE);
   }, [selectedDatasetID]);
 
   useEffect(() => {
@@ -40,11 +41,11 @@ export default function Datasets(): ReactElement {
             setSelectedDatasetID={passSelectedSpeakerID}
           ></DatasetSelection>
         )}
-        path="/datasets/dataset-selection"
+        path={DATASETS_ROUTE.SELECTION.ROUTE}
       ></Route>
       <Route
         render={() => <Dataset datasetID={selectedDatasetID}></Dataset>}
-        path="/datasets/dataset-edit"
+        path={DATASETS_ROUTE.EDIT.ROUTE}
       ></Route>
     </Switch>
   );

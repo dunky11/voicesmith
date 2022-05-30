@@ -14,7 +14,9 @@ import {
   PICK_SPEAKER_FILES_CHANNEL,
   ADD_SAMPLES_CHANNEL,
   EDIT_SAMPLE_TEXT_CHANNEL,
+  GET_AUDIO_DATA_URL_CHANNEL,
 } from "../../channels";
+import { DATASETS_ROUTE } from "../../routes";
 const { ipcRenderer } = window.require("electron");
 
 export default function Speaker({
@@ -91,7 +93,7 @@ export default function Speaker({
 
   const loadAudio = (filePath: string) => {
     ipcRenderer
-      .invoke("get-audio-data-url", filePath)
+      .invoke(GET_AUDIO_DATA_URL_CHANNEL.IN, filePath)
       .then((dataUrl: string) => {
         setAudioDataURL(dataUrl);
         if (playFuncRef.current != null) {
@@ -173,10 +175,10 @@ export default function Speaker({
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
         <Breadcrumb.Item>
-          <Link to="/datasets/dataset-selection">Datasets</Link>
+          <Link to={DATASETS_ROUTE.SELECTION.ROUTE}>Datasets</Link>
         </Breadcrumb.Item>
         <Breadcrumb.Item onClick={onSpeakerBackClick}>
-          <Link to="/datasets/dataset-edit">{datasetName}</Link>
+          <Link to={DATASETS_ROUTE.EDIT.ROUTE}>{datasetName}</Link>
         </Breadcrumb.Item>
         <Breadcrumb.Item>{speaker?.name}</Breadcrumb.Item>
       </Breadcrumb>

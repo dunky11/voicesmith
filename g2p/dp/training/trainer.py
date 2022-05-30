@@ -78,10 +78,16 @@ class Trainer:
         for g in optimizer.param_groups:
             g['lr'] = config['training']['learning_rate']
 
-        train_loader = new_dataloader(dataset_file=data_dir / 'train_dataset.pkl',
-                                      drop_last=True, batch_size=config['training']['batch_size'])
-        val_loader = new_dataloader(dataset_file=data_dir / 'val_dataset.pkl',
-                                    drop_last=False, batch_size=config['training']['batch_size_val'])
+        train_loader = new_dataloader(
+            dataset_file=data_dir / 'train_dataset.pkl',
+            drop_last=True, 
+            batch_size=config['training']['batch_size']
+        )
+        val_loader = new_dataloader(
+            dataset_file=data_dir / 'val_dataset.pkl',
+            drop_last=False,
+            batch_size=config['training']['batch_size_val']
+        )
         if store_phoneme_dict_in_model:
             phoneme_dict = unpickle_binary(data_dir / 'phoneme_dict.pkl')
             checkpoint['phoneme_dict'] = phoneme_dict

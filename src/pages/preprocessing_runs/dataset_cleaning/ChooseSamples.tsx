@@ -6,6 +6,8 @@ import { numberCompare, stringCompare } from "../../../utils";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { NoisySampleInterface, RunInterface } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
+import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
+import { REMOVE_PREPROCESSING_RUN_CHANNEL } from "../../../channels";
 const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
@@ -100,12 +102,12 @@ export default function ChooseSamples({
           }
           case "finished": {
             ipcRenderer
-              .invoke("remove-preprocessing-run", {
+              .invoke(REMOVE_PREPROCESSING_RUN_CHANNEL.IN, {
                 ID: selectedID,
                 type: "dSCleaning",
               })
               .then(() => {
-                history.push("/preprocessing-runs/run-selection");
+                history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
               });
             break;
           }

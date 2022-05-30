@@ -24,10 +24,15 @@ class PhonemizerDataset(Dataset):
         language, text, phonemes = item
         text = torch.tensor(text, dtype=torch.long)
         phonemes = torch.tensor(phonemes, dtype=torch.long)
-        return {'item_id': index, 'text': text,
-                'phonemes': phonemes, 'language': language,
-                'text_len': text.size(0), 'phonemes_len': phonemes.size(0),
-                'start_index': phonemes[0]}
+        return {
+            'item_id': index,
+            'text': text,
+            'phonemes': phonemes,
+            'language': language,
+            'text_len': text.size(0), 
+            'phonemes_len': phonemes.size(0),
+            'start_index': phonemes[0]
+        }
 
     def __len__(self):
         return len(self.items)

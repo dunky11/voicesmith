@@ -22,6 +22,7 @@ import {
   PICK_SPEAKERS_CHANNEL,
   FETCH_DATASET_CHANNEL,
 } from "../../channels";
+import { DATASETS_ROUTE } from "../../routes";
 const { ipcRenderer } = window.require("electron");
 
 export default function Dataset({
@@ -208,7 +209,7 @@ export default function Dataset({
   };
 
   const onBackClick = () => {
-    history.push("/datasets/dataset-selection");
+    history.push(DATASETS_ROUTE.SELECTION.ROUTE);
   };
 
   useEffect(() => {
@@ -233,7 +234,7 @@ export default function Dataset({
         <>
           <Breadcrumb style={{ marginBottom: 8 }}>
             <Breadcrumb.Item>
-              <Link to="/datasets/dataset-selection">Datasets</Link>
+              <Link to={DATASETS_ROUTE.SELECTION.ROUTE}>Datasets</Link>
             </Breadcrumb.Item>
             <Breadcrumb.Item>{dataset?.name}</Breadcrumb.Item>
           </Breadcrumb>

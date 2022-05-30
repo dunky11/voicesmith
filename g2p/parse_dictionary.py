@@ -1,7 +1,7 @@
 from pathlib import Path
 from tqdm import tqdm
 
-def parse_dictionary(dictionary_name, name, skip_duplicates):
+def parse_dictionary(dictionary_name, name):
     this_path = Path(__file__).parent.resolve()
     out = []
     all_phones = []
@@ -11,11 +11,8 @@ def parse_dictionary(dictionary_name, name, skip_duplicates):
             line = line.strip().split()
             word = line[0]
             phones = line[1:]
-            if skip_duplicates:
-                if word in words_preprocessed:
-                    continue
-                words_preprocessed[word] = 0
-
+            word = word.lower()
+            words_preprocessed[word] = 0
             out.append((name, word, phones))
             all_phones.extend(phones)
     unique_phones = list(set(all_phones))

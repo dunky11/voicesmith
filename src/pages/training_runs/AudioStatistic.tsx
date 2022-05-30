@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, ReactElement } from "react";
 import { Slider, Card, Empty, Form } from "antd";
 import AudioPlayer from "../../components/audio_player/AudioPlayer";
 import {
@@ -9,6 +9,7 @@ import {
 import { FormInstance } from "rc-field-form";
 import { STATISTIC_HEIGHT } from "../../config";
 import "./AudioStatistic.css";
+import { EXPORT_FILE_CHANNEL } from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
 export default function AudioStatistics({
@@ -19,7 +20,7 @@ export default function AudioStatistics({
   name: string;
   steps: number[];
   paths: string[];
-}) {
+}): ReactElement {
   const [selectedPath, setSelectedPath] = useState<string>("");
   const [isPlaying, setIsPlaying] = useState(false);
   const id = useRef(`id-${Math.random().toString(36).substr(2, 5)}`);
@@ -54,7 +55,7 @@ export default function AudioStatistics({
   };
 
   const exportFile = () => {
-    ipcRenderer.invoke("export-file", selectedPath);
+    ipcRenderer.invoke(EXPORT_FILE_CHANNEL.IN, selectedPath);
   };
 
   useEffect(() => {

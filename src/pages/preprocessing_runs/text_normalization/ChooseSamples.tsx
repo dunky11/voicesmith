@@ -10,6 +10,7 @@ import {
   FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
   REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
   EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL,
+  GET_AUDIO_DATA_URL_CHANNEL,
 } from "../../../channels";
 import { useHistory } from "react-router-dom";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
@@ -19,6 +20,7 @@ import {
   TextNormalizationSampleInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
+import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
@@ -173,7 +175,7 @@ export default function ChooseSamples({
 
   const loadAudio = (filePath: string) => {
     ipcRenderer
-      .invoke("get-audio-data-url", filePath)
+      .invoke(GET_AUDIO_DATA_URL_CHANNEL.IN, filePath)
       .then((dataUrl: string) => {
         setAudioDataURL(dataUrl);
         if (playFuncRef.current != null) {
@@ -199,7 +201,7 @@ export default function ChooseSamples({
               message: "Your dataset has been normalized",
               placement: "top",
             });
-            history.push("/preprocessing-runs/run-selection");
+            history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
           });
       });
   };
