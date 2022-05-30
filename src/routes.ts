@@ -1,7 +1,7 @@
 export const DATASETS_ROUTE = {
   ROUTE: "/datasets",
   EDIT: {
-    ROUTE: "/datasets/dataset-selection",
+    ROUTE: "/datasets/edit",
   },
   SELECTION: {
     ROUTE: "/datasets/dataset-selection",
