@@ -1,13 +1,13 @@
 import wandb
 import numpy as np
-from typing import List, Union
+from typing import List, Union, Dict, Any
 from voice_smith.utils.loggers import Logger
 
 
 class WandBLogger(Logger):
-    def __init__(self, training_run_name):
+    def __init__(self, training_run_name, config: Union[Dict[str, Any], None]=None):
         super().__init__()
-        wandb.init(id=training_run_name, resume="allow")
+        wandb.init(id=training_run_name, resume="allow", config=config)
 
     def log_image(self, name: str, image: np.ndarray, step: int):
         image = self.map_image_color(image)

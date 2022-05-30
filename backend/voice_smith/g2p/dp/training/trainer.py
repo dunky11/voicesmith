@@ -7,23 +7,21 @@ import torch
 import tqdm
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import MultiStepLR
-from torch.utils.tensorboard import SummaryWriter
-
-from dp.model.model import Model
-from dp.model.utils import _trim_util_stop
-from dp.preprocessing.text import Preprocessor
-from dp.training.dataset import new_dataloader
-from dp.training.decorators import ignore_exception
-from dp.training.losses import CrossEntropyLoss, CTCLoss
-from dp.training.evaluation import evaluate_samples
-from dp.utils.io import to_device, unpickle_binary
-
+from voice_smith.g2p.dp.model.model import Model
+from voice_smith.g2p.dp.model.utils import _trim_util_stop
+from voice_smith.g2p.dp.preprocessing.text import Preprocessor
+from voice_smith.g2p.dp.training.dataset import new_dataloader
+from voice_smith.g2p.dp.training.decorators import ignore_exception
+from voice_smith.g2p.dp.training.losses import CrossEntropyLoss, CTCLoss
+from voice_smith.g2p.dp.training.evaluation import evaluate_samples
+from voice_smith.g2p.dp.utils.io import to_device, unpickle_binary
+from voice_smith.utils.wandb_logger import WandBLogger
 
 class Trainer:
 
     """ Performs model training. """
 
-    def __init__(self, checkpoint_dir: Path, loss_type='ctc') -> None:
+    def __init__(self, checkpoint_dir: Path, loss_type, name: str, config: Dict[str, Any]) -> None:
         """
         Initializes a Trainer object.
 
@@ -35,7 +33,7 @@ class Trainer:
 
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        self.writer = SummaryWriter(log_dir=str(self.checkpoint_dir / 'logs'))
+        self.writer = WandBLogger(training_run_name=name, config=config)
         self.loss_type = loss_type
         if loss_type == 'ctc':
             self.criterion = CTCLoss()
@@ -129,15 +127,15 @@ class Trainer:
                     optimizer.step()
                     losses.append(loss.item())
 
-                self.writer.add_scalar('Loss/train', loss.item(), global_step=step)
-                self.writer.add_scalar('Params/batch_size', config['training']['batch_size'],
-                                       global_step=step)
-                self.writer.add_scalar('Params/learning_rate', [g['lr'] for g in optimizer.param_groups][0],
-                                       global_step=step)
+                self.writer.log_graph('Loss/train', loss.item(), step=step)
+                self.writer.log_graph('Params/batch_size', config['training']['batch_size'],
+                                       step=step)
+                self.writer.log_graph('Params/learning_rate', [g['lr'] for g in optimizer.param_groups][0],
+                                       step=step)
 
                 if step % config['training']['validate_steps'] == 0:
                     val_loss = self._validate(model, val_batches)
-                    self.writer.add_scalar('Loss/val', val_loss, global_step=step)
+                    self.writer.log_graph('Loss/val', val_loss, step=step)
 
                 if step % config['training']['generate_steps'] == 0:
                     lang_samples = self._generate_samples(model=model,
@@ -228,19 +226,19 @@ class Trainer:
                          n_generate_samples: int,
                          step: int) -> None:
 
-        self.writer.add_scalar(f'Phoneme_Error_Rate/mean',
-                               eval_result['mean_per'], global_step=step)
-        self.writer.add_scalar(f'Word_Error_Rate/mean',
-                               eval_result['mean_wer'], global_step=step)
+        self.writer.log_graph(f'Phoneme_Error_Rate/mean',
+                               eval_result['mean_per'], step=step)
+        self.writer.log_graph(f'Word_Error_Rate/mean',
+                               eval_result['mean_wer'], step=step)
 
         for lang in lang_samples.keys():
             result = eval_result[lang]
-            self.writer.add_scalar(f'Phoneme_Error_Rate/{lang}',
-                                   result['per'], global_step=step)
-            self.writer.add_scalar(f'Word_Error_Rate/{lang}',
-                                   result['wer'], global_step=step)
+            self.writer.log_graph(f'Phoneme_Error_Rate/{lang}',
+                                   result['per'], step=step)
+            self.writer.log_graph(f'Word_Error_Rate/{lang}',
+                                   result['wer'], step=step)
 
-        for lang, samples in lang_samples.items():
+        """for lang, samples in lang_samples.items():
             samples = [(''.join(w), ''.join(p), ''.join(t)) for w, p, t in samples]
             word_counts = Counter([word for word, _, _ in samples])
             samples_dedup = [(w, p, t) for w, p, t in samples if word_counts[w] == 1]
@@ -250,7 +248,7 @@ class Trainer:
             log_text_items = sorted(log_texts.items(), key=lambda x: -len(x[0]))
             log_text_list = [v for k, v in log_text_items]
             log_text = '\n'.join(log_text_list[:n_generate_samples])
-            self.writer.add_text(f'{lang}/text_prediction_target', log_text, global_step=step)
+            self.writer.add_text(f'{lang}/text_prediction_target', log_text, global_step=step)"""
 
     def _save_model(self,
                     model: torch.nn.Module,

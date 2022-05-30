@@ -5,10 +5,10 @@ from typing import List, Tuple, Iterable
 
 import tqdm
 
-from dp.model.model import ModelType
-from dp.preprocessing.text import Preprocessor
-from dp.utils.io import pickle_binary
-from dp.utils.logging import get_logger
+from voice_smith.g2p.dp.model.model import ModelType
+from voice_smith.g2p.dp.preprocessing.text import Preprocessor
+from voice_smith.g2p.dp.utils.io import pickle_binary
+from voice_smith.g2p.dp.utils.logging import get_logger
 
 logger = get_logger(__name__)
 

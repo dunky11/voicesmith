@@ -1,4 +1,4 @@
-from dp.phonemizer import Phonemizer
+from voice_smith.g2p.dp.phonemizer import Phonemizer
 from voice_smith.utils.model import get_param_num
 
 if __name__ == "__main__":

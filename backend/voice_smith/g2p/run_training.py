@@ -1,12 +1,14 @@
 from pathlib import Path
-from dp.preprocess import preprocess
-from dp.train import train
-from dp.utils.io import read_config
+from voice_smith.g2p.dp.preprocess import preprocess
+from voice_smith.g2p.dp.train import train
+from voice_smith.g2p.dp.utils.io import read_config
 from parse_dictionary import parse_dictionary
 import random
 import argparse
 
 perform_benchmark = False
+
+name = "G2p ARPA training 4x4 transformer"
 
 if perform_benchmark:
     SPLIT_SIZE = 12753
@@ -39,4 +41,4 @@ if __name__ == '__main__':
             deduplicate_train_data=False
         )
 
-    train(config=config, checkpoint_file=args.checkpoint)
+    train(config=config, checkpoint_file=args.checkpoint, name=name)

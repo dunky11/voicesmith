@@ -1,16 +1,18 @@
 from pathlib import Path
 
-from dp.model.model import load_checkpoint, ModelType, \
-    create_model
-from dp.preprocessing.text import Preprocessor
-from dp.training.trainer import Trainer
-from dp.utils.logging import get_logger
+from voice_smith.g2p.dp.model.model import load_checkpoint, ModelType, create_model
+from voice_smith.g2p.dp.preprocessing.text import Preprocessor
+from voice_smith.g2p.dp.training.trainer import Trainer
+from voice_smith.g2p.dp.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def train(config: str,
-          checkpoint_file: str = None) -> None:
+def train(
+    config: str,
+    name: str,
+    checkpoint_file: str = None,
+) -> None:
     """
     Runs training of a transformer model.
 
@@ -51,7 +53,7 @@ def train(config: str,
     checkpoint_dir = Path(config['paths']['checkpoint_dir'])
     logger.info(f'Checkpoints will be stored at {checkpoint_dir.absolute()}')
     loss_type = 'cross_entropy' if model_type.is_autoregressive() else 'ctc'
-    trainer = Trainer(checkpoint_dir=checkpoint_dir, loss_type=loss_type)
+    trainer = Trainer(checkpoint_dir=checkpoint_dir, loss_type=loss_type, name=name, config=config)
     trainer.train(
         model=model,
         checkpoint=checkpoint,

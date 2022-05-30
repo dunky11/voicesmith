@@ -3,11 +3,11 @@ from typing import Dict, List, Tuple
 import torch
 from torch.nn.utils.rnn import pad_sequence
 
-from dp import Prediction
-from dp.model.model import load_checkpoint
-from dp.model.utils import _get_len_util_stop
-from dp.preprocessing.text import Preprocessor
-from dp.preprocessing.utils import _batchify, _product
+from voice_smith.g2p.dp import Prediction
+from voice_smith.g2p.dp.model.model import load_checkpoint
+from voice_smith.g2p.dp.model.utils import _get_len_util_stop
+from voice_smith.g2p.dp.preprocessing.text import Preprocessor
+from voice_smith.g2p.dp.preprocessing.utils import _batchify, _product
 
 
 class Predictor:

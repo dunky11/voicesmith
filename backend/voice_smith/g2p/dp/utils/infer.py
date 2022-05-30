@@ -1,4 +1,4 @@
-from dp.phonemizer import Phonemizer
+from voice_smith.g2p.dp.phonemizer import Phonemizer
 from typing import List
 
 def batched_predict(model: Phonemizer, texts: List[str], batch_size=32):

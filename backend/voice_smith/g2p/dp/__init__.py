@@ -1,1 +1,1 @@
-from dp.result import Prediction, PhonemizerResult
+from voice_smith.g2p.dp.result import Prediction, PhonemizerResult
