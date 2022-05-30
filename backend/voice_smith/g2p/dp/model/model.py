@@ -302,7 +302,7 @@ def load_checkpoint(checkpoint_path: str, device: str = 'cpu') -> Tuple[Model, D
              and the second element is a dictionary (config).
     """
 
-    device = torch.device(device)
+    device = torch.device("cpu")
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model_type = checkpoint['config']['model']['type']
     model_type = ModelType(model_type)

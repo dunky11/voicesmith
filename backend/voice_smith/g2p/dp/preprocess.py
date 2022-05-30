@@ -94,6 +94,7 @@ def preprocess(config: str,
         val_count.update([lang])
 
     logger.info(f'\nSaving datasets to: {data_dir.absolute()}')
+
     pickle_binary(train_dataset, data_dir / 'train_dataset.pkl')
     pickle_binary(val_dataset, data_dir / 'val_dataset.pkl')
     phoneme_dictionary = dict()
@@ -103,7 +104,7 @@ def preprocess(config: str,
     phoneme_symbols = set(config['preprocessing']['phoneme_symbols'])
     for lang, text, phon in sorted(train_data + val_data):
         text = ''.join([t for t in text if t in text_symbols])
-        phons = ''.join([p for p in phon if p in phoneme_symbols])
+        phons = ' '.join([p for p in phon if p in phoneme_symbols])
         all_data.append((lang, text, phons))
 
     for l, w, p in all_data:

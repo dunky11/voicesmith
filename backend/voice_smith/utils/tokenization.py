@@ -3,28 +3,12 @@ from typing import Dict, List, Tuple
 import unicodedata
 from pathlib import Path
 from voice_smith.utils.text import strip_cont_whitespaces
-from nltk import sent_tokenize
+from spacy.lang.en import English
+from spacy.lang.es import Spanish
+from spacy.lang.ru import Russian
+from spacy.lang.de import German
+from spacy.tokenizer import Tokenizer
 
-class BasicTokenizer:
-    def __init__(self):
-        self.split_on = [" ", "!", ";", "?", ".", ",", ":"]
-
-    def tokenize(self, text: str) -> List[str]:
-        text = strip_cont_whitespaces(text)
-        split_start_idx = 0
-        splits = []
-        for i, char in enumerate(text):
-            if char in self.split_on:
-                prev_split = text[split_start_idx:i]
-                if len(prev_split) > 0:
-                    splits.append(prev_split)
-                splits.append(char)
-                split_start_idx = i + 1
-        return splits
-
-
-def en_sentence_tokenize(text: str) -> List[str]:
-    return sent_tokenize(text)
 
 
 def whitespace_tokenize(text):
@@ -370,6 +354,20 @@ class WordpieceTokenizer(object):
                 output_tokens.extend(sub_tokens)
         return output_tokens
 
+def get_word_tokenizer(lang) -> Tokenizer:
+    if lang == "en":
+        nlp = English()
+    elif lang == "es":
+        nlp = Spanish()
+    elif lang == "de":
+        nlp = German() 
+    elif lang == "ru":
+        nlp = Russian()
+    else:
+        raise Exception(
+            f"No case selected in switch-statement, '{lang}' is not a valid case ..."
+        )
+    return nlp.tokenizer
 
 if __name__ == "__main__":
     from pathlib import Path
@@ -393,3 +391,5 @@ if __name__ == "__main__":
         assert torch.equal(
             encoding_real["attention_mask"], encoding_fake["attention_mask"]
         )
+
+    

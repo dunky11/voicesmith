@@ -42,10 +42,12 @@ class Trainer:
         else:
             raise ValueError(f'Loss not supported: {loss_type}')
 
-    def train(self,
-              model: Model,
-              checkpoint: Dict[str, Any],
-              store_phoneme_dict_in_model: bool = True) -> None:
+    def train(
+        self,
+        model: Model,
+        checkpoint: Dict[str, Any],
+        store_phoneme_dict_in_model: bool = True
+    ) -> None:
         """
         Performs training of a transformer model.
 
@@ -138,19 +140,29 @@ class Trainer:
                     self.writer.log_graph('Loss/val', val_loss, step=step)
 
                 if step % config['training']['generate_steps'] == 0:
-                    lang_samples = self._generate_samples(model=model,
-                                                          preprocessor=checkpoint['preprocessor'],
-                                                          val_batches=val_batches)
+                    lang_samples = self._generate_samples(
+                        model=model,
+                        config=config,
+                        val_batches=val_batches
+                    )
                     eval_result = evaluate_samples(lang_samples=lang_samples)
                     self._write_summaries(lang_samples=lang_samples,
                                           eval_result=eval_result,
                                           n_generate_samples=config['training']['n_generate_samples'],
                                           step=step)
                     if eval_result['mean_per'] is not None and eval_result['mean_per'] < best_per:
-                        self._save_model(model=model, optimizer=optimizer, checkpoint=checkpoint,
-                                         path=self.checkpoint_dir / f'best_model.pt')
-                        self._save_model(model=model, optimizer=None, checkpoint=checkpoint,
-                                         path=self.checkpoint_dir / f'best_model_no_optim.pt')
+                        self._save_model(
+                            model=model, 
+                            optimizer=optimizer, 
+                            checkpoint=checkpoint,
+                            path=self.checkpoint_dir / "best_model.pt"
+                        )
+                        self._save_model(
+                            model=model,
+                            optimizer=None, 
+                            checkpoint=checkpoint,
+                            path=self.checkpoint_dir / "best_model_no_optim.pt"
+                        )
                     
                 if step % config['training']['checkpoint_steps'] == 0:
                     self._save_model(model=model, optimizer=optimizer, checkpoint=checkpoint,
@@ -186,11 +198,11 @@ class Trainer:
     @ignore_exception
     def _generate_samples(self,
                           model: Model,
-                          preprocessor: Preprocessor,
+                          config: Dict[str, Any],
                           val_batches: List[dict]) -> Dict[str, List[Tuple[List[str], List[str], List[str]]]]:
 
         """ Returns a dictionary with entries lang: Tuple of (word, generated, target) """
-
+        preprocessor = Preprocessor.from_config(config)
         device = next(model.parameters()).device
         model.eval()
         text_tokenizer = preprocessor.text_tokenizer
@@ -250,11 +262,13 @@ class Trainer:
             log_text = '\n'.join(log_text_list[:n_generate_samples])
             self.writer.add_text(f'{lang}/text_prediction_target', log_text, global_step=step)"""
 
-    def _save_model(self,
-                    model: torch.nn.Module,
-                    optimizer: torch.optim,
-                    checkpoint: Dict[str, Any],
-                    path: Path) -> None:
+    def _save_model(
+        self,
+        model: torch.nn.Module,
+        optimizer: torch.optim,
+        checkpoint: Dict[str, Any],
+        path: Path
+    ) -> None:
         checkpoint['model'] = model.state_dict()
         if optimizer is not None:
             checkpoint['optimizer'] = optimizer.state_dict()

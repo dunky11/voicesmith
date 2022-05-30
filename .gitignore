@@ -131,3 +131,4 @@ wandb/
 /backend/voice_smith/g2p/checkpoints/
 /backend/voice_smith/g2p/datasets/
 /backend/voice_smith/g2p/dictionaries/
+/assets/g2p/

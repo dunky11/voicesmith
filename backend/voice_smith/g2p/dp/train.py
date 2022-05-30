@@ -46,9 +46,11 @@ def train(
         model_type = ModelType(model_type)
         model = create_model(model_type, config=config)
         checkpoint = {
-            'preprocessor': preprocessor,
             'config': config,
         }
+
+    if "preprocessor" in checkpoint.keys():
+        del checkpoint["preprocessor"]
 
     checkpoint_dir = Path(config['paths']['checkpoint_dir'])
     logger.info(f'Checkpoints will be stored at {checkpoint_dir.absolute()}')

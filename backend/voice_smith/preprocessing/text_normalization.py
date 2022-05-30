@@ -7,10 +7,7 @@ import multiprocessing as mp
 from joblib import Parallel, delayed
 import sqlite3
 import argparse
-from spacy.lang.en import English
-from spacy.lang.es import Spanish
-from spacy.lang.ru import Russian
-from spacy.lang.de import German
+from voice_smith.utils.tokenization import get_word_tokenizer
 
 LATIN_CHARACTERS = list("abcdefghijklmnopqrstuvwxyz")
 GERMAN_CHARACTERS = list("öüäß")
@@ -148,9 +145,7 @@ class DetShouldNormalizeBase:
     or words inside the text and only normalize if necessary.
     """
 
-    def should_normalize(
-        self, text: str, tokenizer, assets_path: str
-    ) -> Tuple[bool, str]:
+    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, str]:
         raise NotImplementedError()
 
     def get_reasons(
@@ -324,7 +319,9 @@ class DetShouldNormalizeRU(DetShouldNormalizeBase):
 def apply_nemo_normalization(text: str, normalizer: Normalizer):
     text_in = text
     text_out = normalizer.normalize(
-        text=text_in, verbose=False, punct_post_process=True,
+        text=text_in,
+        verbose=False,
+        punct_post_process=True,
     )
 
     if (
@@ -385,25 +382,21 @@ def text_normalize(
     if lang == "en":
         detector = DetShouldNormalizeEN(assets_path)
         deterministic = True
-        nlp = English()
     elif lang == "es":
         detector = DetShouldNormalizeES(assets_path)
         deterministic = True
-        nlp = Spanish()
     elif lang == "de":
         detector = DetShouldNormalizeDE(assets_path)
         deterministic = True
-        nlp = German()
     elif lang == "ru":
         detector = DetShouldNormalizeRU(assets_path)
         deterministic = False
-        nlp = Russian()
     else:
         raise Exception(
             f"No case selected in switch-statement, '{lang}' is not a valid case ..."
         )
 
-    tokenizer = nlp.tokenizer
+    tokenizer = get_word_tokenizer(lang)
     char_normalizer = CharNormalizer()
     normalizer = Normalizer(
         input_case="cased",
