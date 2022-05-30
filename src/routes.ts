@@ -22,22 +22,22 @@ export const TRAINING_RUNS_ROUTE = {
   CREATE_MODEL: {
     ROUTE: "/training-runs/create-model",
     CONFIGURATION: {
-      ROUTE: "training-runs/create-model/configuration",
+      ROUTE: "/training-runs/create-model/configuration",
     },
     DATA_PREPROCESSING: {
-      ROUTE: "training-runs/create-model/data-preprocessing",
+      ROUTE: "/training-runs/create-model/data-preprocessing",
     },
     ACOUSTIC_TRAINING: {
-      ROUTE: "training-runs/create-model/acoustic-training",
+      ROUTE: "/training-runs/create-model/acoustic-training",
     },
     GENERATE_GTA: {
-      ROUTE: "training-runs/create-model/generate-gta",
+      ROUTE: "/training-runs/create-model/generate-gta",
     },
     VOCODER_TRAINING: {
-      ROUTE: "training-runs/create-model/vocoder-training",
+      ROUTE: "/training-runs/create-model/vocoder-training",
     },
     SAVE_MODEL: {
-      ROUTE: "training-runs/create-model/save-gta",
+      ROUTE: "/training-runs/create-model/save-gta",
     },
   },
 };
