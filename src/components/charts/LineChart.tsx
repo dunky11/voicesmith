@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactElement } from "react";
 import { Card, Empty } from "antd";
 import { createUseStyles } from "react-jss";
 import "chart.js/auto";
@@ -44,7 +44,7 @@ function LineChart({
   maxY: number | undefined;
   withArea: boolean;
   disableAnimation: boolean;
-}) {
+}): ReactElement {
   const classes = useStyles();
   return (
     <Card title={title} className={classes.card}>

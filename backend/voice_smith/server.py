@@ -7,7 +7,7 @@ from pathlib import Path
 import uuid
 from torch.jit._serialization import load
 from g2p_en import G2p
-from voice_smith.utils.tokenization import BertTokenizer, BasicTokenizer
+from voice_smith.utils.tokenization import BertTokenizer
 from voice_smith.utils.text_normalization import EnglishTextNormalizer
 from voice_smith.sql import get_con
 from voice_smith.utils.tools import get_cpu_usage, get_ram_usage, get_disk_usage
@@ -56,7 +56,6 @@ def get_model(
     symbol2id = get_symbol2id(cur=cur, model_id=model_id)
     text_normalizer = EnglishTextNormalizer()
     bert_tokenizer = BertTokenizer(assets_path)
-    tokenizer = BasicTokenizer()
 
     return {
         "g2p": G2p(),
@@ -65,7 +64,6 @@ def get_model(
         "vocoder": vocoder,
         "lexicon": lexicon,
         "symbol2id": symbol2id,
-        "tokenizer": tokenizer,
         "bert_tokenizer": bert_tokenizer,
         "text_normalizer": text_normalizer,
     }
@@ -126,7 +124,8 @@ def run_server(
             return "Invalid Request.", 400
 
         row = cur.execute(
-            "SELECT name, type FROM model WHERE ID=?", (model_id,),
+            "SELECT name, type FROM model WHERE ID=?",
+            (model_id,),
         ).fetchone()
         model_name, type = row
 
@@ -158,7 +157,6 @@ def run_server(
             symbol2id=__model__["symbol2id"],
             lexicon=__model__["lexicon"],
             g2p=__model__["g2p"],
-            tokenizer=__model__["tokenizer"],
             acoustic_model=__model__["acoustic_model"],
             text_normalizer=__model__["text_normalizer"],
             vocoder=__model__["vocoder"],
@@ -197,4 +195,3 @@ if __name__ == "__main__":
         models_path=sys.argv[4],
         assets_path=sys.argv[5],
     )
-

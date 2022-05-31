@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Card, Typography } from "antd";
 import { PlayCircleFilled, PauseCircleFilled } from "@ant-design/icons";
 import { createUseStyles } from "react-jss";
@@ -72,7 +72,7 @@ export default function AudioBottomBar({
 }: {
   src: string | null;
   playFuncRef: React.MutableRefObject<null | (() => void)>;
-}) {
+}): ReactElement {
   const classes = useStyles();
   const isMounted = useRef<boolean>(false);
   const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);

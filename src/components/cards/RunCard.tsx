@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { ReactElement, ReactNode } from "react";
 import { Card } from "antd";
 
 export default function RunCard({
@@ -11,7 +11,7 @@ export default function RunCard({
   buttons: ReactNode[];
   children: ReactNode;
   disableFullHeight: boolean;
-}) {
+}): ReactElement {
   return (
     <Card
       title={title}

@@ -152,15 +152,16 @@ export default function App(): ReactElement {
         }
       }
     );
+    console.log("PRE START");
     switch (run.type) {
       case "trainingRun":
-        ipcRenderer.send(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, run.ID);
+        ipcRenderer.send(CONTINUE_TRAINING_RUN_CHANNEL.IN, run.ID);
         break;
       case "dSCleaningRun":
-        ipcRenderer.send(CONTINUE_CLEANING_RUN_CHANNEL.REPLY, run.ID);
+        ipcRenderer.send(CONTINUE_CLEANING_RUN_CHANNEL.IN, run.ID);
         break;
       case "textNormalizationRun":
-        ipcRenderer.send(CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL.REPLY, run.ID);
+        ipcRenderer.send(CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL.IN, run.ID);
         break;
       default:
         throw new Error(

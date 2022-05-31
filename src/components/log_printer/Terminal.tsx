@@ -1,5 +1,5 @@
-import React from "react";
-import { Typography, Card } from "antd";
+import React, { ReactElement } from "react";
+import { Typography } from "antd";
 import classNames from "classnames";
 import { createUseStyles } from "react-jss";
 import { TerminalMessage } from "../../interfaces";
@@ -28,7 +28,7 @@ export default function Terminal({
 }: {
   messages: TerminalMessage[];
   maxLines: number;
-}) {
+}): ReactElement {
   const classes = useStyles();
   const startIndex = Math.max(messages.length - maxLines, 0);
 

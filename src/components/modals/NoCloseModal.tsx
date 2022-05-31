@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactElement } from "react";
 import { Modal } from "antd";
 
 export default function NoCloseModal({
@@ -9,7 +9,7 @@ export default function NoCloseModal({
   visible: boolean;
   title: string;
   children: React.ReactNode;
-}) {
+}): ReactElement {
   return (
     <Modal
       title={title}

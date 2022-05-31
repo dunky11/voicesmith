@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactElement } from "react";
 import { Card } from "antd";
 import { createUseStyles } from "react-jss";
 import "chart.js/auto";
@@ -28,7 +28,7 @@ export default function PieChart({
   title: string;
   chartHeight: number | string;
   chartWidth: number | string;
-}) {
+}): ReactElement {
   const classes = useStyles();
   return (
     <Card title={title} className={classes.card}>

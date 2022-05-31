@@ -1,21 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Typography } from "antd";
+import React, { useState, useEffect, useRef, ReactElement } from "react";
+import { FETCH_LOGFILE_CHANNEL } from "../../channels";
 import { POLL_LOGFILE_INTERVALL } from "../../config";
 import { useInterval } from "../../utils";
-import { createUseStyles } from "react-jss";
 import Terminal from "./Terminal";
 const { ipcRenderer } = window.require("electron");
-
-const useStyles = createUseStyles({
-  wrapper: {
-    maxHeight: 600,
-    overflowY: "auto",
-    background: "rgba(150, 150, 150, .1)",
-    border: "1px solid rgba(100, 100, 100, .2)",
-    padding: 16,
-  },
-  text: { whiteSpace: "pre-wrap" },
-});
 
 export default function LogPrinter({
   name,
@@ -25,8 +13,7 @@ export default function LogPrinter({
   name: string | null;
   logFileName: string;
   type: "trainingRun" | "model" | "cleaningRun" | "textNormalizationRun";
-}) {
-  const classes = useStyles();
+}): ReactElement {
   const [logLines, setLogLines] = useState<string[]>([]);
   const isMounted = useRef(false);
 
@@ -35,7 +22,7 @@ export default function LogPrinter({
       return;
     }
     ipcRenderer
-      .invoke("fetch-logfile", name, logFileName, type)
+      .invoke(FETCH_LOGFILE_CHANNEL.IN, name, logFileName, type)
       .then((lines: string[]) => {
         if (!isMounted.current) {
           return;

@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from "react";
+import React, { ReactElement, useEffect, useRef } from "react";
 // @ts-ignore
 import WaveSurfer from "wavesurfer.js";
 import { createUseStyles } from "react-jss";
 import { WaveSurverInterface } from "../../interfaces";
+import { GET_AUDIO_DATA_URL_CHANNEL } from "../../channels";
 const { ipcRenderer } = window.require("electron");
 const useStyles = createUseStyles({
   waveWrapper: {
@@ -23,7 +24,7 @@ export default function AudioPlayer({
   onPlayStateChange: (state: boolean) => void;
   isPlaying: boolean;
   height: number;
-}) {
+}): ReactElement {
   const classes = useStyles();
   const isMounted = useRef(false);
   const wavesurfer = useRef<WaveSurverInterface | null>(null);
@@ -47,12 +48,14 @@ export default function AudioPlayer({
     if (path === null) {
       return;
     }
-    ipcRenderer.invoke("get-audio-data-url", path).then((dataUrl: string) => {
-      if (wavesurfer.current === null || !isMounted.current) {
-        return;
-      }
-      wavesurfer.current.load(dataUrl);
-    });
+    ipcRenderer
+      .invoke(GET_AUDIO_DATA_URL_CHANNEL.IN, path)
+      .then((dataUrl: string) => {
+        if (wavesurfer.current === null || !isMounted.current) {
+          return;
+        }
+        wavesurfer.current.load(dataUrl);
+      });
   };
 
   const stopAudio = () => {

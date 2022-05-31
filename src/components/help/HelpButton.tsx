@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { ReactElement, useState } from "react";
 import { Modal, Button } from "antd";
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import { createUseStyles } from "react-jss";
@@ -24,7 +24,7 @@ export default function HelpButton({
   buttonText: string;
   children: React.ReactNode;
   style: { [Key: string]: string | number };
-}) {
+}): ReactElement {
   const classes = useStyles();
   const [visible, setVisible] = useState(false);
   return (

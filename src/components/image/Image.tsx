@@ -1,6 +1,14 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
+import { GET_IMAGE_DATA_URL_CHANNEL } from "../../channels";
 const { ipcRenderer } = window.require("electron");
-export default function Image({ path, style }: { path: string; style: {} }) {
+
+export default function Image({
+  path,
+  style,
+}: {
+  path: string;
+  style: {};
+}): ReactElement {
   const isMounted = useRef(false);
   const [dataUrl, setDataUrl] = useState<string>("");
 
@@ -8,12 +16,14 @@ export default function Image({ path, style }: { path: string; style: {} }) {
     if (path === "") {
       return;
     }
-    ipcRenderer.invoke("get-image-data-url", path).then((dataUrl: string) => {
-      if (!isMounted.current) {
-        return;
-      }
-      setDataUrl(dataUrl);
-    });
+    ipcRenderer
+      .invoke(GET_IMAGE_DATA_URL_CHANNEL.IN, path)
+      .then((dataUrl: string) => {
+        if (!isMounted.current) {
+          return;
+        }
+        setDataUrl(dataUrl);
+      });
   };
 
   useEffect(() => {

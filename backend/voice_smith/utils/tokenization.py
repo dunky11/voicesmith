@@ -2,13 +2,12 @@ import torch
 from typing import Dict, List, Tuple
 import unicodedata
 from pathlib import Path
-from voice_smith.utils.text import strip_cont_whitespaces
 from spacy.lang.en import English
 from spacy.lang.es import Spanish
 from spacy.lang.ru import Russian
 from spacy.lang.de import German
-from spacy.tokenizer import Tokenizer
-
+from voice_smith.utils.text import strip_cont_whitespaces
+from voice_smith.utils.punctuation import get_punct
 
 
 def whitespace_tokenize(text):
@@ -354,42 +353,40 @@ class WordpieceTokenizer(object):
                 output_tokens.extend(sub_tokens)
         return output_tokens
 
-def get_word_tokenizer(lang) -> Tokenizer:
+
+def _get_nlp(lang):
     if lang == "en":
         nlp = English()
     elif lang == "es":
         nlp = Spanish()
     elif lang == "de":
-        nlp = German() 
+        nlp = German()
     elif lang == "ru":
         nlp = Russian()
     else:
         raise Exception(
             f"No case selected in switch-statement, '{lang}' is not a valid case ..."
         )
-    return nlp.tokenizer
+    return nlp
 
-if __name__ == "__main__":
-    from pathlib import Path
-    from transformers.models.auto.tokenization_auto import AutoTokenizer
 
-    tokenizer_real = AutoTokenizer.from_pretrained(ASSETS_PATH / "tiny_bert")
-    tokenizer_fake = BertBasicTokenizer()
+class WordTokenizer:
+    def __init__(self, lang: str):
+        self.nlp = _get_nlp(lang)
+        self.tokenizer = self.nlp.tokenizer
 
-    for texts in [
-        ["This is a great day!", "Another one", "Wow so much!"],
-        ["Who the hell is this?", "What the hell?"],
-        ["Corona got me hard ...", "A"],
-        ["Why so serious?"],
-    ]:
+    def tokenize(self, text: str) -> List[str]:
+        tokens = self.tokenizer(text)
+        tokens = [str(token) for token in tokens]
+        return tokens
 
-        encoding_real = tokenizer_real(
-            texts, add_special_tokens=True, padding=True, return_tensors="pt"
-        )
-        encoding_fake = tokenizer_fake(texts)
-        assert torch.equal(encoding_real["input_ids"], encoding_fake["input_ids"])
-        assert torch.equal(
-            encoding_real["attention_mask"], encoding_fake["attention_mask"]
-        )
 
-    
+class SentenceTokenizer:
+    def __init__(self, lang: str):
+        self.nlp = _get_nlp(lang)
+        self.nlp.add_pipe("sentencizer", config={"punct_chars": get_punct(lang=lang)})
+
+    def tokenize(self, text: str) -> List[str]:
+        doc = self.nlp(text)
+        sents = [str(sent) for sent in doc.sents]
+        return sents

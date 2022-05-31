@@ -1,18 +1,16 @@
 import torch
-import numpy as np  
+import numpy as np
 from typing import Dict, Iterable, List, Tuple
 import numpy as np
 from torch.jit._script import ScriptModule
 from g2p_en import G2p
 import re
-from voice_smith.utils.tokenization import (
-    en_sentence_tokenize,
-)
+from spacy.tokenizer import Tokenizer
 from voice_smith.utils.text_normalization import (
     remove_cont_whitespaces,
     EnglishTextNormalizer,
 )
-from voice_smith.utils.tokenization import BertTokenizer, BasicTokenizer
+from voice_smith.utils.tokenization import WordTokenizer, SentenceTokenizer
 
 
 def strip_invalid_symbols(text: str, pad_symbol: str, valid_symbols: List[str]) -> str:
@@ -84,8 +82,7 @@ def synthesize(
     g2p: G2p,
     symbol2id: Dict[str, int],
     lexicon: Dict[str, List[str]],
-    tokenizer: BasicTokenizer,
-    bert_tokenizer: BertTokenizer,
+    tokenizer: Tokenizer,
     text_normalizer: EnglishTextNormalizer,
     acoustic_model: ScriptModule,
     style_predictor: ScriptModule,
@@ -93,10 +90,11 @@ def synthesize(
 ) -> Tuple[np.ndarray, int]:
     text = text.strip()
     text = remove_cont_whitespaces(text)
-
+    word_tokenizer = WordTokenizer(lang="en")
+    sentence_tokenizer = SentenceTokenizer(lang="en")
     if type == "Delighful_FreGANv1_v0.0":
         waves = []
-        for sentence in en_sentence_tokenize(text):
+        for sentence in sentence_tokenizer.tokenize(text):
             style_sentences = []
             symbol_ids = []
             for subsentence, context in split_context_marker(sentence):
@@ -109,7 +107,7 @@ def synthesize(
                     else:
                         subsubsentence = text_normalizer(subsubsentence)
                         style_sentences.append(text_normalizer(context))
-                        for word in tokenizer.tokenize(subsubsentence):
+                        for word in word_tokenizer.tokenize(subsubsentence):
                             word = word.lower()
                             if word.strip() == "":
                                 continue
@@ -148,7 +146,7 @@ def synthesize(
                 waves.append(wave.view(-1))
 
         wave_cat = torch.cat(waves).numpy()
-        return wave_cat, 44100
+        return wave_cat, 22050
 
     else:
         raise Exception(

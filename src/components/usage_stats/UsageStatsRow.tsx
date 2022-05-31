@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactElement } from "react";
 import { Card, Row, Col } from "antd";
 import { UsageStatsInterface } from "../../interfaces";
 import PieChart from "../charts/PieChart";
@@ -10,7 +10,7 @@ export default function UsageStatsRow({
 }: {
   usageStats: UsageStatsInterface[];
   style: {};
-}) {
+}): ReactElement {
   const steps = usageStats.map((el, index) => index);
   const cpuUsages = usageStats.map((el) => el.cpuUsage);
   const totalRams = usageStats.map((el) => el.totalRam);

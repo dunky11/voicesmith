@@ -27,6 +27,7 @@ from voice_smith.utils.tools import warnings_to_stdout
 from voice_smith.preprocessing.generate_vocab import generate_vocab
 from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
+from voice_smith.utils.punctuation import get_punct
 
 warnings_to_stdout()
 
@@ -266,16 +267,43 @@ def continue_training_run(
             elif preprocessing_stage == "gen_vocab":
                 (data_path / "data").mkdir(exist_ok=True, parents=True)
                 set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+                row = cur.execute(
+                    "SELECT device FROM training_run WHERE ID=?",
+                    (training_run_id,),
+                ).fetchone()
+                texts = []
+                for (text,) in cur.execute(
+                    """
+                    SELECT sample.text AS text FROM training_run INNER JOIN dataset ON training_run.dataset_id = dataset.ID 
+                    INNER JOIN speaker on speaker.dataset_id = dataset.ID
+                    INNER JOIN sample on sample.speaker_id = speaker.ID
+                    WHERE training_run.ID=?
+                    """,
+                    (training_run_id,),
+                ).fetchall():
+                    texts.append(text)
+
+                device = row[0]
+                device = get_device(device)
+
                 p_config, _, _ = get_acoustic_configs(
                     cur=cur, training_run_id=training_run_id
                 )
                 base_lexica_path = str(Path(data_path) / "data" / "lexicon_pre.txt")
-                generate_vocab(
-                    environment_name=environment_name,
-                    in_path=str(Path(data_path) / "raw_data"),
-                    out_path=base_lexica_path,
-                    n_workers=p_config["workers"],
+                predicted_phones = generate_vocab(
+                    texts=texts, lang="en", assets_path=assets_path, device=device
                 )
+                punct_set = get_punct(lang="en")
+                with open(base_lexica_path, "w", encoding="utf-8") as f:
+                    for word, phones in predicted_phones.items():
+                        word = word.lower().strip()
+                        phones = " ".join(phones).strip()
+                        if len(word) == 0 or len(phones) == 0:
+                            continue
+                        if word in punct_set:
+                            continue
+                        f.write(f"{word.lower()} {phones}\n")
+
                 merge_lexica(
                     base_lexica_path=base_lexica_path,
                     lang="en",
@@ -344,7 +372,8 @@ def continue_training_run(
             set_stream_location(str(data_path / "logs" / "acoustic_fine_tuning.txt"))
             print("Fine-Tuning Acoustic Model ...")
             row = cur.execute(
-                "SELECT device FROM training_run WHERE ID=?", (training_run_id,),
+                "SELECT device FROM training_run WHERE ID=?",
+                (training_run_id,),
             ).fetchone()
 
             device = row[0]
@@ -525,7 +554,8 @@ def continue_training_run(
             print("Fine-Tuning Vocoder ...")
 
             row = cur.execute(
-                "SELECT device FROM training_run WHERE ID=?", (training_run_id,),
+                "SELECT device FROM training_run WHERE ID=?",
+                (training_run_id,),
             ).fetchone()
             device = row[0]
             device = get_device(device)
@@ -631,10 +661,12 @@ def continue_training_run(
             print("Saving Model ...")
 
             checkpoint_acoustic, acoustic_steps = get_latest_checkpoint(
-                name="acoustic", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
+                name="acoustic",
+                ckpt_dir=str(data_path / "ckpt" / "acoustic"),
             )
             checkpoint_style, acoustic_steps = get_latest_checkpoint(
-                name="style", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
+                name="style",
+                ckpt_dir=str(data_path / "ckpt" / "acoustic"),
             )
             checkpoint_vocoder, vocoder_steps = get_latest_checkpoint(
                 name="vocoder", ckpt_dir=str(data_path / "ckpt" / "vocoder")
@@ -697,7 +729,8 @@ def continue_training_run(
             """
 
             row = cur.execute(
-                "SELECT name FROM training_run WHERE ID=?", (training_run_id,),
+                "SELECT name FROM training_run WHERE ID=?",
+                (training_run_id,),
             ).fetchone()
             con.commit()
 

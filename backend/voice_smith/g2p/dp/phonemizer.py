@@ -7,8 +7,7 @@ from voice_smith.g2p.dp.model.model import load_checkpoint
 from voice_smith.g2p.dp.model.predictor import Predictor
 from voice_smith.g2p.dp.utils.logging import get_logger
 from voice_smith.g2p.dp.preprocessing.text import Preprocessor
-
-DEFAULT_PUNCTUATION = "().,:?!/–"
+from voice_smith.utils.punctuation import get_punct
 
 
 class Phonemizer:
@@ -26,49 +25,10 @@ class Phonemizer:
         self.predictor = predictor
         self.lang_phoneme_dict = lang_phoneme_dict
 
-    def __call__(
-        self,
-        text: Union[str, List[str]],
-        lang: str,
-        punctuation: str = DEFAULT_PUNCTUATION,
-        expand_acronyms: bool = True,
-        batch_size: int = 8,
-    ) -> Union[str, List[str]]:
-        """
-        Phonemizes a single text or list of texts.
-
-        Args:
-          text (str): Text to phonemize as single string or list of strings.
-          lang (str): Language used for phonemization.
-          punctuation (str): Punctuation symbols by which the texts are split.
-          expand_acronyms (bool): Whether to expand an acronym, e.g. DIY -> D-I-Y.
-          batch_size (int): Batch size of model to speed up inference.
-
-        Returns:
-          Union[str, List[str]]: Phonemized text as string, or list of strings, respectively.
-        """
-
-        single_input_string = isinstance(text, str)
-        texts = [text] if single_input_string else text
-        result = self.phonemise_list(
-            texts=texts,
-            lang=lang,
-            punctuation=punctuation,
-            expand_acronyms=expand_acronyms,
-        )
-
-        phoneme_lists = ["".join(phoneme_list) for phoneme_list in result.phonemes]
-
-        if single_input_string:
-            return phoneme_lists[0]
-        else:
-            return phoneme_lists
-
     def phonemise_list(
         self,
         words: List[str],
         lang: str,
-        punctuation: str = DEFAULT_PUNCTUATION,
         batch_size: int = 8,
     ) -> PhonemizerResult:
         """Phonemizes a list of texts and returns tokenized texts,
@@ -85,7 +45,7 @@ class Phonemizer:
 
         """
 
-        punc_set = set(punctuation)
+        punc_set = get_punct(lang=lang)
         unique_words = set(words)
         # collect dictionary phonemes for words and hyphenated words
         word_phonemes = {
@@ -149,6 +109,4 @@ class Phonemizer:
             applied_phoneme_dict = checkpoint["phoneme_dict"]
         preprocessor = Preprocessor.from_config(checkpoint["config"])
         predictor = Predictor(model=model, preprocessor=preprocessor)
-        logger = get_logger(__name__)
-        model_step = checkpoint["step"]
         return Phonemizer(predictor=predictor, lang_phoneme_dict=applied_phoneme_dict)
