@@ -3,6 +3,7 @@ import { Card, Row, Col } from "antd";
 import { UsageStatsInterface } from "../../interfaces";
 import PieChart from "../charts/PieChart";
 import LineChart from "../charts/LineChart";
+import { STATISTIC_HEIGHT } from "../../config";
 
 export default function UsageStatsRow({
   usageStats,
@@ -11,7 +12,6 @@ export default function UsageStatsRow({
   usageStats: UsageStatsInterface[];
   style: {};
 }): ReactElement {
-  const steps = usageStats.map((el, index) => index);
   const cpuUsages = usageStats.map((el) => el.cpuUsage);
   const totalRams = usageStats.map((el) => el.totalRam);
   const ramsUsed = usageStats.map((el) => el.ramUsed);
@@ -48,39 +48,36 @@ export default function UsageStatsRow({
     return `Disk Usage (${diskUsed}GB / ${diskUsed + diskFree}GB)`;
   };
 
-  return <></>;
-
-  /** 
   return (
     <div style={style}>
       <Row gutter={[16, 100]}>
         <Col className="gutter-row" span={8}>
           <LineChart
             title={getCPUUsageTitle()}
-            steps={steps}
-            data={[cpuUsages]}
             labels={["CPU Usage (%)"]}
-            chartHeight={"100%"}
-            chartWidth={"100%"}
-            displayXAxis={false}
-            maxY={100}
+            chartHeight={STATISTIC_HEIGHT}
+            lines={[
+              cpuUsages.map((el, index) => ({
+                step: index,
+                value: el,
+                name: "",
+              })),
+            ]}
             withArea
           ></LineChart>
         </Col>
         <Col className="gutter-row" span={8}>
           <LineChart
             title={getRAMUsageTitle()}
-            steps={steps}
-            data={[ramsUsed]}
             labels={["RAM Usage (GB)"]}
-            chartHeight={"100%"}
-            chartWidth={"100%"}
-            displayXAxis={false}
-            maxY={
-              totalRams.length === 0
-                ? undefined
-                : totalRams[totalRams.length - 1]
-            }
+            chartHeight={STATISTIC_HEIGHT}
+            lines={[
+              ramsUsed.map((el, index) => ({
+                step: index,
+                value: el,
+                name: "",
+              })),
+            ]}
             withArea
           ></LineChart>
         </Col>
@@ -100,7 +97,6 @@ export default function UsageStatsRow({
       </Row>
     </div>
   );
-  */
 }
 
 UsageStatsRow.defaultProps = {

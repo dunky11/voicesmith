@@ -1,6 +1,7 @@
 import React, { ReactElement } from "react";
 import { Card } from "antd";
 import { createUseStyles } from "react-jss";
+import { RadialChart } from "react-vis";
 import { CHART_BG_COLORS } from "../../config";
 
 const useStyles = createUseStyles({
@@ -24,20 +25,22 @@ export default function PieChart({
   labels: string[];
   data: number[];
   title: string;
-  chartHeight: number | string;
-  chartWidth: number | string;
+  chartHeight: number;
+  chartWidth: number;
 }): ReactElement {
   const classes = useStyles();
+  const radialData = data.map((el: number, index: number) => ({
+    angle: el,
+    label: labels[index],
+  }));
   return (
     <Card title={title} className={classes.card}>
       <div className={classes.cardInner}>
-        <div
-          style={{
-            position: "relative",
-            height: chartHeight,
-            width: chartWidth,
-          }}
-        ></div>
+        <RadialChart
+          data={radialData}
+          height={chartHeight}
+          width={chartWidth}
+        ></RadialChart>
       </div>
     </Card>
   );

@@ -150,6 +150,10 @@ export default function AcousticModelFinetuning({
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
+          <UsageStatsRow
+            usageStats={usageStats}
+            style={{ marginBottom: selectedTrainingRunID === null ? 0 : 16 }}
+          ></UsageStatsRow>
           {selectedTrainingRunID !== null && (
             <AcousticStatistics
               audioStatistics={audioStatistics}
@@ -173,10 +177,3 @@ export default function AcousticModelFinetuning({
     </RunCard>
   );
 }
-
-/**
- * <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: selectedTrainingRunID === null ? 0 : 16 }}
-          ></UsageStatsRow>
- */

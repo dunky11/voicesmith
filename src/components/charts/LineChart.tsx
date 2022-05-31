@@ -1,5 +1,5 @@
 import React, { ReactElement, useState } from "react";
-import { Card, Empty, Typography } from "antd";
+import { Card, Empty } from "antd";
 import { createUseStyles } from "react-jss";
 import {
   HorizontalGridLines,
@@ -9,6 +9,7 @@ import {
   FlexibleWidthXYPlot,
   DiscreteColorLegend,
   Crosshair,
+  AreaSeries,
 } from "react-vis";
 import { CHART_BG_COLORS, CHART_BG_COLORS_FADED } from "../../config";
 import { GraphStatisticInterface } from "../../interfaces";
@@ -33,6 +34,7 @@ function LineChart({
   chartHeight,
   displayXAxis,
   roundToDecimals,
+  withArea,
 }: {
   title: string;
   xLabel: string | null;
@@ -42,6 +44,7 @@ function LineChart({
   chartHeight: number;
   displayXAxis: boolean;
   roundToDecimals: number;
+  withArea: boolean;
 }): ReactElement {
   const classes = useStyles();
   const [crosshairValues, setCrosshairValues] = useState([]);
@@ -76,9 +79,14 @@ function LineChart({
     setCrosshairIsVisible(false);
   };
 
+  const withLegend = labels.length > 1;
+
   return (
     <Card title={title} className={classes.card}>
-      <div className={classes.cardInner}>
+      <div
+        className={classes.cardInner}
+        style={{ paddingBottom: withLegend ? 40 : null }}
+      >
         {lines[0].length === 0 ? (
           <Empty
             description="No data received yet"
@@ -92,21 +100,32 @@ function LineChart({
             onMouseEnter={onMouseEnter}
           >
             <HorizontalGridLines />
-            {labels.length > 0 && (
-              <DiscreteColorLegend items={labels}></DiscreteColorLegend>
+            {withLegend && (
+              <DiscreteColorLegend
+                orientation="horizontal"
+                items={labels}
+              ></DiscreteColorLegend>
             )}
             {crosshairIsVisible && (
               <Crosshair values={crosshairValues}></Crosshair>
             )}
             {displayXAxis && <XAxis title={xLabel} orientation="bottom" />}
             <YAxis title={yLabel} />
-            {linesMapped.map((line, index) => (
-              <LineSeries
-                data={line}
-                key={index}
-                onNearestX={index === 0 ? onNearestX : null}
-              />
-            ))}
+            {linesMapped.map((line, index) =>
+              withArea ? (
+                <AreaSeries
+                  data={line}
+                  key={index}
+                  onNearestX={index === 0 ? onNearestX : null}
+                />
+              ) : (
+                <LineSeries
+                  data={line}
+                  key={index}
+                  onNearestX={index === 0 ? onNearestX : null}
+                />
+              )
+            )}
           </FlexibleWidthXYPlot>
         )}
       </div>
@@ -120,6 +139,7 @@ LineChart.defaultProps = {
   displayXAxis: true,
   labels: [],
   roundToDecimals: 4,
+  withArea: false,
 };
 
 export default LineChart;
