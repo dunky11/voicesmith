@@ -32,6 +32,7 @@ export default function PieChart({
   const radialData = data.map((el: number, index: number) => ({
     angle: el,
     label: labels[index],
+    color: CHART_BG_COLORS[index],
   }));
   return (
     <Card title={title} className={classes.card}>
@@ -40,6 +41,7 @@ export default function PieChart({
           data={radialData}
           height={chartHeight}
           width={chartWidth}
+          colorType="literal"
         ></RadialChart>
       </div>
     </Card>

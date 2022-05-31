@@ -35,6 +35,7 @@ function LineChart({
   displayXAxis,
   roundToDecimals,
   withArea,
+  animated,
 }: {
   title: string;
   xLabel: string | null;
@@ -45,6 +46,7 @@ function LineChart({
   displayXAxis: boolean;
   roundToDecimals: number;
   withArea: boolean;
+  animated: boolean;
 }): ReactElement {
   const classes = useStyles();
   const [crosshairValues, setCrosshairValues] = useState([]);
@@ -98,16 +100,23 @@ function LineChart({
             yDomain={[0, max]}
             onMouseLeave={onMouseLeave}
             onMouseEnter={onMouseEnter}
+            animation={animated}
           >
             <HorizontalGridLines />
             {withLegend && (
               <DiscreteColorLegend
                 orientation="horizontal"
-                items={labels}
+                items={labels.map((label, index) => ({
+                  title: label,
+                  color: CHART_BG_COLORS[index],
+                }))}
               ></DiscreteColorLegend>
             )}
             {crosshairIsVisible && (
-              <Crosshair values={crosshairValues}></Crosshair>
+              <Crosshair
+                values={crosshairValues}
+                style={{ line: { backgroundColor: CHART_BG_COLORS_FADED[0] } }}
+              ></Crosshair>
             )}
             {displayXAxis && <XAxis title={xLabel} orientation="bottom" />}
             <YAxis title={yLabel} />
@@ -117,12 +126,14 @@ function LineChart({
                   data={line}
                   key={index}
                   onNearestX={index === 0 ? onNearestX : null}
+                  color={CHART_BG_COLORS[index]}
                 />
               ) : (
                 <LineSeries
                   data={line}
                   key={index}
                   onNearestX={index === 0 ? onNearestX : null}
+                  color={CHART_BG_COLORS[index]}
                 />
               )
             )}
@@ -140,6 +151,7 @@ LineChart.defaultProps = {
   labels: [],
   roundToDecimals: 4,
   withArea: false,
+  animated: false,
 };
 
 export default LineChart;

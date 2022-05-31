@@ -63,6 +63,7 @@ export default function UsageStatsRow({
                 name: "",
               })),
             ]}
+            animated
             withArea
           ></LineChart>
         </Col>
@@ -78,6 +79,7 @@ export default function UsageStatsRow({
                 name: "",
               })),
             ]}
+            animated
             withArea
           ></LineChart>
         </Col>
