@@ -48,6 +48,9 @@ export default function UsageStatsRow({
     return `Disk Usage (${diskUsed}GB / ${diskUsed + diskFree}GB)`;
   };
 
+  return <></>;
+
+  /** 
   return (
     <div style={style}>
       <Row gutter={[16, 100]}>
@@ -97,6 +100,7 @@ export default function UsageStatsRow({
       </Row>
     </div>
   );
+  */
 }
 
 UsageStatsRow.defaultProps = {

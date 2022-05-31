@@ -76,6 +76,7 @@
     "@types/react-dom": "^18.0.3",
     "@types/react-highlight-words": "^0.16.4",
     "@types/react-router-dom": "^5.3.3",
+    "@types/react-vis": "^1.11.11",
     "@typescript-eslint/eslint-plugin": "^4.0.1",
     "@typescript-eslint/parser": "^4.0.1",
     "@vercel/webpack-asset-relocator-loader": "1.7.0",
@@ -95,15 +96,14 @@
   "dependencies": {
     "antd": "^4.20.2",
     "better-sqlite3": "^7.5.1",
-    "chart.js": "^3.7.1",
     "electron-is-dev": "^2.0.0",
     "electron-squirrel-startup": "^1.0.0",
     "react": "^18.1.0",
-    "react-chartjs-2": "^4.1.0",
     "react-dom": "^18.1.0",
     "react-highlight-words": "^0.18.0",
-    "react-jss": "^10.9.0",
+    "react-jss": "^10.9.0", 
     "react-router-dom": "^5.3.1",
+    "react-vis": "^1.11.7",
     "wavesurfer.js": "^6.1.0",
     "web-vitals": "^2.1.4"
   }

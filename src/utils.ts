@@ -66,45 +66,6 @@ export function useStateCallback<T>(
   return [state, setStateCallback];
 }
 
-export function getCategoricalGraphStat(
-  graphStatistics: GraphStatisticInterface[],
-  trainName: string,
-  valName: string
-) {
-  const trainStats = graphStatistics.filter((graphStatistic) => {
-    return graphStatistic.name === trainName;
-  });
-  const valStats = graphStatistics.filter((graphStatistic) => {
-    return graphStatistic.name === valName;
-  });
-  const steps = trainStats.map((el) => {
-    return el.step;
-  });
-  const trainData: Array<number> = [];
-  const valData: Array<number | null> = [];
-  let valIndex = 0;
-  trainStats.map((el, index) => {
-    trainData.push(el.value);
-    if (valIndex > valStats.length - 1) {
-      return;
-    }
-    const valSample = valStats[valIndex];
-    if (valSample.step <= el.step) {
-      valData.push(valSample.value);
-      valIndex += 1;
-    } else {
-      valData.push(null);
-    }
-  });
-  const data = [trainData, valData];
-  const labels = ["Training Loss", "Validation Loss"];
-  return {
-    steps,
-    data,
-    labels,
-  };
-}
-
 export function generateUUID(): string {
   const s4 = function () {
     return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);

@@ -7,7 +7,6 @@ import {
 } from "../../interfaces";
 import AudioStatistic from "./AudioStatistic";
 import LineChart from "../../components/charts/LineChart";
-import { getCategoricalGraphStat } from "../../utils";
 
 export default function VocoderStatistics({
   imageStatistics,
@@ -21,6 +20,7 @@ export default function VocoderStatistics({
   const learningRates = graphStatistics.filter((graphStatistic) => {
     return graphStatistic.name === "lr";
   });
+  /** 
   const totalLossGenStats = getCategoricalGraphStat(
     graphStatistics,
     "train_total_loss_gen",
@@ -73,7 +73,9 @@ export default function VocoderStatistics({
   const audiosSynthesized = audioStatistics.filter((audioStatistic) => {
     return audioStatistic.name === "audio_fake";
   });
-
+  */
+  return <></>;
+  /**
   return (
     <div>
       <Card title="Media" style={{ marginBottom: 16 }}>
@@ -218,4 +220,5 @@ export default function VocoderStatistics({
       </Card>
     </div>
   );
+  */
 }

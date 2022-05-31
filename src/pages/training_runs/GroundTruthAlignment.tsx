@@ -89,10 +89,6 @@ export default function GroundTruthAlignment({
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={0}>
               <Steps.Step
@@ -118,3 +114,10 @@ export default function GroundTruthAlignment({
     </RunCard>
   );
 }
+
+/**
+ * <UsageStatsRow
+            usageStats={usageStats}
+            style={{ marginBottom: 16 }}
+          ></UsageStatsRow>
+ */

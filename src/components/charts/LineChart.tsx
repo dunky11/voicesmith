@@ -1,9 +1,17 @@
-import React, { ReactElement } from "react";
-import { Card, Empty } from "antd";
+import React, { ReactElement, useState } from "react";
+import { Card, Empty, Typography } from "antd";
 import { createUseStyles } from "react-jss";
-import "chart.js/auto";
-import { Line } from "react-chartjs-2";
+import {
+  HorizontalGridLines,
+  XAxis,
+  YAxis,
+  LineSeries,
+  FlexibleWidthXYPlot,
+  DiscreteColorLegend,
+  Crosshair,
+} from "react-vis";
 import { CHART_BG_COLORS, CHART_BG_COLORS_FADED } from "../../config";
+import { GraphStatisticInterface } from "../../interfaces";
 
 const useStyles = createUseStyles({
   card: {
@@ -18,116 +26,100 @@ const useStyles = createUseStyles({
 
 function LineChart({
   title,
-  steps,
-  data,
+  xLabel,
+  yLabel,
+  lines,
   labels,
   chartHeight,
-  chartWidth,
-  displayLegend,
   displayXAxis,
-  displayYAxis,
-  minY,
-  maxY,
-  withArea,
-  disableAnimation,
+  roundToDecimals,
 }: {
   title: string;
-  steps: number[];
-  data: Array<number | null>[];
+  xLabel: string | null;
+  yLabel: string | null;
+  lines: Array<GraphStatisticInterface[]>;
   labels: string[];
-  chartHeight: number | string;
-  chartWidth: number | string;
-  displayLegend: boolean;
+  chartHeight: number;
   displayXAxis: boolean;
-  displayYAxis: boolean;
-  minY: number | undefined;
-  maxY: number | undefined;
-  withArea: boolean;
-  disableAnimation: boolean;
+  roundToDecimals: number;
 }): ReactElement {
   const classes = useStyles();
+  const [crosshairValues, setCrosshairValues] = useState([]);
+  const [crosshairIsVisible, setCrosshairIsVisible] = useState(false);
+
+  let max = -Infinity;
+  const linesMapped = lines.map((statistics: GraphStatisticInterface[]) =>
+    statistics.map((statistic: GraphStatisticInterface) => {
+      if (statistic.value > max) {
+        max = statistic.value;
+      }
+      return {
+        x: statistic.step,
+        y: parseFloat(statistic.value.toFixed(roundToDecimals)),
+      };
+    })
+  );
+
+  if (max === -Infinity) {
+    max = 1.0;
+  }
+
+  const onNearestX = (value: any, { index }: { index: number }) => {
+    setCrosshairValues(linesMapped.map((d) => d[index]));
+  };
+
+  const onMouseEnter = () => {
+    setCrosshairIsVisible(true);
+  };
+
+  const onMouseLeave = () => {
+    setCrosshairIsVisible(false);
+  };
+
   return (
     <Card title={title} className={classes.card}>
       <div className={classes.cardInner}>
-        <div
-          style={{
-            position: "relative",
-            height: chartHeight,
-            width: chartWidth,
-          }}
-        >
-          {steps.length === 0 ? (
-            <Empty
-              description="No data received yet"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          ) : (
-            <Line
-              data={{
-                labels: steps,
-                datasets: labels.map((label, index) => ({
-                  label: label,
-                  data: data[index],
-                  backgroundColor: CHART_BG_COLORS[index],
-                  borderColor: CHART_BG_COLORS_FADED[index],
-                  fill: withArea
-                    ? {
-                        target: "origin",
-                        above: CHART_BG_COLORS_FADED[index], // And blue below the origin
-                      }
-                    : undefined,
-                })),
-              }}
-              options={{
-                normalized: true,
-                spanGaps: true,
-                datasets: {
-                  line: {
-                    pointRadius: 0, // disable for all `'line'` datasets
-                  },
-                },
-                elements: {
-                  point: {
-                    radius: 0, // default to disabled in all datasets
-                  },
-                },
-                animation: disableAnimation ? false : undefined,
-                plugins: {
-                  legend: {
-                    display: displayLegend,
-                  },
-                },
-                scales: {
-                  x: {
-                    display: displayXAxis,
-                  },
-                  y: {
-                    display: displayYAxis,
-                    min: minY,
-                    max: maxY,
-                  },
-                },
-                interaction: {
-                  mode: "index",
-                  intersect: false,
-                },
-              }}
-            />
-          )}
-        </div>
+        {lines[0].length === 0 ? (
+          <Empty
+            description="No data received yet"
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        ) : (
+          <FlexibleWidthXYPlot
+            height={chartHeight}
+            yDomain={[0, max]}
+            onMouseLeave={onMouseLeave}
+            onMouseEnter={onMouseEnter}
+          >
+            <HorizontalGridLines />
+            {labels.length > 0 && (
+              <DiscreteColorLegend items={labels}></DiscreteColorLegend>
+            )}
+            {crosshairIsVisible && (
+              <Crosshair values={crosshairValues}></Crosshair>
+            )}
+            {displayXAxis && <XAxis title={xLabel} orientation="bottom" />}
+            <YAxis title={yLabel} />
+            {linesMapped.map((line, index) => (
+              <LineSeries
+                data={line}
+                key={index}
+                onNearestX={index === 0 ? onNearestX : null}
+              />
+            ))}
+          </FlexibleWidthXYPlot>
+        )}
       </div>
     </Card>
   );
 }
 
 LineChart.defaultProps = {
-  displayLegend: false,
+  xLabel: null,
+  yLabel: null,
   displayXAxis: true,
-  displayYAxis: true,
-  minY: 0,
-  withArea: false,
-  maxY: undefined,
-  disableAnimation: false,
+  labels: [],
+  roundToDecimals: 4,
 };
 
 export default LineChart;
