@@ -36,7 +36,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  GET_AUDIO_DATA_URL_CHANNEL.IN,
+  "get-audio-data-url",
   async (event: IpcMainInvokeEvent, path: string) => {
     const extension = path.split(".").pop();
     let base64 = fs.readFileSync(path).toString("base64");
