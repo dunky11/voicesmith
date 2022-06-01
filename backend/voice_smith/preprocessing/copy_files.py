@@ -27,36 +27,27 @@ def copy_audio_file(src: str, out_dir: str) -> None:
 
 
 def copy_files(
-    db_id: int,
-    table_name: str,
     data_path: str,
     txt_paths: List[str],
     texts: List[str],
     audio_paths: List[str],
     names: List[str],
-    get_logger: Optional[Callable],
     workers: int,
+    progress_cb: Callable[List[int], None],
     log_every: int = 200,
 ) -> None:
     assert len(txt_paths) == len(texts)
 
     def txt_callback(index: int):
         if index % log_every == 0:
-            logger = get_logger()
             progress = index / len(txt_paths) / 2
-            logger.query(
-                f"UPDATE {table_name} SET preprocessing_copying_files_progress=? WHERE id=?",
-                [progress, db_id],
-            )
+            progress_cb(progress)
 
     def audio_callback(index: int):
         if index % log_every == 0:
-            logger = get_logger()
             progress = (index / len(audio_paths) / 2) + 0.5
-            logger.query(
-                f"UPDATE {table_name} SET preprocessing_copying_files_progress=? WHERE id=?",
-                [progress, db_id],
-            )
+            progress_cb(progress)
+
 
     print("Writing text files ...")
     Parallel(n_jobs=workers)(
@@ -70,8 +61,4 @@ def copy_files(
         delayed(copy_audio_file)(file_path, Path(data_path) / "raw_data" / name)
         for file_path, name in iter_logger(zip(audio_paths, names), cb=audio_callback)
     )
-    logger = get_logger()
-    logger.query(
-        f"UPDATE {table_name} SET preprocessing_copying_files_progress=? WHERE id=?",
-        [1.0, db_id],
-    )
+    progress_cb(1.0)

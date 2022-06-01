@@ -24,7 +24,7 @@ from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchsc
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
 from voice_smith.config.symbols import symbol2id
-from voice_smith.utils.tools import warnings_to_stdout
+from voice_smith.utils.tools import warnings_to_stdout, get_workers
 from voice_smith.preprocessing.generate_vocab import generate_vocab
 from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
@@ -102,9 +102,7 @@ def get_acoustic_configs(
     p_config.min_seconds = min_seconds
     p_config.max_seconds = max_seconds
     p_config.use_audio_normalization = use_audio_normalization == 1
-    p_config.workers = (
-        max(1, mp.cpu_count() - 1) if maximum_workers == -1 else maximum_workers
-    )
+    p_config.workers = get_workers(maximum_workers)
     t_config.batch_size = batch_size
     t_config.grad_acc_step = grad_acc_step
     t_config.train_steps = acoustic_training_iterations
@@ -252,16 +250,21 @@ def continue_training_run(
                 p_config, _, _ = get_acoustic_configs(
                     cur=cur, training_run_id=training_run_id
                 )
+                def progress_cb(progress: float):
+                    logger = get_logger()
+                    logger.query(
+                        "UPDATE training_run SET preprocessing_copying_files_progress=? WHERE id=?",
+                        (progress, training_run_id),
+                    )
+
                 copy_files(
-                    db_id=training_run_id,
-                    table_name="training_run",
                     data_path=str(data_path),
                     txt_paths=txt_paths,
                     texts=texts,
                     audio_paths=audio_paths,
                     names=names,
-                    get_logger=get_logger,
                     workers=p_config.workers,
+                    progress_cb=progress_cb,
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",

@@ -246,6 +246,19 @@ const createTables = (db: any) => {
     INSERT OR IGNORE INTO settings (ID) VALUES (1) 
     `
   ).run();
+  db.prepare(
+    `
+    CREATE TABLE IF NOT EXISTS sample_splitting_run (
+        ID INTEGER PRIMARY KEY AUTOINCREMENT,
+        maximum_workers INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        stage TEXT DEFAULT "not_started",
+        text_normalization_progress FLOAT DEFAULT 0.0,
+        dataset_id INTEGER DEFAULT NULL,  
+        FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
+    ); 
+    `
+  ).run();
 };
 
 export const DB = (function () {

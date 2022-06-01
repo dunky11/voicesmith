@@ -234,6 +234,12 @@ class VocoderModelConfig:
     )
 
 
+@dataclass
+class SampleSplittingRunConfig:
+    workers: int
+    device: torch.device
+
+
 if __name__ == "__main__":
     prep_config = PreprocessingConfig()
     fine_tuning_config = AcousticFinetuningConfig()
@@ -242,4 +248,3 @@ if __name__ == "__main__":
     vocoder_pre_training_config = VocoderPretrainingConfig()
     vocoder_fine_tuning_config = VocoderFinetuningConfig()
     vocoder_model_config = VocoderModelConfig()
-

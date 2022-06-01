@@ -100,7 +100,7 @@ def ground_truth_alignment(
     device: torch.device,
     logger: Optional[Logger],
     assets_path: str,
-    training_runs_path: str,
+    training_runs_path: str, 
     log_every: int = 200,
 ):
     print("Generating ground truth aligned data ... \n")
