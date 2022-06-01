@@ -8,18 +8,21 @@ from voice_smith.model.attention import (
     ConformerMultiHeadedSelfAttention,
     StyleEmbedAttention,
 )
+from voice_smith.config.configs import PreprocessingConfig, AcousticModelConfig
 
 
 class ReferenceEncoder(nn.Module):
-    def __init__(self, preprocess_config: Dict[str, Any], model_config: Dict[str, Any]):
+    def __init__(
+        self, preprocess_config: PreprocessingConfig, model_config: AcousticModelConfig
+    ):
         super().__init__()
 
-        E = model_config["encoder"]["n_hidden"]
-        n_mel_channels = preprocess_config["mel"]["n_mel_channels"]
-        ref_enc_filters = model_config["reference_encoder"]["ref_enc_filters"]
-        ref_enc_size = model_config["reference_encoder"]["ref_enc_size"]
-        ref_enc_strides = model_config["reference_encoder"]["ref_enc_strides"]
-        ref_enc_gru_size = model_config["reference_encoder"]["ref_enc_gru_size"]
+        E = model_config.encoder.n_hidden
+        n_mel_channels = preprocess_config.stft.n_mel_channels
+        ref_enc_filters = model_config.reference_encoder.ref_enc_filters
+        ref_enc_size = model_config.reference_encoder.ref_enc_size
+        ref_enc_strides = model_config.reference_encoder.ref_enc_strides
+        ref_enc_gru_size = model_config.reference_encoder.ref_enc_gru_size
 
         self.n_mel_channels = n_mel_channels
         K = len(ref_enc_filters)
@@ -171,25 +174,25 @@ class STL(nn.Module):
 
 
 class PhonemeLevelProsodyEncoder(nn.Module):
-    def __init__(self, preprocess_config: Dict[str, Any], model_config: Dict[str, Any]):
+    def __init__(
+        self, preprocess_config: PreprocessingConfig, model_config: AcousticModelConfig
+    ):
         super().__init__()
 
-        self.E = model_config["encoder"]["n_hidden"]
-        self.d_q = self.d_k = model_config["encoder"]["n_hidden"]
-        bottleneck_size = model_config["reference_encoder"]["bottleneck_size_p"]
-        ref_enc_gru_size = model_config["reference_encoder"]["ref_enc_gru_size"]
+        self.E = model_config.encoder.n_hidden
+        self.d_q = self.d_k = model_config.encoder.n_hidden
+        bottleneck_size = model_config.reference_encoder.bottleneck_size_p
+        ref_enc_gru_size = model_config.reference_encoder.ref_enc_gru_size
 
         self.encoder = ReferenceEncoder(preprocess_config, model_config)
-        self.encoder_prj = nn.Linear(
-            ref_enc_gru_size, model_config["encoder"]["n_hidden"]
-        )
+        self.encoder_prj = nn.Linear(ref_enc_gru_size, model_config.encoder.n_hidden)
         self.attention = ConformerMultiHeadedSelfAttention(
-            d_model=model_config["encoder"]["n_hidden"],
-            num_heads=model_config["encoder"]["n_heads"],
-            dropout_p=model_config["encoder"]["p_dropout"],
+            d_model=model_config.encoder.n_hidden,
+            num_heads=model_config.encoder.n_heads,
+            dropout_p=model_config.encoder.p_dropout,
         )
         self.encoder_bottleneck = nn.Linear(
-            model_config["encoder"]["n_hidden"], bottleneck_size
+            model_config.encoder.n_hidden, bottleneck_size
         )
 
     def forward(

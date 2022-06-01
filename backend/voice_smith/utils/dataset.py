@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Tuple
 from voice_smith.utils.tokenization import BertTokenizer
 from voice_smith.utils.text import phones_to_token_ids
 from voice_smith.utils.tools import pad_1D, pad_2D
-
+from voice_smith.config.configs import PreprocessingConfig
 
 def is_phone(string: str) -> bool:
     return len(string) > 1 and string[0] == "@"
@@ -149,7 +149,7 @@ class VocoderDataset(Dataset):
         self,
         filename: str,
         fine_tuning: bool,
-        preprocess_config: Dict[str, Any],
+        preprocess_config: PreprocessingConfig,
         preprocessed_path: str,
         segment_size: int,
     ):
@@ -157,7 +157,7 @@ class VocoderDataset(Dataset):
         self.basename, self.speaker = self.process_meta(filename)
         self.fine_tuning = fine_tuning
         self.segment_size = segment_size
-        self.hop_size = preprocess_config["stft"]["hop_length"]
+        self.hop_size = preprocess_config.stft.hop_length
         self.frames_per_seg = math.ceil(self.segment_size / self.hop_size)
         with open(self.preprocessed_path / "speakers.json") as f:
             self.speaker_map = json.load(f)

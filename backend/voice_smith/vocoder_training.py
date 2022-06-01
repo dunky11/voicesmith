@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import numpy as np
+from typing import Union
 from voice_smith.utils.dataset import VocoderDataset
 from voice_smith.utils.audio import TacotronSTFT
 from voice_smith.utils.model import get_param_num, save_model, get_vocoder
@@ -16,8 +17,13 @@ from voice_smith.utils.tools import (
     iter_logger,
 )
 from voice_smith.config.preprocess_config import preprocess_config
-from voice_smith.config.vocoder_model_config import vocoder_model_config as hp
 from voice_smith.utils.metrics import calc_rmse, calc_pesq, calc_estoi
+from voice_smith.config.configs import (
+    PreprocessingConfig,
+    VocoderFinetuningConfig,
+    VocoderPretrainingConfig,
+    VocoderModelConfig,
+)
 
 torch.backends.cudnn.benchmark = True
 
@@ -48,7 +54,7 @@ def synth_iter(
 
 
 def get_data_loaders(
-    preprocess_config,
+    preprocess_config: PreprocessingConfig,
     fine_tuning,
     segment_size,
     batch_size,
@@ -182,7 +188,6 @@ def train_iter(
     return loss_means
 
 
-
 def evaluate(generator, loader, device, stft_criterion, stft_lamb):
     generator.eval()
     loss_means = {"mel_loss": 0, "pesq": 0, "estoi": 0, "rmse": 0}
@@ -250,7 +255,9 @@ def evaluate(generator, loader, device, stft_criterion, stft_lamb):
 def train_vocoder(
     db_id: int,
     training_run_name,
-    train_config,
+    train_config: Union[VocoderPretrainingConfig, VocoderFinetuningConfig],
+    model_config: VocoderModelConfig,
+    preprocess_config: PreprocessingConfig,
     logger,
     device,
     reset,
@@ -274,7 +281,7 @@ def train_vocoder(
     checkpoint_dir.mkdir(exist_ok=True, parents=True)
     print("checkpoints directory : ", checkpoint_path)
 
-    stft_lamb = train_config["stft_lamb"]
+    stft_lamb = train_config.stft_lamb
     (
         generator,
         discriminator,
@@ -290,12 +297,12 @@ def train_vocoder(
         device=device,
     )
 
-    stft_criterion = MultiResolutionSTFTLoss(device, hp["mrd"]["resolutions"])
+    stft_criterion = MultiResolutionSTFTLoss(device, model_config.mrd.resolutions)
     train_loader, validation_loader, validset = get_data_loaders(
         preprocess_config=preprocess_config,
         fine_tuning=fine_tuning,
-        segment_size=train_config["segment_size"],
-        batch_size=train_config["batch_size"],
+        segment_size=train_config.segment_size,
+        batch_size=train_config.batch_size,
         num_workers=4,
         preprocessed_path=preprocessed_path,
     )
@@ -316,13 +323,13 @@ def train_vocoder(
             loader=train_loader,
             device=device,
             stft_criterion=stft_criterion,
-            grad_accum_steps=train_config["grad_accum_steps"],
+            grad_accum_steps=train_config.grad_accum_steps,
             optim_g=optim_g,
             optim_d=optim_d,
             stft_lamb=stft_lamb,
         )
 
-        if steps % train_config["stdout_interval"] == 0:
+        if steps % train_config.stdout_interval == 0:
             assert optim_g.param_groups[0]["lr"] == optim_d.param_groups[0]["lr"]
             message = f"Train step {steps}: "
             for j, loss_name in enumerate(loss_means.keys()):
@@ -338,17 +345,17 @@ def train_vocoder(
                 )
             logger.log_graph(name="lr", value=optim_g.param_groups[0]["lr"], step=steps)
 
-        if steps % train_config["synth_interval"] == 0:
+        if steps % train_config.synth_interval == 0:
             synth_iter(
                 eval_ds=validset,
                 vocoder=generator,
                 step=steps,
-                sampling_rate=preprocess_config["sampling_rate"],
+                sampling_rate=preprocess_config.sampling_rate,
                 device=device,
                 logger=logger,
             )
 
-        if steps % train_config["validation_interval"] == 0 and steps != 0:
+        if steps % train_config.validation_interval == 0 and steps != 0:
             print("\nEvaluating ...\n")
             loss_means = evaluate(
                 generator=generator,
@@ -373,10 +380,10 @@ def train_vocoder(
         if steps % 10 == 0:
             logger.query(
                 "UPDATE training_run SET vocoder_fine_tuning_progress=? WHERE ID=?",
-                [steps / train_config["train_steps"], db_id],
+                [steps / train_config.train_steps, db_id],
             )
 
-        if steps % train_config["checkpoint_interval"] == 0 and steps != 0:
+        if steps % train_config.checkpoint_interval == 0 and steps != 0:
             save_model(
                 name="vocoder",
                 ckpt_dict={
@@ -391,7 +398,7 @@ def train_vocoder(
                 overwrite=overwrite_saves,
             )
 
-        if steps >= train_config["train_steps"]:
+        if steps >= train_config.train_steps:
             save_model(
                 name="vocoder",
                 ckpt_dict={

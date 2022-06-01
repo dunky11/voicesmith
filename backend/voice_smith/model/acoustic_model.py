@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch.nn import Parameter
 from pathlib import Path
 from typing import Dict, Any, Tuple
+from voice_smith.config.configs import PreprocessingConfig, AcousticModelConfig
 from voice_smith.model.layers import EmbeddingPadded
 from voice_smith.config.symbols import symbols, symbol2id, pad
 from voice_smith.model.layers import (
@@ -30,36 +31,36 @@ class AcousticModel(nn.Module):
     def __init__(
         self,
         data_path: str,
-        preprocess_config: Dict[str, Any],
-        model_config: Dict[str, Any],
+        preprocess_config: PreprocessingConfig,
+        model_config: AcousticModelConfig,
         fine_tuning: bool,
-        n_speakers: int
+        n_speakers: int,
     ):
         super().__init__()
         n_src_vocab = len(symbols) + 1
-        self.emb_dim = model_config["encoder"]["n_hidden"]
+        self.emb_dim = model_config.encoder.n_hidden
         self.encoder_1 = Conformer(
-            dim=model_config["encoder"]["n_hidden"],
-            n_layers=model_config["encoder"]["n_layers"] // 2,
-            n_heads=model_config["encoder"]["n_heads"],
-            embedding_dim=model_config["speaker_embed_dim"],
-            p_dropout=model_config["encoder"]["p_dropout"],
-            kernel_size_conv_mod=model_config["encoder"]["kernel_size_conv_mod"],
+            dim=model_config.encoder.n_hidden,
+            n_layers=model_config.encoder.n_layers // 2,
+            n_heads=model_config.encoder.n_heads,
+            embedding_dim=model_config.speaker_embed_dim,
+            p_dropout=model_config.encoder.p_dropout,
+            kernel_size_conv_mod=model_config.encoder.kernel_size_conv_mod,
         )
         self.encoder_2 = Conformer(
-            dim=model_config["encoder"]["n_hidden"],
-            n_layers=model_config["encoder"]["n_layers"] // 2,
-            n_heads=model_config["encoder"]["n_heads"],
-            embedding_dim=model_config["speaker_embed_dim"],
-            p_dropout=model_config["encoder"]["p_dropout"],
-            kernel_size_conv_mod=model_config["encoder"]["kernel_size_conv_mod"],
+            dim=model_config.encoder.n_hidden,
+            n_layers=model_config.encoder.n_layers // 2,
+            n_heads=model_config.encoder.n_heads,
+            embedding_dim=model_config.speaker_embed_dim,
+            p_dropout=model_config.encoder.p_dropout,
+            kernel_size_conv_mod=model_config.encoder.kernel_size_conv_mod,
         )
         self.pitch_adaptor = PitchAdaptor(model_config, data_path=data_path)
         self.length_regulator = LengthAdaptor(model_config)
         self.bert_attention = BertAttention(
-            d_model=model_config["encoder"]["n_hidden"],
-            num_heads=model_config["decoder"]["n_heads"],
-            p_dropout=model_config["decoder"]["p_dropout"],
+            d_model=model_config.encoder.n_hidden,
+            num_heads=model_config.encoder.n_heads,
+            p_dropout=model_config.encoder.p_dropout,
         )
 
         self.phoneme_prosody_encoder = PhonemeLevelProsodyEncoder(
@@ -70,36 +71,35 @@ class AcousticModel(nn.Module):
             model_config=model_config, phoneme_level=True
         )
         self.p_bottle_out = nn.Linear(
-            model_config["reference_encoder"]["bottleneck_size_p"],
-            model_config["encoder"]["n_hidden"],
+            model_config.reference_encoder.bottleneck_size_p,
+            model_config.encoder.n_hidden,
         )
         self.p_norm = nn.LayerNorm(
-            model_config["reference_encoder"]["bottleneck_size_p"],
+            model_config.reference_encoder.bottleneck_size_p,
             elementwise_affine=False,
         )
 
         self.decoder = Conformer(
-            dim=model_config["decoder"]["n_hidden"],
-            n_layers=model_config["decoder"]["n_layers"],
-            n_heads=model_config["decoder"]["n_heads"],
-            embedding_dim=model_config["speaker_embed_dim"],
-            p_dropout=model_config["decoder"]["p_dropout"],
-            kernel_size_conv_mod=model_config["decoder"]["kernel_size_conv_mod"],
+            dim=model_config.decoder.n_hidden,
+            n_layers=model_config.decoder.n_layers // 2,
+            n_heads=model_config.decoder.n_heads,
+            embedding_dim=model_config.speaker_embed_dim,
+            p_dropout=model_config.decoder.p_dropout,
+            kernel_size_conv_mod=model_config.decoder.kernel_size_conv_mod,
         )
 
         self.src_word_emb = EmbeddingPadded(
-            n_src_vocab, model_config["encoder"]["n_hidden"], padding_idx=padding_idx
+            n_src_vocab, model_config.encoder.n_hidden, padding_idx=padding_idx
         )
         self.to_mel = nn.Linear(
-            model_config["decoder"]["n_hidden"],
-            preprocess_config["mel"]["n_mel_channels"],
+            model_config.decoder.n_hidden,
+            preprocess_config.stft.n_mel_channels,
         )
-        self.proj_speaker = EmbeddingProjBlock(model_config["speaker_embed_dim"])
+        # TODO can be removed
+        self.proj_speaker = EmbeddingProjBlock(model_config.speaker_embed_dim)
 
         self.speaker_embed = Parameter(
-            tools.initialize_embeddings(
-                (n_speakers, model_config["speaker_embed_dim"])
-            )
+            tools.initialize_embeddings((n_speakers, model_config.speaker_embed_dim))
         )
 
     def get_embeddings(
@@ -394,13 +394,13 @@ class PhonemeProsodyPredictor(nn.Module):
 
     def __init__(self, model_config: Dict[str, Any], phoneme_level: bool):
         super().__init__()
-        self.d_model = model_config["encoder"]["n_hidden"]
-        kernel_size = model_config["reference_encoder"]["predictor_kernel_size"]
-        dropout = model_config["encoder"]["p_dropout"]
+        self.d_model = model_config.encoder.n_hidden
+        kernel_size = model_config.reference_encoder.predictor_kernel_size
+        dropout = model_config.encoder.p_dropout
         bottleneck_size = (
-            model_config["reference_encoder"]["bottleneck_size_p"]
+            model_config.reference_encoder.bottleneck_size_p
             if phoneme_level
-            else model_config["reference_encoder"]["bottleneck_size_u"]
+            else model_config.reference_encoder.bottleneck_size_u
         )
         self.layers = nn.ModuleList(
             [
@@ -514,17 +514,17 @@ class Embedding(nn.Module):
 
 
 class PitchAdaptor(nn.Module):
-    def __init__(self, model_config: Dict[str, Any], data_path: str):
+    def __init__(self, model_config: AcousticModelConfig, data_path: str):
         super().__init__()
         self.pitch_predictor = VariancePredictor(
-            channels_in=model_config["decoder"]["n_hidden"],
-            channels=model_config["variance_adaptor"]["n_hidden"],
+            channels_in=model_config.encoder.n_hidden,
+            channels=model_config.variance_adaptor.n_hidden,
             channels_out=1,
-            kernel_size=model_config["variance_adaptor"]["kernel_size"],
-            p_dropout=model_config["variance_adaptor"]["p_dropout"],
+            kernel_size=model_config.variance_adaptor.kernel_size,
+            p_dropout=model_config.variance_adaptor.p_dropout,
         )
 
-        n_bins = model_config["variance_adaptor"]["n_bins"]
+        n_bins = model_config.variance_adaptor.n_bins
 
         # Always use stats from preprocessing data, even in fine-tuning
         with open(Path(data_path) / "stats.json") as f:
@@ -536,7 +536,7 @@ class PitchAdaptor(nn.Module):
         self.register_buffer(
             "pitch_bins", torch.linspace(pitch_min, pitch_max, n_bins - 1)
         )
-        self.pitch_embedding = Embedding(n_bins, model_config["encoder"]["n_hidden"])
+        self.pitch_embedding = Embedding(n_bins, model_config.encoder.n_hidden)
 
     def get_pitch_embedding_train(
         self, x: torch.Tensor, target: torch.Tensor, mask: torch.Tensor
@@ -585,14 +585,14 @@ class PitchAdaptor(nn.Module):
 class LengthAdaptor(nn.Module):
     """Length Regulator"""
 
-    def __init__(self, model_config: Dict[str, Any]):
+    def __init__(self, model_config: AcousticModel):
         super().__init__()
         self.duration_predictor = VariancePredictor(
-            channels_in=model_config["encoder"]["n_hidden"],
-            channels=model_config["variance_adaptor"]["n_hidden"],
+            channels_in=model_config.encoder.n_hidden,
+            channels=model_config.variance_adaptor.n_hidden,
             channels_out=1,
-            kernel_size=model_config["variance_adaptor"]["kernel_size"],
-            p_dropout=model_config["variance_adaptor"]["p_dropout"],
+            kernel_size=model_config.variance_adaptor.kernel_size,
+            p_dropout=model_config.variance_adaptor.p_dropout,
         )
 
     def length_regulate(

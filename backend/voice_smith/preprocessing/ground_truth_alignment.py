@@ -4,11 +4,13 @@ import json
 from torch.utils.data import DataLoader
 from typing import Dict, Literal, Optional, Union
 from voice_smith.utils.model import get_acoustic_models
-from voice_smith.utils.tools import to_device, iter_logger, get_embeddings
+from voice_smith.utils.tools import to_device, iter_logger
 from voice_smith.acoustic_training import get_data_loaders
-from voice_smith.config.acoustic_model_config import acoustic_model_config
-from voice_smith.config.acoustic_fine_tuning_config import acoustic_fine_tuning_config
-from voice_smith.config.preprocess_config import preprocess_config
+from voice_smith.config.configs import (
+    AcousticModelConfig,
+    AcousticFinetuningConfig,
+    PreprocessingConfig,
+)
 from voice_smith.utils.loggers import Logger
 from voice_smith.model.acoustic_model import AcousticModel
 
@@ -120,9 +122,9 @@ def ground_truth_alignment(
         checkpoint_acoustic=checkpoint_acoustic,
         checkpoint_style=checkpoint_style,
         data_path=str(data_path),
-        train_config=acoustic_fine_tuning_config,
-        preprocess_config=preprocess_config,
-        model_config=acoustic_model_config,
+        train_config=AcousticFinetuningConfig(),
+        preprocess_config=PreprocessingConfig(),
+        model_config=AcousticModelConfig(),
         fine_tuning=True,
         device=device,
         reset=False,
@@ -162,33 +164,4 @@ def ground_truth_alignment(
     logger.query(
         f"UPDATE {table_name} SET ground_truth_alignment_progress=? WHERE id=?",
         [1.0, db_id],
-    )
-
-
-if __name__ == "__main__":
-
-    class NoLogger:
-        def query(self, a, b):
-            pass
-
-    ground_truth_alignment(
-        db_id=None,
-        table_name=None,
-        training_run_name="pretraining_two_stage_ac",
-        batch_size=16,
-        group_size=3,
-        checkpoint_acoustic=Path(".")
-        / "training_runs"
-        / "pretraining_two_stage_ac"
-        / "ckpt"
-        / "acoustic"
-        / "acoustic_500000.pt",
-        checkpoint_style=Path(".")
-        / "training_runs"
-        / "pretraining_two_stage_ac"
-        / "ckpt"
-        / "acoustic"
-        / "style_500000.pt",
-        device=torch.device("cuda"),
-        logger=NoLogger(),
     )

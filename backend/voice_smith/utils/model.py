@@ -10,17 +10,25 @@ from voice_smith.utils.optimizer import (
     ScheduledOptimFinetuning,
 )
 from voice_smith.model import acoustic_model
-from voice_smith.config.vocoder_model_config import vocoder_model_config
 from voice_smith.model.univnet import Generator as UnivNet, Discriminator
+from voice_smith.config.configs import (
+    PreprocessingConfig,
+    AcousticPretrainingConfig,
+    AcousticFinetuningConfig,
+    VocoderPretrainingConfig,
+    VocoderFinetuningConfig,
+    AcousticModelConfig,
+    VocoderModelConfig,
+)
 
 
 def get_acoustic_models(
     checkpoint_acoustic: Union[str, None],
     checkpoint_style: Union[str, None],
     data_path: str,
-    train_config: Dict[str, Any],
-    preprocess_config: Dict[str, Any],
-    model_config: Dict[str, Any],
+    train_config: Union[AcousticPretrainingConfig, AcousticFinetuningConfig],
+    preprocess_config: PreprocessingConfig,
+    model_config: AcousticModelConfig,
     fine_tuning: bool,
     device: torch.device,
     reset: bool,
@@ -41,7 +49,7 @@ def get_acoustic_models(
         fine_tuning=fine_tuning,
         n_speakers=n_speakers,
     ).to(device)
-    if checkpoint_acoustic != None:
+    if checkpoint_acoustic is not None:
         ckpt = torch.load(checkpoint_acoustic)
         if reset:
             del ckpt["gen"]["speaker_embed"]
@@ -54,7 +62,7 @@ def get_acoustic_models(
     else:
         step = 0
 
-    if checkpoint_style == None:
+    if checkpoint_style is None:
         checkpoint_style = str(Path(assets_path) / "tiny_bert.pt")
 
     style_predictor = load(checkpoint_style).to(device)
@@ -72,7 +80,7 @@ def get_acoustic_models(
             current_step=step,
         )
 
-    if checkpoint_acoustic != None and not reset:
+    if checkpoint_acoustic is not None and not reset:
         scheduled_optim.load_state_dict(ckpt["optim"])
 
     gen.train()
@@ -88,7 +96,10 @@ def get_param_num(model: torch.nn.Module) -> int:
 
 
 def get_vocoder(
-    checkpoint: str, train_config: Dict[str, Any], reset: bool, device: torch.device,
+    checkpoint: str,
+    train_config: Union[VocoderPretrainingConfig, VocoderFinetuningConfig],
+    reset: bool,
+    device: torch.device,
 ) -> Tuple[
     UnivNet,
     Discriminator,
@@ -120,13 +131,13 @@ def get_vocoder(
 
     optim_g = torch.optim.AdamW(
         generator.parameters(),
-        train_config["learning_rate"],
-        betas=(train_config["adam_b1"], train_config["adam_b2"]),
+        train_config.learning_rate,
+        betas=(train_config.adam_b1, train_config.adam_b2),
     )
     optim_d = torch.optim.AdamW(
         discriminator.parameters(),
-        train_config["learning_rate"],
-        betas=(train_config["adam_b1"], train_config["adam_b2"]),
+        train_config.learning_rate,
+        betas=(train_config.adam_b1, train_config.adam_b2),
     )
 
     if checkpoint is not None and not reset:
@@ -134,16 +145,16 @@ def get_vocoder(
         optim_d.load_state_dict(state_dict["optim_d"])
 
     scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
-        optim_g, gamma=train_config["lr_decay"], last_epoch=-1
+        optim_g, gamma=train_config.lr_decay, last_epoch=-1
     )
     scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
-        optim_d, gamma=train_config["lr_decay"], last_epoch=-1
+        optim_d, gamma=train_config.lr_decay, last_epoch=-1
     )
 
     assert len(optim_g.param_groups) == 1
-    optim_g.param_groups[0]["lr"] = train_config["learning_rate"]
+    optim_g.param_groups[0]["lr"] = train_config.learning_rate
     assert len(optim_d.param_groups) == 1
-    optim_d.param_groups[0]["lr"] = train_config["learning_rate"]
+    optim_d.param_groups[0]["lr"] = train_config.learning_rate
     for _ in range(steps // 1000):
         scheduler_g.step()
         scheduler_d.step()

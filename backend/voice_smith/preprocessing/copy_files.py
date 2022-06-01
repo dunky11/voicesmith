@@ -35,11 +35,10 @@ def copy_files(
     audio_paths: List[str],
     names: List[str],
     get_logger: Optional[Callable],
-    preprocess_config: Dict[str, Any],
+    workers: int,
     log_every: int = 200,
 ) -> None:
     assert len(txt_paths) == len(texts)
-    workers = preprocess_config["workers"]
 
     def txt_callback(index: int):
         if index % log_every == 0:

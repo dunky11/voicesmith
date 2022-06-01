@@ -3,7 +3,6 @@ from typing import Tuple
 from torch.jit._script import script, ScriptModule
 from torch.jit._trace import trace
 from voice_smith.utils.model import get_acoustic_models, get_vocoder
-from voice_smith.acoustic_training import get_embeddings
 from voice_smith.config.acoustic_model_config import acoustic_model_config
 from voice_smith.config.acoustic_fine_tuning_config import acoustic_fine_tuning_config
 from voice_smith.config.preprocess_config import preprocess_config
@@ -16,7 +15,6 @@ def acoustic_to_torchscript(
     data_path: str
 ) -> Tuple[ScriptModule, ScriptModule]:
     device = torch.device("cpu")
-    embeddings = get_embeddings(data_path=data_path, device=device)
     acoustic, style_predictor, _, _ = get_acoustic_models(
         checkpoint_acoustic=checkpoint_acoustic,
         checkpoint_style=checkpoint_style,

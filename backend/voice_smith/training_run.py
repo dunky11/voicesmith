@@ -8,16 +8,17 @@ import sqlite3
 from typing import Union, Literal, Tuple, Dict, Any
 import argparse
 import multiprocessing as mp
+from voice_smith.acoustic_training import train_acoustic
 from voice_smith.preprocessing.copy_files import copy_files
 from voice_smith.preprocessing.extract_data import extract_data
 from voice_smith.preprocessing.ground_truth_alignment import ground_truth_alignment
-from voice_smith.acoustic_training import train_acoustic
-from voice_smith.vocoder_training import train_vocoder
-from voice_smith.config.preprocess_config import preprocess_config
-from voice_smith.config.acoustic_fine_tuning_config import acoustic_fine_tuning_config
-from voice_smith.config.acoustic_model_config import acoustic_model_config
-from voice_smith.config.vocoder_model_config import vocoder_model_config
-from voice_smith.config.vocoder_fine_tuning_config import vocoder_fine_tuning_config
+from voice_smith.config.configs import (
+    PreprocessingConfig,
+    AcousticFinetuningConfig,
+    AcousticModelConfig,
+    VocoderFinetuningConfig,
+    VocoderModelConfig,
+)
 from voice_smith.utils.sql_logger import SQLLogger
 from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchscript
 from voice_smith.utils.loggers import set_stream_location
@@ -28,6 +29,7 @@ from voice_smith.preprocessing.generate_vocab import generate_vocab
 from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
 from voice_smith.utils.punctuation import get_punct
+from voice_smith.vocoder_training import train_vocoder
 
 warnings_to_stdout()
 
@@ -72,7 +74,7 @@ def get_latest_checkpoint(name: str, ckpt_dir: str):
 
 def get_acoustic_configs(
     cur: sqlite3.Cursor, training_run_id: int
-) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
+) -> Tuple[PreprocessingConfig, AcousticModelConfig, AcousticFinetuningConfig]:
     row = cur.execute(
         """
         SELECT min_seconds, max_seconds, maximum_workers, use_audio_normalization, validation_size, acoustic_learning_rate, acoustic_training_iterations, acoustic_batch_size, acoustic_grad_accum_steps, acoustic_validate_every, only_train_speaker_emb_until 
@@ -93,26 +95,28 @@ def get_acoustic_configs(
         acoustic_validate_every,
         only_train_speaker_until,
     ) = row
-    p_config = preprocess_config.copy()
-    m_config = acoustic_model_config.copy()
-    t_config = acoustic_fine_tuning_config.copy()
-    p_config["val_size"] = validation_size / 100.0
-    p_config["min_seconds"] = min_seconds
-    p_config["max_seconds"] = max_seconds
-    p_config["use_audio_normalization"] = use_audio_normalization == 1
-    p_config["workers"] = (
+    p_config: PreprocessingConfig = PreprocessingConfig()
+    m_config: AcousticModelConfig = AcousticModelConfig()
+    t_config: AcousticFinetuningConfig = AcousticFinetuningConfig()
+    p_config.val_size = validation_size / 100.0
+    p_config.min_seconds = min_seconds
+    p_config.max_seconds = max_seconds
+    p_config.use_audio_normalization = use_audio_normalization == 1
+    p_config.workers = (
         max(1, mp.cpu_count() - 1) if maximum_workers == -1 else maximum_workers
     )
-    t_config["batch_size"] = batch_size
-    t_config["grad_acc_step"] = grad_acc_step
-    t_config["step"]["train_steps"] = acoustic_training_iterations
-    t_config["optimizer"]["learning_rate"] = acoustic_learning_rate
-    t_config["step"]["val_step"] = acoustic_validate_every
-    t_config["step"]["only_train_speaker_until"] = only_train_speaker_until
+    t_config.batch_size = batch_size
+    t_config.grad_acc_step = grad_acc_step
+    t_config.train_steps = acoustic_training_iterations
+    t_config.optimizer_config.learning_rate = acoustic_learning_rate
+    t_config.val_step = acoustic_validate_every
+    t_config.only_train_speaker_until = only_train_speaker_until
     return p_config, m_config, t_config
 
 
-def get_vocoder_configs(cur: sqlite3.Cursor, training_run_id):
+def get_vocoder_configs(
+    cur: sqlite3.Cursor, training_run_id
+) -> Tuple[PreprocessingConfig, VocoderModelConfig, VocoderFinetuningConfig]:
     row = cur.execute(
         """
         SELECT vocoder_learning_rate, vocoder_training_iterations, vocoder_batch_size, vocoder_grad_accum_steps, vocoder_validate_every 
@@ -127,14 +131,14 @@ def get_vocoder_configs(cur: sqlite3.Cursor, training_run_id):
         vocoder_grad_accum_steps,
         vocoder_validate_every,
     ) = row
-    p_config = preprocess_config.copy()
-    m_config = vocoder_model_config.copy()
-    t_config = vocoder_fine_tuning_config.copy()
-    t_config["batch_size"] = vocoder_batch_size
-    t_config["grad_accum_steps"] = vocoder_grad_accum_steps
-    t_config["train_steps"] = vocoder_training_iterations
-    t_config["learning_rate"] = vocoder_learning_rate
-    t_config["validation_interval"] = vocoder_validate_every
+    p_config = PreprocessingConfig()
+    m_config = VocoderModelConfig()
+    t_config = VocoderFinetuningConfig()
+    t_config.batch_size = vocoder_batch_size
+    t_config.grad_accum_steps = vocoder_grad_accum_steps
+    t_config.train_steps = vocoder_training_iterations
+    t_config.learning_rate = vocoder_learning_rate
+    t_config.validation_interval = vocoder_validate_every
     return p_config, m_config, t_config
 
 
@@ -187,6 +191,7 @@ def continue_training_run(
             (training_run_id,),
         ).fetchone()
         stage, preprocessing_stage = row
+
         if stage == "not_started":
             cur.execute(
                 "UPDATE training_run SET stage='preprocessing' WHERE ID=?",
@@ -256,7 +261,7 @@ def continue_training_run(
                     audio_paths=audio_paths,
                     names=names,
                     get_logger=get_logger,
-                    preprocess_config=p_config,
+                    workers=p_config.workers,
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",
@@ -326,7 +331,7 @@ def continue_training_run(
                     in_path=str(Path(data_path) / "raw_data"),
                     lexicon_path=str(Path(data_path / "data" / "lexicon_post.txt")),
                     out_path=(Path(data_path) / "data" / "textgrid"),
-                    n_workers=p_config["workers"],
+                    n_workers=p_config.workers,
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_stage='extract_data', preprocessing_gen_align_progress=1.0 WHERE ID=?",
@@ -391,7 +396,7 @@ def continue_training_run(
                 stage="acoustic",
             )
 
-            target_batch_size_total = t_config["batch_size"] * t_config["grad_acc_step"]
+            target_batch_size_total = t_config.batch_size * t_config.grad_acc_step
 
             while True:
                 try:
@@ -446,10 +451,10 @@ def continue_training_run(
                 except RuntimeError as e:
                     if "out of memory" in str(e):
                         torch.cuda.empty_cache()
-                        if t_config["batch_size"] > 1:
+                        if t_config.batch_size > 1:
                             old_batch_size, old_grad_accum_steps = (
-                                t_config["batch_size"],
-                                t_config["grad_acc_step"],
+                                t_config.batch_size,
+                                t_config.grad_acc_step,
                             )
                             batch_size, grad_acc_step = recalculate_train_size(
                                 batch_size=old_batch_size,
@@ -462,12 +467,12 @@ def continue_training_run(
                                 to {batch_size} and gradient accumulation steps from {old_grad_accum_steps} to {grad_acc_step} and trying again...
                                 """
                             )
-                            t_config["batch_size"] = batch_size
-                            t_config["grad_acc_step"] = grad_acc_step
+                            t_config.batch_size = batch_size
+                            t_config.grad_acc_step = grad_acc_step
                         else:
                             raise Exception(
                                 f"""
-                                Ran out of VRAM during acoustic model training, batch size is {t_config["batch_size"]}, so cannot set it lower. 
+                                Ran out of VRAM during acoustic model training, batch size is {t_config.batch_size}, so cannot set it lower. 
                                 Please restart your PC and try again. If this error continues you may not
                                 have enough VRAM to run this software. You could try training on CPU
                                 instead of on GPU.
@@ -572,9 +577,7 @@ def continue_training_run(
                 stage="vocoder",
             )
 
-            target_batch_size_total = (
-                t_config["batch_size"] * t_config["grad_accum_steps"]
-            )
+            target_batch_size_total = t_config.batch_size * t_config.grad_accum_steps
 
             while True:
                 try:
@@ -596,7 +599,7 @@ def continue_training_run(
                     )
                     con.commit()
 
-                    if checkpoint_path == None:
+                    if checkpoint_path is None:
                         reset = True
                         checkpoint_path = str(
                             Path(assets_path) / "vocoder_pretrained.pt"
@@ -608,6 +611,8 @@ def continue_training_run(
                         db_id=training_run_id,
                         training_run_name=str(training_run_id),
                         train_config=t_config,
+                        model_config=VocoderModelConfig(),
+                        preprocess_config=p_config,
                         logger=logger,
                         device=device,
                         reset=reset,
@@ -620,10 +625,10 @@ def continue_training_run(
                 except RuntimeError as e:
                     if "out of memory" in str(e):
                         torch.cuda.empty_cache()
-                        if t_config["batch_size"] > 1:
+                        if t_config.batch_size > 1:
                             old_batch_size, old_grad_accum_steps = (
-                                t_config["batch_size"],
-                                t_config["grad_accum_steps"],
+                                t_config.batch_size,
+                                t_config.grad_accum_steps,
                             )
                             batch_size, grad_acc_step = recalculate_train_size(
                                 batch_size=old_batch_size,
@@ -636,12 +641,12 @@ def continue_training_run(
                                 to {batch_size} and gradient accumulation steps from {old_grad_accum_steps} to {grad_acc_step} and trying again...
                                 """
                             )
-                            t_config["batch_size"] = batch_size
-                            t_config["grad_accum_steps"] = grad_acc_step
+                            t_config.batch_size = batch_size
+                            t_config.grad_accum_steps = grad_acc_step
                         else:
                             raise Exception(
                                 f"""
-                                Ran out of VRAM during vocoder model training, batch size is {t_config["batch_size"]}, so cannot set it lower. 
+                                Ran out of VRAM during vocoder model training, batch size is {t_config.batch_size}, so cannot set it lower. 
                                 Please restart your PC and try again. If this error continues you may not
                                 have enough VRAM to run this software. You could try training on CPU
                                 instead of on GPU.
@@ -703,7 +708,9 @@ def continue_training_run(
                 cur=cur, training_run_id=training_run_id
             )
 
-            with open(Path(data_path) / "data" / "speakers.json", "r") as f:
+            with open(
+                Path(data_path) / "data" / "speakers.json", "r", encoding="utf-8"
+            ) as f:
                 speakers = json.load(f)
 
             # TODO place in transaction

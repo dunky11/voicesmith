@@ -6,6 +6,7 @@ import json
 import numpy as np
 import tgt
 from typing import Dict, Any, Callable, Optional, List, Tuple, Union
+from voice_smith.config.configs import PreprocessingConfig
 from voice_smith.config.symbols import symbol2id
 from voice_smith.utils.tools import (
     iter_logger,
@@ -80,6 +81,7 @@ def get_alignment(
         samples_processed += duration * hop_length
         end_time = e
 
+    # TODO alter for multilingual
     if text[-1] in [".", "?", "!"]:
         phones.append(text[-1])
         durations.append(0)
@@ -215,7 +217,9 @@ def process_utterance(
     )
 
     torch.save(
-        {"wav": torch.from_numpy(wav).float(),},
+        {
+            "wav": torch.from_numpy(wav).float(),
+        },
         Path(out_dir) / "wav" / speaker / f"{basename}.pt",
     )
 
@@ -229,36 +233,36 @@ def extract_data(
     db_id: int,
     table_name: str,
     training_run_name: str,
-    preprocess_config: Dict[str, Any],
+    preprocess_config: PreprocessingConfig,
     get_logger: Optional[Callable],
     training_runs_path: str,
     assets_path: str,
     log_every: int = 200,
     ignore_below_hz: Union[int, None] = None,
 ) -> None:
-    workers = preprocess_config["workers"]
+    workers = preprocess_config.workers
     print(f"Extracting data with {workers} workers ...")
 
     in_dir = Path(training_runs_path) / str(training_run_name) / "raw_data"
     out_dir = Path(training_runs_path) / str(training_run_name) / "data"
 
-    min_seconds = preprocess_config["min_seconds"]
-    max_seconds = preprocess_config["max_seconds"]
-    use_audio_normalization = preprocess_config["use_audio_normalization"]
+    min_seconds = preprocess_config.min_seconds
+    max_seconds = preprocess_config.max_seconds
+    use_audio_normalization = preprocess_config.use_audio_normalization
 
-    hop_length = preprocess_config["stft"]["hop_length"]
+    hop_length = preprocess_config.stft.hop_length
 
-    sampling_rate = preprocess_config["sampling_rate"]
+    sampling_rate = preprocess_config.sampling_rate
 
-    filter_length = preprocess_config["stft"]["filter_length"]
+    filter_length = preprocess_config.stft.filter_length
     to_mel = TacotronSTFT(
-        filter_length=preprocess_config["stft"]["filter_length"],
-        hop_length=preprocess_config["stft"]["hop_length"],
-        win_length=preprocess_config["stft"]["win_length"],
-        n_mel_channels=preprocess_config["mel"]["n_mel_channels"],
+        filter_length=preprocess_config.stft.filter_length,
+        hop_length=preprocess_config.stft.hop_length,
+        win_length=preprocess_config.stft.win_length,
+        n_mel_channels=preprocess_config.stft.n_mel_channels,
         sampling_rate=sampling_rate,
-        mel_fmin=preprocess_config["mel"]["mel_fmin"],
-        mel_fmax=preprocess_config["mel"]["mel_fmax"],
+        mel_fmin=preprocess_config.stft.mel_fmin,
+        mel_fmax=preprocess_config.stft.mel_fmax,
         center=False,
         device=torch.device("cpu"),
     )
@@ -369,7 +373,7 @@ def extract_data(
 
     print("Creating train and validation splits ... ")
     x_train, x_val, _, _ = stratified_train_test_split(
-        x=out, y=speaker_names, train_size=1.0 - preprocess_config["val_size"]
+        x=out, y=speaker_names, train_size=1.0 - preprocess_config.val_size
     )
 
     logger.query(

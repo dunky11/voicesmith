@@ -7,6 +7,12 @@ from itertools import chain
 import numpy as np
 from torch.jit._script import ScriptModule
 from typing import Dict, Any, Union, Tuple, Generator
+from voice_smith.config.configs import (
+    PreprocessingConfig,
+    AcousticModelConfig,
+    AcousticPretrainingConfig,
+    AcousticFinetuningConfig,
+)
 from voice_smith.utils.optimizer import (
     ScheduledOptimPretraining,
     ScheduledOptimFinetuning,
@@ -22,7 +28,6 @@ from voice_smith.utils.tools import (
     cycle_2d,
     get_mask_from_lengths,
     iter_logger,
-    get_embeddings,
 )
 from voice_smith.utils.loss import FastSpeech2LossGen
 from voice_smith.utils.dataset import AcousticDataset
@@ -49,7 +54,7 @@ def synth_iter(
     gen: AcousticModel,
     style_predictor: ScriptModule,
     step: int,
-    preprocess_config: Dict[str, Any],
+    preprocess_config: PreprocessingConfig,
     device: torch.device,
     logger: Logger,
     data_path: str,
@@ -70,9 +75,10 @@ def synth_iter(
         shuffle=True,
         collate_fn=dataset.collate_fn,
     )
-    sampling_rate = preprocess_config["sampling_rate"]
+    sampling_rate = preprocess_config.sampling_rate
     vocoder = get_infer_vocoder(
-        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"), device=device,
+        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"),
+        device=device,
     )
     with torch.no_grad():
         for batches in loader:
@@ -94,7 +100,12 @@ def synth_iter(
                 ) = batch
                 style_embeds_pred = style_predictor(token_ids, attention_masks)
                 for (speaker, text, src_len, mel, mel_len, style_pred,) in zip(
-                    speakers, texts, src_lens, mels, mel_lens, style_embeds_pred,
+                    speakers,
+                    texts,
+                    src_lens,
+                    mels,
+                    mel_lens,
+                    style_embeds_pred,
                 ):
                     y_pred = gen(
                         x=text[: src_len.item()].unsqueeze(0),
@@ -329,7 +340,7 @@ def eval_iter(
     gen: AcousticModel,
     style_predictor: ScriptModule,
     step: int,
-    train_config: Dict[str, Any],
+    train_config: Union[AcousticFinetuningConfig, AcousticPretrainingConfig],
     batch_size: int,
     loader: DataLoader,
     criterion: FastSpeech2LossGen,
@@ -419,7 +430,7 @@ def eval_iter(
                 losses["pitch_loss"] += pitch_loss * batch_size
                 len_ds += batch_size
 
-    samples_to_gen = train_config["step"]["mcd_gen_max_samples"]
+    samples_to_gen = train_config.mcd_gen_max_samples
     samples_generated = 0
     mcds = []
 
@@ -443,7 +454,12 @@ def eval_iter(
                 ) = batch
                 style_embeds_pred = style_predictor(token_ids, attention_masks)
                 for (speaker, text, src_len, mel, mel_len, style_pred,) in zip(
-                    speakers, texts, src_lens, mels, mel_lens, style_embeds_pred,
+                    speakers,
+                    texts,
+                    src_lens,
+                    mels,
+                    mel_lens,
+                    style_embeds_pred,
                 ):
                     y_pred = gen(
                         x=text[: src_len.item()].unsqueeze(0),
@@ -490,9 +506,9 @@ def eval_iter(
 def train_acoustic(
     db_id: int,
     training_run_name: str,
-    preprocess_config: Dict[str, Any],
-    model_config: Dict[str, Any],
-    train_config: Dict[str, Any],
+    preprocess_config: PreprocessingConfig,
+    model_config: AcousticModelConfig,
+    train_config: Union[AcousticFinetuningConfig, AcousticPretrainingConfig],
     logger: Logger,
     device: torch.device,
     reset: bool,
@@ -503,7 +519,7 @@ def train_acoustic(
     assets_path: str,
     training_runs_path: str,
 ) -> None:
-    batch_size = train_config["batch_size"]
+    batch_size = train_config.batch_size
     data_path = Path(training_runs_path) / str(training_run_name) / "data"
 
     # Prepare model
@@ -544,15 +560,15 @@ def train_acoustic(
     )
 
     # Training
-    grad_acc_steps = train_config["grad_acc_step"]
-    grad_clip_thresh = train_config["optimizer"]["grad_clip_thresh"]
-    log_step = train_config["step"]["log_step"]
-    save_step = train_config["step"]["save_step"]
-    synth_step = train_config["step"]["synth_step"]
-    val_step = train_config["step"]["val_step"]
-    total_step = train_config["step"]["train_steps"]
-    only_train_speaker_until = train_config["step"]["only_train_speaker_until"]
-    freeze_bert_until = 0 if fine_tuning else train_config["step"]["freeze_bert_until"]
+    grad_acc_steps = train_config.grad_acc_step
+    grad_clip_thresh = train_config.optimizer_config.grad_clip_thresh
+    log_step = train_config.log_step
+    save_step = train_config.save_step
+    synth_step = train_config.synth_step
+    val_step = train_config.val_step
+    total_step = train_config.train_steps
+    only_train_speaker_until = train_config.only_train_speaker_until
+    freeze_bert_until = 0 if fine_tuning else train_config.freeze_bert_until
     freeze_model_until = only_train_speaker_until if fine_tuning else 0
     ckpt_dir = Path(training_runs_path) / training_run_name / "ckpt" / "acoustic"
     ckpt_dir.mkdir(exist_ok=True, parents=True)
@@ -571,7 +587,9 @@ def train_acoustic(
         gen.unfreeze()
 
     for step in iter_logger(
-        iterable=range(step, total_step + 1), start=step, total=total_step,
+        iterable=range(step, total_step + 1),
+        start=step,
+        total=total_step,
     ):
         if bert_is_frozen and step >= freeze_bert_until:
             bert_is_frozen = False
@@ -651,4 +669,3 @@ def train_acoustic(
         "UPDATE training_run SET acoustic_fine_tuning_progress=? WHERE ID=?",
         [1.0, db_id],
     )
-
