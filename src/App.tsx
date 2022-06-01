@@ -152,7 +152,6 @@ export default function App(): ReactElement {
         }
       }
     );
-    console.log("PRE START");
     switch (run.type) {
       case "trainingRun":
         ipcRenderer.send(CONTINUE_TRAINING_RUN_CHANNEL.IN, run.ID);
