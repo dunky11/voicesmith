@@ -91,7 +91,11 @@ export interface ConfigurationInterface {
 
 export interface RunInterface {
   ID: number;
-  type: "trainingRun" | "dSCleaningRun" | "textNormalizationRun";
+  type:
+    | "trainingRun"
+    | "dSCleaningRun"
+    | "textNormalizationRun"
+    | "sampleSplittingRun";
 }
 
 export interface SynthConfigInterface {
@@ -299,4 +303,20 @@ export interface ContinueTrainingRunReplyInterface {
 export interface FinishCleaningRunReplyInterface {
   type: "progress" | "finished";
   progress?: number;
+}
+
+export interface SampleSplittingRunInterface {
+  ID: number;
+  maximumWorkers: number;
+  name: string;
+  stage: "not_started" | "splitting_samples" | "choose_samples" | "finished";
+  copyingFilesProgress: number;
+  genVocabProgress: number;
+  genAlignProgress: number;
+  splittinSamplesProgress: number;
+  datasetID?: number;
+}
+
+export interface SampleSplittingSampleInterface {
+  ID: number;
 }

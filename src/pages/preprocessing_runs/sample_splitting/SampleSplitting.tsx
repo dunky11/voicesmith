@@ -7,29 +7,30 @@ import {
   RunInterface,
   UsageStatsInterface,
   TextNormalizationInterface,
+  SampleSplittingRunInterface,
 } from "../../../interfaces";
 import { useInterval } from "../../../utils";
 import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
-import { FETCH_TEXT_NORMALIZATION_RUN_CHANNEL } from "../../../channels";
+import { FETCH_SAMPLES_SPLITTING_RUNS_CHANNEL } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
   [key: number]: string;
 } = {
-  0: PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.CONFIGURATION.ROUTE,
-  1: PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.RUNNING.ROUTE,
-  2: PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.CHOOSE_SAMPLES.ROUTE,
+  0: PREPROCESSING_RUNS_ROUTE.SAMPLE_SPLITTING.CONFIGURATION.ROUTE,
+  1: PREPROCESSING_RUNS_ROUTE.SAMPLE_SPLITTING.RUNNING.ROUTE,
+  2: PREPROCESSING_RUNS_ROUTE.SAMPLE_SPLITTING.CHOOSE_SAMPLES.ROUTE,
 };
 
 const stepToTitle: {
   [key: number]: string;
 } = {
   0: "Configuration",
-  1: "Normalizing Text",
+  1: "Splitting Samples",
   2: "Pick Samples",
 };
 
@@ -47,12 +48,12 @@ export default function TextNormalization({
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
-  const [run, setRun] = useState<TextNormalizationInterface | null>(null);
+  const [run, setRun] = useState<SampleSplittingRunInterface | null>(null);
   const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
 
   const selectedIsRunning =
     running !== null &&
-    running.type === "textNormalizationRun" &&
+    running.type === "sampleSplittingRun" &&
     running.ID == preprocessingRun?.ID;
 
   const fetchRun = () => {
@@ -60,12 +61,12 @@ export default function TextNormalization({
       return;
     }
     ipcRenderer
-      .invoke(FETCH_TEXT_NORMALIZATION_RUN_CHANNEL.IN, preprocessingRun.ID)
-      .then((run: TextNormalizationInterface) => {
+      .invoke(FETCH_SAMPLES_SPLITTING_RUNS_CHANNEL.IN, preprocessingRun.ID)
+      .then((run: SampleSplittingRunInterface[]) => {
         if (!isMounted.current) {
           return;
         }
-        setRun(run);
+        setRun(run[0]);
       });
   };
 
@@ -117,7 +118,9 @@ export default function TextNormalization({
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
         <Breadcrumb.Item>
-          <Link to="/preprocessing-runs/run-selection">Preprocessing Runs</Link>
+          <Link to={PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE}>
+            Preprocessing Runs
+          </Link>
         </Breadcrumb.Item>
         {preprocessingRun && (
           <Breadcrumb.Item>{preprocessingRun.name}</Breadcrumb.Item>
@@ -125,7 +128,7 @@ export default function TextNormalization({
         <Breadcrumb.Item>{stepToTitle[current]}</Breadcrumb.Item>
       </Breadcrumb>
       <Row gutter={[0, 100]}>
-        <Col className="gutter-row" span={4}>
+        <Col span={4}>
           <Card style={{ borderRight: "none", height: "100%" }}>
             <Steps
               current={current}
@@ -155,10 +158,9 @@ export default function TextNormalization({
               render={() => (
                 <Configuration
                   onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
                   running={running}
                   continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
+                  run={run}
                 />
               )}
               path={stepToPath[0]}
@@ -167,15 +169,11 @@ export default function TextNormalization({
               render={() => (
                 <Preprocessing
                   onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
+                  run={run}
                   running={running}
                   continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
                   usageStats={usageStats}
                   stopRun={stopRun}
-                  textNormalizationProgress={
-                    run === null ? 0 : run.textNormalizationProgress
-                  }
                 />
               )}
               path={stepToPath[1]}
@@ -184,10 +182,9 @@ export default function TextNormalization({
               render={() => (
                 <ChooseSamples
                   onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
+                  run={run}
                   running={running}
                   continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
                   stopRun={stopRun}
                 />
               )}

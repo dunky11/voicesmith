@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, ReactElement } from "react";
-import { Button, Form, Input, Select, notification } from "antd";
+import { Button, Form, Input, Select } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import {
@@ -7,41 +7,40 @@ import {
   RunInterface,
   TextNormalizationInterface,
   TextNormalizationConfigInterface,
+  SampleSplittingRunInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
 import { notifySave } from "../../../utils";
 import {
-  UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
+  UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL,
   FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
   FETCH_PREPROCESSING_NAMES_USED_CHANNEL,
   FETCH_DATASET_CANDIATES_CHANNEL,
+  FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL,
 } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
 
-const initialValues: TextNormalizationConfigInterface = {
+const initialValues: {
+  name: string;
+  maximumWorkers: number;
+  datasetID: number | null;
+} = {
   name: "",
+  maximumWorkers: -1,
   datasetID: null,
-  language: "en",
 };
 
 export default function Configuration({
   onStepChange,
-  selectedID,
   running,
   continueRun,
-  stage,
+  run,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "text_normalization"
-    | "choose_samples"
-    | "finished"
-    | null;
+  run: SampleSplittingRunInterface | null;
 }): ReactElement {
   const [names, setNames] = useState<string[]>([]);
   const isMounted = useRef(false);
@@ -86,20 +85,16 @@ export default function Configuration({
     };
 
     ipcRenderer
-      .invoke(
-        UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN,
-        selectedID,
-        values
-      )
-      .then((event: any) => {
+      .invoke(UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL.IN, run.ID, values)
+      .then(() => {
         if (!isMounted.current) {
           return;
         }
         if (navigateNextRef.current) {
-          if (stage === "not_started") {
+          if (run.stage === "not_started") {
             continueRun({
-              ID: selectedID,
-              type: "textNormalizationRun",
+              ID: run.ID,
+              type: "sampleSplittingRun",
             });
           }
           onStepChange(1);
@@ -115,7 +110,7 @@ export default function Configuration({
       return;
     }
     ipcRenderer
-      .invoke(FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN, selectedID)
+      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, selectedID)
       .then((configuration: TextNormalizationInterface) => {
         if (!isMounted.current) {
           return;

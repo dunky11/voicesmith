@@ -5,11 +5,11 @@ import type { FilterConfirmProps } from "antd/lib/table/interface";
 import type { ColumnType } from "antd/lib/table";
 import type { InputRef } from "antd";
 import {
-  FINISH_TEXT_NORMALIZATION_RUN_CHANNEL,
+  FINISH_SAMPLE_SPLITTING_RUN_CHANNEL,
   REMOVE_PREPROCESSING_RUN_CHANNEL,
-  FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
-  REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
-  EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL,
+  FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
+  REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
+  UPDATE_SAMPLE_SPLITTING_SAMPLE_CHANNEL,
   GET_AUDIO_DATA_URL_CHANNEL,
 } from "../../../channels";
 import { useHistory } from "react-router-dom";
@@ -17,7 +17,8 @@ import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { defaultPageOptions } from "../../../config";
 import {
   RunInterface,
-  TextNormalizationSampleInterface,
+  SampleSplittingRunInterface,
+  SampleSplittingSampleInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
@@ -25,29 +26,20 @@ const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
   onStepChange,
-  selectedID,
   running,
   continueRun,
-  stage,
+  run,
   stopRun,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "text_normalization"
-    | "choose_samples"
-    | "finished"
-    | null;
+  run: SampleSplittingRunInterface | null;
   stopRun: () => void;
 }): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
-  const [samples, setSamples] = useState<TextNormalizationSampleInterface[]>(
-    []
-  );
+  const [samples, setSamples] = useState<SampleSplittingSampleInterface[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const playFuncRef = useRef<null | (() => void)>(null);
   const [audioDataURL, setAudioDataURL] = useState<string | null>(null);
@@ -67,15 +59,11 @@ export default function ChooseSamples({
   };
 
   const onNewTextEdit = (
-    record: TextNormalizationSampleInterface,
+    record: SampleSplittingSampleInterface,
     newText: string
   ) => {
     ipcRenderer
-      .invoke(
-        EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL.IN,
-        record.ID,
-        newText
-      )
+      .invoke(UPDATE_SAMPLE_SPLITTING_SAMPLE_CHANNEL.IN, record.ID, newText)
       .then(fetchSamples);
   };
 
@@ -140,17 +128,17 @@ export default function ChooseSamples({
   });
 
   const removeSamples = (sampleIDs: number[]) => {
-    if (selectedID === null) {
+    if (run === null) {
       return;
     }
 
     ipcRenderer
-      .invoke(REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL.IN, sampleIDs)
+      .invoke(REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL.IN, sampleIDs)
       .then(fetchSamples);
   };
 
   const onSamplesRemove = () => {
-    if (selectedID === null) {
+    if (run === null) {
       return;
     }
     removeSamples(
@@ -163,12 +151,12 @@ export default function ChooseSamples({
   };
 
   const fetchSamples = () => {
-    if (selectedID === null) {
+    if (run === null) {
       return;
     }
     ipcRenderer
-      .invoke(FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL.IN, selectedID)
-      .then((samples: TextNormalizationSampleInterface[]) => {
+      .invoke(FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL.IN, run.ID)
+      .then((samples: SampleSplittingSampleInterface[]) => {
         setSamples(samples);
       });
   };
@@ -185,16 +173,16 @@ export default function ChooseSamples({
   };
 
   const onFinish = () => {
-    if (selectedID === null) {
+    if (run === null) {
       return;
     }
     ipcRenderer
-      .invoke(FINISH_TEXT_NORMALIZATION_RUN_CHANNEL.IN, selectedID)
+      .invoke(FINISH_SAMPLE_SPLITTING_RUN_CHANNEL.IN, run.ID)
       .then(() => {
         ipcRenderer
           .invoke(REMOVE_PREPROCESSING_RUN_CHANNEL.IN, {
-            ID: selectedID,
-            type: "textNormalizationRun",
+            ID: run.ID,
+            type: "sampleSplittingRun",
           })
           .then(() => {
             notification["success"]({
@@ -214,7 +202,7 @@ export default function ChooseSamples({
   });
 
   useEffect(() => {
-    if (selectedID === null) {
+    if (run === null) {
       return;
     }
     fetchSamples();
@@ -232,7 +220,7 @@ export default function ChooseSamples({
       dataIndex: "newText",
       key: "newText",
       ...getColumnSearchProps("newText"),
-      render: (text: any, record: TextNormalizationSampleInterface) => (
+      render: (text: any, record: SampleSplittingSampleInterface) => (
         <Typography.Text
           editable={{
             tooltip: false,
@@ -254,7 +242,7 @@ export default function ChooseSamples({
     {
       title: "",
       key: "action",
-      render: (text: any, record: TextNormalizationSampleInterface) => (
+      render: (text: any, record: SampleSplittingSampleInterface) => (
         <Space size="middle">
           <a
             onClick={() => {
@@ -271,11 +259,11 @@ export default function ChooseSamples({
   return (
     <>
       <RunCard
-        title={`The following samples will be normalized ... (${samples.length} total)`}
+        title={`The following samples will be split ... (${samples.length} total)`}
         buttons={[
           <Button onClick={onBackClick}>Back</Button>,
           <Button onClick={onFinish} type="primary">
-            Apply Text Normalization
+            Apply Sample Splitting
           </Button>,
         ]}
       >
@@ -285,7 +273,7 @@ export default function ChooseSamples({
               disabled={selectedRowKeys.length === 0}
               onClick={onSamplesRemove}
             >
-              Do not normalize selected
+              Do not split selected
             </Button>
           </div>
           <Table
@@ -301,7 +289,7 @@ export default function ChooseSamples({
               },
             }}
             dataSource={samples.map(
-              (sample: TextNormalizationSampleInterface) => ({
+              (sample: SampleSplittingSampleInterface) => ({
                 ...sample,
                 key: sample.ID,
               })

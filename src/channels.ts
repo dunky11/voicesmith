@@ -263,3 +263,31 @@ export const FINISH_TEXT_NORMALIZATION_RUN_CHANNEL = {
 export const STOP_RUN_CHANNEL = {
   IN: "stop-run",
 };
+
+export const CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL = {
+  IN: "continue-sample-splitting-run",
+};
+
+export const UPDATE_SAMPLE_SPLITTING_SAMPLE_CHANNEL = {
+  IN: "update-sample-splitting-sample",
+};
+
+export const FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL = {
+  IN: "fetch-sample-splitting-samples",
+};
+
+export const REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL = {
+  IN: "remove-sample-splitting-sample",
+};
+
+export const FINISH_SAMPLE_SPLITTING_RUN_CHANNEL = {
+  IN: "finish-sample-splitting-run",
+};
+
+export const FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL = {
+  IN: "fetch-sample-splitting-runs",
+};
+
+export const UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL = {
+  IN: "update-sample-splitting-run",
+};

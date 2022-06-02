@@ -63,6 +63,18 @@ export const PREPROCESSING_RUNS_ROUTE = {
     },
   },
   RUN_SELECTION: { ROUTE: "/preprocessing-runs/run-selection" },
+  SAMPLE_SPLITTING: {
+    ROUTE: "/preprocessing-runs/sample-splitting",
+    CONFIGURATION: {
+      ROUTE: "/preprocessing-runs/sample-splitting/configuration",
+    },
+    RUNNING: {
+      ROUTE: "/preprocessing-runs/sample-splitting/running",
+    },
+    CHOOSE_SAMPLES: {
+      ROUTE: "/preprocessing-runs/sample-splitting/choose-samples",
+    },
+  },
 };
 
 export const SETTINGS_ROUTE = {
