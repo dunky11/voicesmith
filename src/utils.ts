@@ -107,7 +107,11 @@ export function getStageIsRunning(
   pageStates: string[],
   runningStage: string | null,
   running: RunInterface | null,
-  type: "trainingRun" | "dSCleaning" | "textNormalizationRun",
+  type:
+    | "trainingRun"
+    | "dSCleaning"
+    | "textNormalizationRun"
+    | "sampleSplittingRun",
   ID: number | null
 ): boolean {
   return (
@@ -122,7 +126,11 @@ export function getWouldContinueRun(
   pageStates: string[],
   runningStage: string | null,
   running: RunInterface | null,
-  type: "trainingRun" | "dSCleaning" | "textNormalizationRun",
+  type:
+    | "trainingRun"
+    | "dSCleaning"
+    | "textNormalizationRun"
+    | "sampleSplittingRun",
   ID: number | null
 ): boolean {
   return (

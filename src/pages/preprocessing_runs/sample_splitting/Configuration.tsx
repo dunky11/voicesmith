@@ -13,7 +13,6 @@ import RunCard from "../../../components/cards/RunCard";
 import { notifySave } from "../../../utils";
 import {
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL,
-  FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
   FETCH_PREPROCESSING_NAMES_USED_CHANNEL,
   FETCH_DATASET_CANDIATES_CHANNEL,
   FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL,
@@ -106,11 +105,11 @@ export default function Configuration({
   };
 
   const fetchConfiguration = () => {
-    if (selectedID === null) {
+    if (run === null) {
       return;
     }
     ipcRenderer
-      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, selectedID)
+      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, run.ID)
       .then((configuration: TextNormalizationInterface) => {
         if (!isMounted.current) {
           return;
@@ -123,11 +122,11 @@ export default function Configuration({
   };
 
   const fetchNamesInUse = () => {
-    if (selectedID === null) {
+    if (run === null) {
       return;
     }
     ipcRenderer
-      .invoke(FETCH_PREPROCESSING_NAMES_USED_CHANNEL.IN, selectedID)
+      .invoke(FETCH_PREPROCESSING_NAMES_USED_CHANNEL.IN, run.ID)
       .then((names: string[]) => {
         if (!isMounted.current) {
           return;
@@ -149,7 +148,7 @@ export default function Configuration({
   };
 
   const getNextButtonText = () => {
-    if (selectedID === null || stage === "not_started") {
+    if (run === null || run.stage === "not_started") {
       return "Save and Start Run";
     }
     return "Save and Next";
@@ -163,19 +162,19 @@ export default function Configuration({
   }, []);
 
   useEffect(() => {
-    if (selectedID === null) {
+    if (run === null) {
       return;
     }
     fetchNamesInUse();
     fetchDatasets();
     fetchConfiguration();
-  }, [selectedID]);
+  }, [run]);
 
   const disableNameEdit = !configIsLoaded || !datasetsIsLoaded;
-  const disableElseEdit = disableNameEdit || stage !== "not_started";
+  const disableElseEdit = disableNameEdit || run.stage !== "not_started";
 
   const disableNext = !configIsLoaded || !datasetsIsLoaded;
-  const disableDefaults = disableNext || stage != "not_started";
+  const disableDefaults = disableNext || run.stage != "not_started";
 
   return (
     <RunCard
@@ -220,6 +219,18 @@ export default function Configuration({
         >
           <Input disabled={disableNameEdit}></Input>
         </Form.Item>
+        <Form.Item label="Maximum Number of Workers" name="maximumWorkers">
+          <Select style={{ width: 200 }}>
+            <Select.Option value={-1}>Auto</Select.Option>
+            {Array.from(Array(64 + 1).keys())
+              .slice(1)
+              .map((el) => (
+                <Select.Option key={el} value={el}>
+                  {el}
+                </Select.Option>
+              ))}
+          </Select>
+        </Form.Item>
         <Form.Item
           label="Dataset"
           name="datasetID"
@@ -244,35 +255,6 @@ export default function Configuration({
                 {dataset.name}
               </Select.Option>
             ))}
-          </Select>
-        </Form.Item>
-        <Form.Item
-          label="Language"
-          name="language"
-          rules={[
-            () => ({
-              validator(_, value: string) {
-                if (value === null) {
-                  return Promise.reject(new Error("Please select a language"));
-                }
-                return Promise.resolve();
-              },
-            }),
-          ]}
-        >
-          <Select disabled={disableElseEdit}>
-            <Select.Option value="en" key="en">
-              English
-            </Select.Option>
-            <Select.Option value="es" key="es">
-              Spanish
-            </Select.Option>
-            <Select.Option value="de" key="de">
-              German
-            </Select.Option>
-            <Select.Option value="ru" key="ru">
-              Russian
-            </Select.Option>
           </Select>
         </Form.Item>
       </Form>

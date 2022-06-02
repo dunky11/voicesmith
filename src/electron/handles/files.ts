@@ -22,6 +22,7 @@ import {
   getModelsDir,
   getCleaningRunsDir,
   getTextNormalizationRunsDir,
+  getSampleSplittinRunsDir,
 } from "../utils/globals";
 import { DB } from "../utils/db";
 
@@ -66,6 +67,9 @@ ipcMain.handle(
         break;
       case "textNormalizationRun":
         dir = getTextNormalizationRunsDir();
+        break;
+      case "sampleSplittinRun":
+        dir = getSampleSplittinRunsDir();
         break;
       default:
         throw new Error(

@@ -205,6 +205,9 @@ def continue_sample_splitting_run(
             )
             con.commit()
 
+        elif stage == "creating_splits":
+            pass
+
         elif stage == "choose_samples":
             pass
 

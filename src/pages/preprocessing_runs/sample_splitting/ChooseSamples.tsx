@@ -216,7 +216,7 @@ export default function ChooseSamples({
       ...getColumnSearchProps("oldText"),
     },
     {
-      title: "New Text",
+      title: "Sample Name",
       dataIndex: "newText",
       key: "newText",
       ...getColumnSearchProps("newText"),
@@ -229,15 +229,15 @@ export default function ChooseSamples({
             },
           }}
         >
-          {record.newText}
+          {record.text}
         </Typography.Text>
       ),
     },
     {
-      title: "Reason",
-      dataIndex: "reason",
-      key: "reason",
-      ...getColumnSearchProps("reason"),
+      title: "Speaker",
+      dataIndex: "speakerName",
+      key: "speakerName",
+      ...getColumnSearchProps("speakerName"),
     },
     {
       title: "",

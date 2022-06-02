@@ -6,7 +6,6 @@ import {
   PreprocessingRunInterface,
   RunInterface,
   UsageStatsInterface,
-  TextNormalizationInterface,
   SampleSplittingRunInterface,
 } from "../../../interfaces";
 import { useInterval } from "../../../utils";
@@ -14,7 +13,7 @@ import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
-import { FETCH_SAMPLES_SPLITTING_RUNS_CHANNEL } from "../../../channels";
+import { FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
 
@@ -61,7 +60,7 @@ export default function TextNormalization({
       return;
     }
     ipcRenderer
-      .invoke(FETCH_SAMPLES_SPLITTING_RUNS_CHANNEL.IN, preprocessingRun.ID)
+      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, preprocessingRun.ID)
       .then((run: SampleSplittingRunInterface[]) => {
         if (!isMounted.current) {
           return;
@@ -145,7 +144,13 @@ export default function TextNormalization({
               <Steps.Step
                 disabled={
                   run === null ||
-                  ["not_started", "text_normalization"].includes(run.stage)
+                  [
+                    "not_started",
+                    "copying_files",
+                    "gen_vocab",
+                    "gen_alignments",
+                    "creating_splits",
+                  ].includes(run.stage)
                 }
                 title={stepToTitle[2]}
               />

@@ -256,7 +256,7 @@ const createTables = (db: any) => {
         copying_files_progress FLOAT NOT NULL DEFAULT 0.0,
         gen_vocab_progress FLOAT NOT NULL DEFAULT 0.0,
         gen_align_progress FLOAT NOT NULL DEFAULT 0.0,
-        splitting_samples_progress FLOAT NOT NULL DEFAULT 0.0,
+        creating_splits FLOAT NOT NULL DEFAULT 0.0,
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
     ); 

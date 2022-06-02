@@ -12,7 +12,12 @@ export default function LogPrinter({
 }: {
   name: string | null;
   logFileName: string;
-  type: "trainingRun" | "model" | "cleaningRun" | "textNormalizationRun";
+  type:
+    | "trainingRun"
+    | "model"
+    | "cleaningRun"
+    | "textNormalizationRun"
+    | "sampleSplittingRun";
 }): ReactElement {
   const [logLines, setLogLines] = useState<string[]>([]);
   const isMounted = useRef(false);

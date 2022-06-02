@@ -309,14 +309,31 @@ export interface SampleSplittingRunInterface {
   ID: number;
   maximumWorkers: number;
   name: string;
-  stage: "not_started" | "splitting_samples" | "choose_samples" | "finished";
+  stage:
+    | "not_started"
+    | "copying_files"
+    | "gen_vocab"
+    | "gen_alignments"
+    | "creating_splits"
+    | "choose_samples"
+    | "finished";
   copyingFilesProgress: number;
   genVocabProgress: number;
   genAlignProgress: number;
-  splittinSamplesProgress: number;
+  creatingSplitsProgress: number;
   datasetID?: number;
+}
+
+export interface SampleSplittingSplitIntoInterface {
+  ID: number;
+  text: string;
+  audioPath: string;
 }
 
 export interface SampleSplittingSampleInterface {
   ID: number;
+  speakerName: string;
+  text: string;
+  audioPath: string;
+  splitInto: SampleSplittingSplitIntoInterface[];
 }
