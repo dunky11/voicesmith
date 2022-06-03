@@ -9,6 +9,7 @@ import time
 import psutil
 import shutil
 import warnings, sys
+import multiprocessing as mp
 
 
 def warnings_to_stdout():
@@ -341,4 +342,4 @@ def get_device(device: Union[Literal["CPU"], Literal["GPU"]]) -> torch.device:
 
 
 def get_workers(workers: Union[int, None]) -> int:
-    return max(1, mp.cpu_count() - 1) if maximum_workers == -1 else maximum_workers
+    return max(1, mp.cpu_count() - 1) if workers == -1 else workers

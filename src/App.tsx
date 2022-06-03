@@ -27,6 +27,7 @@ import {
 import Settings from "./pages/settings/Settings";
 import {
   CONTINUE_CLEANING_RUN_CHANNEL,
+  CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL,
   CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL,
   CONTINUE_TRAINING_RUN_CHANNEL,
   GET_APP_INFO_CHANNEL,
@@ -161,6 +162,9 @@ export default function App(): ReactElement {
         break;
       case "textNormalizationRun":
         ipcRenderer.send(CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL.IN, run.ID);
+        break;
+      case "sampleSplittingRun":
+        ipcRenderer.send(CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL.IN, run.ID);
         break;
       default:
         throw new Error(

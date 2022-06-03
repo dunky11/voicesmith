@@ -22,7 +22,7 @@ import {
   getModelsDir,
   getCleaningRunsDir,
   getTextNormalizationRunsDir,
-  getSampleSplittinRunsDir,
+  getSampleSplittingRunsDir,
 } from "../utils/globals";
 import { DB } from "../utils/db";
 
@@ -37,7 +37,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "get-audio-data-url",
+  GET_AUDIO_DATA_URL_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, path: string) => {
     const extension = path.split(".").pop();
     let base64 = fs.readFileSync(path).toString("base64");
@@ -68,8 +68,8 @@ ipcMain.handle(
       case "textNormalizationRun":
         dir = getTextNormalizationRunsDir();
         break;
-      case "sampleSplittinRun":
-        dir = getSampleSplittinRunsDir();
+      case "sampleSplittingRun":
+        dir = getSampleSplittingRunsDir();
         break;
       default:
         throw new Error(

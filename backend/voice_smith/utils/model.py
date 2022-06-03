@@ -98,6 +98,8 @@ def get_param_num(model: torch.nn.Module) -> int:
 def get_vocoder(
     checkpoint: str,
     train_config: Union[VocoderPretrainingConfig, VocoderFinetuningConfig],
+    model_config: VocoderModelConfig,
+    preprocess_config: PreprocessingConfig,
     reset: bool,
     device: torch.device,
 ) -> Tuple[
@@ -110,8 +112,8 @@ def get_vocoder(
     torch.optim.lr_scheduler.ExponentialLR,
 ]:
 
-    generator = UnivNet()
-    discriminator = Discriminator()
+    generator = UnivNet(model_config=model_config, preprocess_config=preprocess_config)
+    discriminator = Discriminator(model_config=model_config)
 
     if checkpoint is None:
         state_dict = None
@@ -163,7 +165,11 @@ def get_vocoder(
 
 
 def get_infer_vocoder(checkpoint: str, device: torch.device) -> UnivNet:
-    generator = UnivNet().to(device)
+    model_config = VocoderModelConfig()
+    preprocess_config = PreprocessingConfig()
+    generator = UnivNet(
+        model_config=model_config, preprocess_config=preprocess_config
+    ).to(device)
     state_dict = torch.load(checkpoint, map_location=device)
     generator.load_state_dict(state_dict["generator"])
     generator.eval(True)

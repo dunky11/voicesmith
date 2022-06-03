@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, ReactElement } from "react";
 import {
-  Card,
   Button,
   Form,
   Input,
@@ -8,28 +7,24 @@ import {
   InputNumber,
   Checkbox,
   Select,
-  Alert,
-  Typography,
 } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
-import {
-  ConfigurationInterface,
-  DatasetInterface,
-  RunInterface,
-} from "../../interfaces";
-import { SERVER_URL, trainingRunInitialValues } from "../../config";
+import { ConfigurationInterface, RunInterface } from "../../interfaces";
+import { trainingRunInitialValues } from "../../config";
 import { notifySave } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
+import DeviceInput from "../../components/inputs/DeviceInput";
+import DatasetInput from "../../components/inputs/DatasetInput";
+import NameInput from "../../components/inputs/NameInput";
 import {
   CREATE_TRAINING_RUN_CHANNEL,
   UPDATE_TRAINING_RUN_CONFIG_CHANNEL,
   FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL,
   FETCH_TRAINING_RUN_NAMES_CHANNEL,
-  FETCH_DATASET_CANDIATES_CHANNEL,
 } from "../../channels";
 import { TRAINING_RUNS_ROUTE } from "../../routes";
-const { ipcRenderer, shell } = window.require("electron");
+const { ipcRenderer } = window.require("electron");
 
 export default function Configuration({
   onStepChange,
@@ -54,16 +49,10 @@ export default function Configuration({
     | "finished"
     | null;
 }): ReactElement {
-  const [modelNames, setModelNames] = useState<string[]>([]);
   const isMounted = useRef(false);
-  const [datasetsIsLoaded, setDatastsIsLoaded] = useState(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
-  const [cudaStateIsLoaded, setCudaStateIsLoaded] = useState(false);
-  const [cudaIsAvailable, setCudaIsAvailable] = useState(false);
-  const [datasets, setDatasets] = useState<DatasetInterface[]>([]);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
-  const fetchConfigRef = useRef(false);
   const formRef = useRef<FormInstance | null>();
 
   const onBackClick = () => {
@@ -120,7 +109,6 @@ export default function Configuration({
     const values = {
       ...trainingRunInitialValues,
       name: formRef.current.getFieldValue("name"),
-      device: cudaIsAvailable ? "GPU" : "CPU",
     };
     formRef.current?.setFieldsValue(values);
   };
@@ -137,7 +125,6 @@ export default function Configuration({
         }
         const config = {
           ...configuration,
-          device: cudaIsAvailable ? configuration.device : "CPU",
         };
 
         if (!configIsLoaded) {
@@ -147,66 +134,26 @@ export default function Configuration({
       });
   };
 
-  const fetchNamesInUse = () => {
-    ipcRenderer
-      .invoke(FETCH_TRAINING_RUN_NAMES_CHANNEL.IN, selectedTrainingRunID)
-      .then((names: string[]) => {
-        if (!isMounted.current) {
-          return;
-        }
-        setModelNames(names);
-      });
+  const fetchNames = async (): Promise<string[]> => {
+    return new Promise((resolve) => {
+      ipcRenderer
+        .invoke(FETCH_TRAINING_RUN_NAMES_CHANNEL.IN, selectedTrainingRunID)
+        .then((names: string[]) => {
+          resolve(names);
+        });
+    });
   };
-
-  const fetchDatasets = () => {
-    ipcRenderer
-      .invoke(FETCH_DATASET_CANDIATES_CHANNEL.IN)
-      .then((datasets: DatasetInterface[]) => {
-        if (!isMounted.current) {
-          return;
-        }
-        setDatasets(datasets);
-        setDatastsIsLoaded(true);
-      });
-  };
-
-  const fetchIsCudaAvailable = () => {
-    const ajax = new XMLHttpRequest();
-    ajax.open("GET", `${SERVER_URL}/is-cuda-available`);
-    ajax.onload = () => {
-      if (!isMounted.current) {
-        return;
-      }
-      const response = JSON.parse(ajax.responseText);
-      if (response.available) {
-        fetchConfigRef.current = true;
-        setCudaIsAvailable(true);
-      } else {
-        fetchConfiguration();
-      }
-      setCudaStateIsLoaded(true);
-    };
-    ajax.send();
-  };
-
-  useEffect(() => {
-    if (fetchConfigRef.current) {
-      fetchConfiguration();
-    }
-  }, [cudaIsAvailable]);
 
   useEffect(() => {
     isMounted.current = true;
-    fetchNamesInUse();
-    fetchDatasets();
-    fetchIsCudaAvailable();
+    fetchConfiguration();
+
     return () => {
       isMounted.current = false;
     };
   }, []);
 
-  const disableEdit =
-    !cudaStateIsLoaded || !configIsLoaded || !datasetsIsLoaded;
+  const disableEdit = !configIsLoaded;
 
   const disableNext = disableEdit;
   const disableDefaults =
@@ -238,84 +185,9 @@ export default function Configuration({
         onFinish={onFinish}
         initialValues={trainingRunInitialValues}
       >
-        <Form.Item
-          label="Model Name"
-          name="name"
-          rules={[
-            () => ({
-              validator(_, value: string) {
-                if (value.trim() === "") {
-                  return Promise.reject(new Error("Please enter a name"));
-                }
-                if (modelNames.includes(value)) {
-                  return Promise.reject(
-                    new Error("This name is already in use")
-                  );
-                }
-                return Promise.resolve();
-              },
-            }),
-          ]}
-        >
-          <Input disabled={disableEdit}></Input>
-        </Form.Item>
-        <Form.Item
-          rules={[
-            () => ({
-              validator(_, value: string) {
-                if (value === null) {
-                  return Promise.reject(new Error("Please select a dataset"));
-                }
-                return Promise.resolve();
-              },
-            }),
-          ]}
-          label="Dataset"
-          name="datasetID"
-        >
-          <Select disabled={disableEdit}>
-            {datasets.map((dataset: DatasetInterface) => (
-              <Select.Option
-                value={dataset.ID}
-                key={dataset.ID}
-                disabled={dataset.referencedBy !== null}
-              >
-                {dataset.name}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-        <Form.Item label="Train On" name="device">
-          <Select disabled={disableEdit}>
-            <Select.Option value="CPU">CPU</Select.Option>
-            <Select.Option value="GPU" disabled={!cudaIsAvailable}>
-              GPU
-            </Select.Option>
-          </Select>
-        </Form.Item>
-        {!cudaIsAvailable && (
-          <Alert
-            style={{ marginBottom: 24 }}
-            message={
-              <Typography.Text>
-                No CUDA supported GPU was detected. While you can train on CPU,
-                training on GPU is highly recommended since training on CPU will
-                most likely take days. If you want to train on GPU{" "}
-                <a
-                  onClick={() => {
-                    shell.openExternal(
-                      "https://developer.nvidia.com/cuda-gpus"
-                    );
-                  }}
-                >
-                  please make sure it has CUDA support
-                </a>{" "}
-                and it&apos;s driver is up to date. Afterwards restart the app.
-              </Typography.Text>
-            }
-            type="warning"
-          />
-        )}
+        <NameInput fetchNames={fetchNames} disabled={disableEdit} />
+        <DatasetInput disabled={disableEdit} />
+        <DeviceInput disabled={disableEdit} />
         <Collapse style={{ width: "100%" }}>
           <Collapse.Panel header="Preprocessing" key="preprocessing">
             <Form.Item label="Validation Size" name="validationSize">

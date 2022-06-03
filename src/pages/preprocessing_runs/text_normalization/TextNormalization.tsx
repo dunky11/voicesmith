@@ -149,7 +149,7 @@ export default function TextNormalization({
             </Steps>
           </Card>
         </Col>
-        <Col className="gutter-row" span={20}>
+        <Col span={20}>
           <Switch>
             <Route
               render={() => (

@@ -33,13 +33,13 @@ const stepToTitle: {
   2: "Pick Samples",
 };
 
-export default function TextNormalization({
+export default function SampleSplitting({
   preprocessingRun,
   running,
   continueRun,
   stopRun,
 }: {
-  preprocessingRun: PreprocessingRunInterface | null;
+  preprocessingRun: PreprocessingRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
@@ -53,12 +53,9 @@ export default function TextNormalization({
   const selectedIsRunning =
     running !== null &&
     running.type === "sampleSplittingRun" &&
-    running.ID == preprocessingRun?.ID;
+    running.ID == preprocessingRun.ID;
 
   const fetchRun = () => {
-    if (preprocessingRun === null) {
-      return;
-    }
     ipcRenderer
       .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, preprocessingRun.ID)
       .then((run: SampleSplittingRunInterface[]) => {
@@ -121,9 +118,7 @@ export default function TextNormalization({
             Preprocessing Runs
           </Link>
         </Breadcrumb.Item>
-        {preprocessingRun && (
-          <Breadcrumb.Item>{preprocessingRun.name}</Breadcrumb.Item>
-        )}
+        <Breadcrumb.Item>{preprocessingRun.name}</Breadcrumb.Item>
         <Breadcrumb.Item>{stepToTitle[current]}</Breadcrumb.Item>
       </Breadcrumb>
       <Row gutter={[0, 100]}>
@@ -160,39 +155,51 @@ export default function TextNormalization({
         <Col className="gutter-row" span={20}>
           <Switch>
             <Route
-              render={() => (
-                <Configuration
-                  onStepChange={onStepChange}
-                  running={running}
-                  continueRun={continueRun}
-                  run={run}
-                />
-              )}
+              render={() =>
+                run === null ? (
+                  <></>
+                ) : (
+                  <Configuration
+                    onStepChange={onStepChange}
+                    running={running}
+                    continueRun={continueRun}
+                    run={run}
+                  />
+                )
+              }
               path={stepToPath[0]}
             ></Route>
             <Route
-              render={() => (
-                <Preprocessing
-                  onStepChange={onStepChange}
-                  run={run}
-                  running={running}
-                  continueRun={continueRun}
-                  usageStats={usageStats}
-                  stopRun={stopRun}
-                />
-              )}
+              render={() =>
+                run === null ? (
+                  <></>
+                ) : (
+                  <Preprocessing
+                    onStepChange={onStepChange}
+                    run={run}
+                    running={running}
+                    continueRun={continueRun}
+                    usageStats={usageStats}
+                    stopRun={stopRun}
+                  />
+                )
+              }
               path={stepToPath[1]}
             ></Route>
             <Route
-              render={() => (
-                <ChooseSamples
-                  onStepChange={onStepChange}
-                  run={run}
-                  running={running}
-                  continueRun={continueRun}
-                  stopRun={stopRun}
-                />
-              )}
+              render={() =>
+                run === null ? (
+                  <></>
+                ) : (
+                  <ChooseSamples
+                    onStepChange={onStepChange}
+                    run={run}
+                    running={running}
+                    continueRun={continueRun}
+                    stopRun={stopRun}
+                  />
+                )
+              }
               path={stepToPath[2]}
             ></Route>
           </Switch>

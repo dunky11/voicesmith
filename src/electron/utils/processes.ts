@@ -40,6 +40,7 @@ export const startRun = (
   args: string[],
   logErr: boolean
 ): void => {
+  console.log(scriptName, ...args);
   pyProc = spawnCondaShell([scriptName, ...args].join(" "));
 
   pyProc.on("exit", () => {

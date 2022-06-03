@@ -16,7 +16,6 @@ from voice_smith.utils.tools import (
     cycle,
     iter_logger,
 )
-from voice_smith.config.preprocess_config import preprocess_config
 from voice_smith.utils.metrics import calc_rmse, calc_pesq, calc_estoi
 from voice_smith.config.configs import (
     PreprocessingConfig,
@@ -293,6 +292,8 @@ def train_vocoder(
     ) = get_vocoder(
         checkpoint=checkpoint_path,
         train_config=train_config,
+        model_config=model_config,
+        preprocess_config=preprocess_config,
         reset=reset,
         device=device,
     )

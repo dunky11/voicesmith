@@ -40,7 +40,7 @@ export const getCleaningRunsDir = joinUserData("cleaning_runs");
 export const getTextNormalizationRunsDir = joinUserData(
   "text_normalization_runs"
 );
-export const getSampleSplittinRunsDir = joinUserData("sample_splitting_runs");
+export const getSampleSplittingRunsDir = joinUserData("sample_splitting_runs");
 export const getInstalledPath = joinUserData("INSTALLED");
 export const PY_DIST_FOLDER = "backend_dist";
 export const PY_FOLDER = "voice_smith";

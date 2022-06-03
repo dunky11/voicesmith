@@ -84,7 +84,7 @@ export interface ConfigurationInterface {
   vocoderBatchSize: number;
   vocoderGradAccumSteps: number;
   vocoderValidateEvery: number;
-  device: string;
+  device: "CPU" | "GPU";
   onlyTrainSpeakerEmbUntil: number;
   datasetID: number | null;
 }
@@ -201,7 +201,7 @@ export interface PreprocessingRunInterface {
   ID: number;
   name: string;
   stage: string;
-  type: "textNormalizationRun" | "dSCleaningRun";
+  type: "textNormalizationRun" | "dSCleaningRun" | "sampleSplittingRun";
   datasetID?: number;
   datasetName: string | null;
 }
@@ -322,6 +322,8 @@ export interface SampleSplittingRunInterface {
   genAlignProgress: number;
   creatingSplitsProgress: number;
   datasetID?: number;
+  datasetName: string;
+  device: "CPU" | "GPU";
 }
 
 export interface SampleSplittingSplitIntoInterface {

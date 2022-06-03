@@ -1,20 +1,21 @@
 import React, { useState, useRef, useEffect, ReactElement } from "react";
-import { Button, Form, Input, Select, notification } from "antd";
+import { Button, Form, Input, Select } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import {
-  DatasetInterface,
   RunInterface,
   TextNormalizationInterface,
   TextNormalizationConfigInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
+import DatasetInput from "../../../components/inputs/DatasetInput";
+import NameInput from "../../../components/inputs/NameInput";
+import { fetchNames } from "../PreprocessingRuns";
 import { notifySave } from "../../../utils";
 import {
   UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
   FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
   FETCH_PREPROCESSING_NAMES_USED_CHANNEL,
-  FETCH_DATASET_CANDIATES_CHANNEL,
 } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
@@ -45,9 +46,7 @@ export default function Configuration({
 }): ReactElement {
   const [names, setNames] = useState<string[]>([]);
   const isMounted = useRef(false);
-  const [datasetsIsLoaded, setDatastsIsLoaded] = useState(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
-  const [datasets, setDatasets] = useState<DatasetInterface[]>([]);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
   const formRef = useRef<FormInstance | null>();
@@ -127,32 +126,6 @@ export default function Configuration({
       });
   };
 
-  const fetchNamesInUse = () => {
-    if (selectedID === null) {
-      return;
-    }
-    ipcRenderer
-      .invoke(FETCH_PREPROCESSING_NAMES_USED_CHANNEL.IN, selectedID)
-      .then((names: string[]) => {
-        if (!isMounted.current) {
-          return;
-        }
-        setNames(names);
-      });
-  };
-
-  const fetchDatasets = () => {
-    ipcRenderer
-      .invoke(FETCH_DATASET_CANDIATES_CHANNEL.IN)
-      .then((datasets: DatasetInterface[]) => {
-        if (!isMounted.current) {
-          return;
-        }
-        setDatasets(datasets);
-        setDatastsIsLoaded(true);
-      });
-  };
-
   const getNextButtonText = () => {
     if (selectedID === null || stage === "not_started") {
       return "Save and Start Run";
@@ -171,15 +144,13 @@ export default function Configuration({
     if (selectedID === null) {
       return;
     }
-    fetchNamesInUse();
-    fetchDatasets();
     fetchConfiguration();
   }, [selectedID]);
 
-  const disableNameEdit = !configIsLoaded || !datasetsIsLoaded;
+  const disableNameEdit = !configIsLoaded;
   const disableElseEdit = disableNameEdit || stage !== "not_started";
 
-  const disableNext = !configIsLoaded || !datasetsIsLoaded;
+  const disableNext = !configIsLoaded;
   const disableDefaults = disableNext || stage != "not_started";
 
   return (
@@ -204,53 +175,13 @@ export default function Configuration({
         initialValues={initialValues}
         onFinish={onFinish}
       >
-        <Form.Item
-          label="Name"
-          name="name"
-          rules={[
-            () => ({
-              validator(_, value: string) {
-                if (value.trim() === "") {
-                  return Promise.reject(new Error("Please enter a name"));
-                }
-                if (names.includes(value)) {
-                  return Promise.reject(
-                    new Error("This name is already in use")
-                  );
-                }
-                return Promise.resolve();
-              },
-            }),
-          ]}
-        >
-          <Input disabled={disableNameEdit}></Input>
-        </Form.Item>
-        <Form.Item
-          label="Dataset"
-          name="datasetID"
-          rules={[
-            () => ({
-              validator(_, value: string) {
-                if (value === null) {
-                  return Promise.reject(new Error("Please select a dataset"));
-                }
-                return Promise.resolve();
-              },
-            }),
-          ]}
-        >
-          <Select disabled={disableElseEdit}>
-            {datasets.map((dataset: DatasetInterface) => (
-              <Select.Option
-                value={dataset.ID}
-                key={dataset.ID}
-                disabled={dataset.referencedBy !== null}
-              >
-                {dataset.name}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
+        <NameInput
+          disabled={disableNameEdit}
+          fetchNames={() => {
+            return fetchNames(selectedID);
+          }}
+        />
+        <DatasetInput disabled={disableElseEdit} />
         <Form.Item
           label="Language"
           name="language"

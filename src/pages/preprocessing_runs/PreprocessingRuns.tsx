@@ -5,6 +5,18 @@ import { PreprocessingRunInterface, RunInterface } from "../../interfaces";
 import PreprocessingRunSelection from "./PreprocessingRunSelection";
 import TextNormalization from "./text_normalization/TextNormalization";
 import DatasetCleaning from "./dataset_cleaning/DatasetCleaning";
+import SampleSplitting from "./sample_splitting/SampleSplitting";
+const { ipcRenderer } = window.require("electron");
+
+export const fetchNames = (runID: number): Promise<string[]> => {
+  return new Promise((resolve) => {
+    ipcRenderer
+      .invoke("fetch-preprocessing-names-used", runID)
+      .then((names: string[]) => {
+        resolve(names);
+      });
+  });
+};
 
 export default function PreprcocessingRuns({
   running,
@@ -35,6 +47,11 @@ export default function PreprcocessingRuns({
           PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.CONFIGURATION.ROUTE
         );
         break;
+      case "sampleSplittingRun":
+        history.push(
+          PREPROCESSING_RUNS_ROUTE.SAMPLE_SPLITTING.CONFIGURATION.ROUTE
+        );
+        break;
       default:
         throw new Error(
           `No branch selected in switch-statement, case '${selectedPreprocessingRun.type}' is not a valid case`
@@ -52,26 +69,49 @@ export default function PreprcocessingRuns({
   return (
     <Switch>
       <Route
-        render={() => (
-          <TextNormalization
-            preprocessingRun={selectedPreprocessingRun}
-            running={running}
-            stopRun={stopRun}
-            continueRun={continueRun}
-          ></TextNormalization>
-        )}
+        render={() =>
+          selectedPreprocessingRun === null ? (
+            <></>
+          ) : (
+            <TextNormalization
+              preprocessingRun={selectedPreprocessingRun}
+              running={running}
+              stopRun={stopRun}
+              continueRun={continueRun}
+            ></TextNormalization>
+          )
+        }
         path={PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.ROUTE}
       ></Route>
       <Route
         path={PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.ROUTE}
-        render={() => (
-          <DatasetCleaning
-            preprocessingRun={selectedPreprocessingRun}
-            continueRun={continueRun}
-            running={running}
-            stopRun={stopRun}
-          ></DatasetCleaning>
-        )}
+        render={() =>
+          selectedPreprocessingRun === null ? (
+            <></>
+          ) : (
+            <DatasetCleaning
+              preprocessingRun={selectedPreprocessingRun}
+              continueRun={continueRun}
+              running={running}
+              stopRun={stopRun}
+            ></DatasetCleaning>
+          )
+        }
+      ></Route>
+      <Route
+        render={() =>
+          selectedPreprocessingRun === null ? (
+            <></>
+          ) : (
+            <SampleSplitting
+              preprocessingRun={selectedPreprocessingRun}
+              continueRun={continueRun}
+              running={running}
+              stopRun={stopRun}
+            ></SampleSplitting>
+          )
+        }
+        path={PREPROCESSING_RUNS_ROUTE.SAMPLE_SPLITTING.ROUTE}
       ></Route>
       <Route
         render={() => (

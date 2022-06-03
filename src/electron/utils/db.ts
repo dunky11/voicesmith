@@ -21,7 +21,7 @@ const createTables = (db: any) => {
         acoustic_batch_size INTEGER NOT NULL,
         acoustic_grad_accum_steps INTEGER NOT NULL,
         acoustic_validate_every INTEGER NOT NULL,
-        device TEXT NOT NULL, 
+        device TEXT NOT NULL DEFAULT "CPU", 
         vocoder_learning_rate FLOAT NOT NULL,
         vocoder_training_iterations BIGINT NOT NULL,
         vocoder_batch_size INTEGER NOT NULL,
@@ -256,7 +256,8 @@ const createTables = (db: any) => {
         copying_files_progress FLOAT NOT NULL DEFAULT 0.0,
         gen_vocab_progress FLOAT NOT NULL DEFAULT 0.0,
         gen_align_progress FLOAT NOT NULL DEFAULT 0.0,
-        creating_splits FLOAT NOT NULL DEFAULT 0.0,
+        creating_splits_progress FLOAT NOT NULL DEFAULT 0.0,
+        device TEXT NOT NULL DEFAULT "CPU",
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
     ); 

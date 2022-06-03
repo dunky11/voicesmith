@@ -207,8 +207,6 @@ ipcMain.on(
         getModelsDir(),
         "--datasets_path",
         getDatasetsDir(),
-        "--user_data_path",
-        UserDataPath().getPath(),
         "--environment_name",
         CONDA_ENV_NAME,
       ],

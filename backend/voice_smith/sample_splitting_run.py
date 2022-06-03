@@ -34,7 +34,7 @@ def get_config(cur: sqlite3.Cursor, run_id: int) -> SampleSplittingRunConfig:
         SELECT device, maximum_workers FROM sample_splitting_run WHERE ID=?
         """,
         (run_id,),
-    )
+    ).fetchone()
     (device, maximum_workers) = row
     device = get_device(device)
     workers = get_workers(maximum_workers)
@@ -73,7 +73,7 @@ def continue_sample_splitting_run(
             "SELECT stage FROM sample_splitting_run WHERE ID=?",
             (run_id,),
         ).fetchone()
-        stage = row
+        stage = row[0]
         if stage == "not_started":
             if data_path.exists():
                 shutil.rmtree(data_path)
@@ -86,7 +86,7 @@ def continue_sample_splitting_run(
             con.commit()
 
         elif stage == "copying_files":
-            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             txt_paths, texts, audio_paths, names = [], [], [], []
             for (
                 txt_path,
@@ -100,7 +100,7 @@ def continue_sample_splitting_run(
                 SELECT sample.txt_path, sample.text, sample.audio_path, speaker.name AS speaker_name, dataset.ID AS dataset_id, speaker.ID as speaker_id FROM sample_splitting_run INNER JOIN dataset ON sample_splitting_run.dataset_id = dataset.ID 
                 INNER JOIN speaker on speaker.dataset_id = dataset.ID
                 INNER JOIN sample on sample.speaker_id = speaker.ID
-                WHERE training_run.ID=?
+                WHERE sample_splitting_run.ID=?
                 """,
                 (run_id,),
             ).fetchall():
@@ -142,7 +142,7 @@ def continue_sample_splitting_run(
 
         elif stage == "gen_vocab":
             (data_path / "data").mkdir(exist_ok=True, parents=True)
-            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             texts = []
             for (text,) in cur.execute(
                 """
@@ -176,7 +176,7 @@ def continue_sample_splitting_run(
                     if word in punct_set:
                         continue
                     f.write(f"{word.lower()} {phones}\n")
-
+ 
             merge_lexica(
                 base_lexica_path=base_lexica_path,
                 lang="en",
@@ -184,13 +184,13 @@ def continue_sample_splitting_run(
                 out_path=str(Path(data_path / "data" / "lexicon_post.txt")),
             )
             cur.execute(
-                "UPDATE sample_splitting_run SET stage='gen_alignments', preprocessing_gen_vocab_progress=1.0 WHERE ID=?",
+                "UPDATE sample_splitting_run SET stage='gen_alignments', gen_vocab_progress=1.0 WHERE ID=?",
                 (run_id,),
             )
             con.commit()
 
         elif stage == "gen_alignments":
-            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             p_config = get_config(cur, run_id)
             align(
                 environment_name=environment_name,
@@ -200,7 +200,7 @@ def continue_sample_splitting_run(
                 n_workers=p_config.workers,
             )
             cur.execute(
-                "UPDATE sample_splitting_run SET stage='extract_data', gen_align_progress=1.0 WHERE ID=?",
+                "UPDATE sample_splitting_run SET stage='creating_splits', gen_align_progress=1.0 WHERE ID=?",
                 (run_id,),
             )
             con.commit()
@@ -212,7 +212,7 @@ def continue_sample_splitting_run(
             pass
 
         elif stage == "finished":
-            break
+            break 
 
         else:
             raise Exception(f"Stage '{stage}' is not a valid stage ...")
@@ -224,7 +224,6 @@ if __name__ == "__main__":
     parser.add_argument("--preprocessing_runs_dir", type=str, required=True)
     parser.add_argument("--assets_path", type=str, required=True)
     parser.add_argument("--db_path", type=str, required=True)
-    parser.add_argument("--models_path", type=str, required=True)
     parser.add_argument("--datasets_path", type=str, required=True)
     parser.add_argument("--environment_name", type=str, required=True)
     args = parser.parse_args()

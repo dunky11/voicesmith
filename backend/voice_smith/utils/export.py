@@ -1,31 +1,40 @@
 import torch
-from typing import Tuple
+from typing import Tuple, Union
 from torch.jit._script import script, ScriptModule
 from torch.jit._trace import trace
 from voice_smith.utils.model import get_acoustic_models, get_vocoder
-from voice_smith.config.acoustic_model_config import acoustic_model_config
-from voice_smith.config.acoustic_fine_tuning_config import acoustic_fine_tuning_config
-from voice_smith.config.preprocess_config import preprocess_config
-from voice_smith.config.vocoder_fine_tuning_config import vocoder_fine_tuning_config
-from voice_smith.utils.text_normalization import EnglishTextNormalizer
+from voice_smith.config.configs import (
+    AcousticPretrainingConfig,
+    AcousticFinetuningConfig,
+    PreprocessingConfig,
+    AcousticModelConfig,
+    VocoderPretrainingConfig,
+    VocoderFinetuningConfig,
+    VocoderModelConfig,
+)
+
 
 def acoustic_to_torchscript(
-    checkpoint_acoustic: str, 
-    checkpoint_style: str, 
-    data_path: str
+    checkpoint_acoustic: str,
+    checkpoint_style: str,
+    data_path: str,
+    train_config: Union[AcousticPretrainingConfig, AcousticFinetuningConfig],
+    preprocess_config: PreprocessingConfig,
+    model_config: AcousticModelConfig,
+    assets_path: str,
 ) -> Tuple[ScriptModule, ScriptModule]:
     device = torch.device("cpu")
     acoustic, style_predictor, _, _ = get_acoustic_models(
         checkpoint_acoustic=checkpoint_acoustic,
         checkpoint_style=checkpoint_style,
         data_path=data_path,
-        train_config=acoustic_fine_tuning_config,
+        train_config=train_config,
         preprocess_config=preprocess_config,
-        model_config=acoustic_model_config,
+        model_config=model_config,
         fine_tuning=False,
         device=device,
         reset=False,
-        embeddings=embeddings,
+        assets_path=assets_path,
     )
     acoustic.prepare_for_export()
     acoustic.eval()
@@ -36,16 +45,21 @@ def acoustic_to_torchscript(
     return acoustic_torch, style_predictor
 
 
-def vocoder_to_torchscript(ckpt_path: str, data_path: str) -> ScriptModule:
+def vocoder_to_torchscript(
+    ckpt_path: str,
+    data_path: str,
+    train_config: Union[VocoderPretrainingConfig, VocoderFinetuningConfig],
+    preprocess_config: PreprocessingConfig,
+    model_config: VocoderModelConfig,
+) -> ScriptModule:
     device = torch.device("cpu")
-    embeddings = get_embeddings(data_path=data_path, device=device)
-    vocoder, _, _, _, _, _, _, _ = get_vocoder(
+    vocoder, _, _, _, _, _, _ = get_vocoder(
         checkpoint=ckpt_path,
-        train_config=vocoder_fine_tuning_config,
+        train_config=train_config,
         reset=False,
         device=device,
-        fine_tuning=False,
-        embeddings=embeddings,
+        preprocess_config=preprocess_config,
+        model_config=model_config,
     )
     vocoder.eval()
     vocoder.remove_weight_norm()

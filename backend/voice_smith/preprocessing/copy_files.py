@@ -33,7 +33,7 @@ def copy_files(
     audio_paths: List[str],
     names: List[str],
     workers: int,
-    progress_cb: Callable[List[int], None],
+    progress_cb: Callable[[int], None],
     log_every: int = 200,
 ) -> None:
     assert len(txt_paths) == len(texts)

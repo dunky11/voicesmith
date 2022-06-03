@@ -9,8 +9,12 @@ import {
   REMOVE_PREPROCESSING_RUN_CHANNEL,
   FETCH_PREPROCESSING_NAMES_USED_CHANNEL,
 } from "../../channels";
+import { fetchSampleSplittingRuns } from "./sampleSplittingRuns";
 import { exists } from "../utils/files";
-import { PreprocessingRunInterface } from "../../interfaces";
+import {
+  PreprocessingRunInterface,
+  SampleSplittingRunInterface,
+} from "../../interfaces";
 import {
   getCleaningRunsDir,
   getTextNormalizationRunsDir,
@@ -31,6 +35,15 @@ ipcMain.handle(
       case "textNormalizationRun":
         DB.getInstance()
           .prepare("INSERT INTO text_normalization_run (name) VALUES (@name)")
+          .run({
+            name,
+          });
+        break;
+      case "sampleSplittingRun":
+        DB.getInstance()
+          .prepare(
+            "INSERT INTO sample_splitting_run (name, maximum_workers) VALUES (@name, -1)"
+          )
           .run({
             name,
           });
@@ -62,7 +75,11 @@ ipcMain.handle(FETCH_PREPROCESSING_RUNS_CHANNEL.IN, () => {
       ...el,
       type: "textNormalizationRun",
     }));
-  return cleaningRuns.concat(textNormalizationRuns);
+  const sampleSplittingRuns = fetchSampleSplittingRuns().map(
+    (el: SampleSplittingRunInterface) => ({ ...el, type: "sampleSplittingRun" })
+  );
+  console.log(sampleSplittingRuns);
+  return cleaningRuns.concat(textNormalizationRuns).concat(sampleSplittingRuns);
 });
 
 ipcMain.handle(
@@ -84,6 +101,14 @@ ipcMain.handle(
       case "textNormalizationRun":
         DB.getInstance()
           .prepare("UPDATE text_normalization_run SET name=@name WHERE ID=@ID")
+          .run({
+            ID: preprocessingRun.ID,
+            name: newName,
+          });
+        break;
+      case "sampleSplittingRun":
+        DB.getInstance()
+          .prepare("UPDATE sample_splitting_run SET name=@name WHERE ID=@ID")
           .run({
             ID: preprocessingRun.ID,
             name: newName,
@@ -150,6 +175,15 @@ ipcMain.handle(
         }
         break;
       }
+      case "sampleSplittingRun":
+        DB.getInstance().transaction(() => {
+          DB.getInstance()
+            .prepare("DELETE FROM sample_splitting_run WHERE ID=@ID")
+            .run({
+              ID: preprocessingRun.ID,
+            });
+        })();
+        break;
       default: {
         throw new Error(
           `No case selected in switch-statement, '${preprocessingRun.type}' is not a valid case ...`

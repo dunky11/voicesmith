@@ -22,13 +22,15 @@ import {
 const { ipcRenderer } = window.require("electron");
 
 const prettyType = (
-  type: "textNormalizationRun" | "superResolutionRun" | "dSCleaningRun"
+  type: "textNormalizationRun" | "dSCleaningRun" | "sampleSplittingRun"
 ) => {
   switch (type) {
     case "textNormalizationRun":
       return "Text Normalization";
     case "dSCleaningRun":
       return "Dataset Cleaning";
+    case "sampleSplittingRun":
+      return "Sample Splitting";
     default:
       throw new Error(
         `No case selected in switch-statement, '${type}' is not a valid case ...`
@@ -107,7 +109,7 @@ export default function PreprocessingRunSelection({
   };
 
   const createPreprocessingRun = (
-    type: "textNormalizationRun" | "dSCleaningRun"
+    type: "textNormalizationRun" | "dSCleaningRun" | "sampleSplittingRun"
   ) => {
     const name = getFirstPossibleName();
     ipcRenderer
@@ -289,8 +291,17 @@ export default function PreprocessingRunSelection({
                 createPreprocessingRun("textNormalizationRun");
               }}
               disabled={isDisabled}
+              style={{ marginRight: 8 }}
             >
               New Text Normalization Run
+            </Button>
+            <Button
+              onClick={() => {
+                createPreprocessingRun("sampleSplittingRun");
+              }}
+              disabled={isDisabled}
+            >
+              New Sample Splitting Run
             </Button>
           </div>
           <Table

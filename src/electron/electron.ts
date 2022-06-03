@@ -18,6 +18,7 @@ import "./handles/models";
 import "./handles/preprocessingRuns";
 import "./handles/synthesis";
 import "./handles/textNormalizationRuns";
+import "./handles/sampleSplittingRuns";
 import "./handles/trainingRuns";
 import "./handles/install";
 import "./handles/settings";
