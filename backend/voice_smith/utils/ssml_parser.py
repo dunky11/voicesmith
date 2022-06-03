@@ -1,9 +1,10 @@
-from lxml import etree
+from collections import deque
+import xml.etree.ElementTree as ET
 
 SUPPORTED_LANGUAGES = ["en-US"]
 
 
-def get_voice(node):
+def get_voice(node, parent_map):
     current_node = node
     while True:
         if current_node.tag == "voice":
@@ -16,7 +17,7 @@ def get_voice(node):
                     """
                 )
             return {"name": name}
-        current_node = current_node.getparent()
+        current_node = parent_map.get(current_node)
         if current_node is None:
             raise Exception(
                 r"""
@@ -26,7 +27,7 @@ def get_voice(node):
             )
 
 
-def get_lang(node):
+def get_lang(node, parent_map):
     current_node = node
     while True:
         if current_node.tag == "lang":
@@ -41,7 +42,7 @@ def get_lang(node):
                     f"Received a lang tag with an unsopported language: '{lang}'. Please choose from the list of supported languages: {', '.join(SUPPORTED_LANGUAGES)}."
                 )
             return {"lang": lang}
-        current_node = current_node.getparent()
+        current_node = parent_map.get(current_node)
         if current_node is None:
             raise Exception(
                 r"Your text contained no language information, please wrap your text into a "
@@ -49,40 +50,42 @@ def get_lang(node):
             )
 
 
-def attributes_from_node(text, parent_node):
+def attributes_from_node(text, parent_node, parent_map):
     return {
         "text": text,
-        "voice": get_voice(parent_node),
-        "lang": get_lang(parent_node),
+        "voice": get_voice(parent_node, parent_map),
+        "lang": get_lang(parent_node, parent_map),
     }
 
 
 def get_non_processed_children(node, nodes_processed_ids):
     non_processed = []
-    for child in node.getchildren():
+    for child in node:
         if id(child) not in nodes_processed_ids:
             non_processed.append(child)
     return non_processed
 
 
 def parse_ssml(ssml_string: str):
-    root = etree.fromstring(ssml_string)
+    root = ET.fromstring(ssml_string)
     assert root.tag == "speak", "Please wrap your SSML in a <speak> tag ..."
-    node_stack = [root]
+    parent_map = {c: p for p in root.iter() for c in p}
+    node_stack = deque([root])
     attributes = []
     nodes_processed_ids = set()
     while len(node_stack) > 0:
         # Stage 1 process current element in stack
         current_node = node_stack.pop()
-        print(current_node)
         if current_node.text is not None and len(current_node.text.strip()) > 0:
             attributes.append(
-                attributes_from_node(current_node.text.strip(), current_node)
+                attributes_from_node(
+                    current_node.text.strip(), current_node, parent_map
+                )
             )
         if current_node.tail is not None and len(current_node.tail.strip()) > 0:
             attributes.append(
                 attributes_from_node(
-                    current_node.tail.strip(), current_node.getparent()
+                    current_node.tail.strip(), parent_map[current_node], parent_map
                 )
             )
         nodes_processed_ids.add(id(current_node))
