@@ -72,7 +72,7 @@ export default function Preprocessing({
       stopRun();
     } else if (wouldContinueRun) {
       continueRun({ ID: run.ID, type: "sampleSplittingRun" });
-    } else {
+    } else if (["choose_samples", "finished"].includes(run.stage)) {
       onStepChange(2);
     }
   };

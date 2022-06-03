@@ -34,8 +34,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm, spectral_norm
-from voice_smith.config.vocoder_model_config import vocoder_model_config as hp
-from voice_smith.config.preprocess_config import preprocess_config
+from voice_smith.config.configs import PreprocessingConfig, VocoderModelConfig
 
 MAX_WAV_VALUE = 32768.0
 
@@ -325,25 +324,27 @@ class LVCBlock(torch.nn.Module):
 class Generator(nn.Module):
     """UnivNet Generator"""
 
-    def __init__(self):
+    def __init__(
+        self, model_config: VocoderModelConfig, preprocess_config: PreprocessingConfig
+    ):
         super(Generator, self).__init__()
-        self.mel_channel = preprocess_config["mel"]["n_mel_channels"]
-        self.noise_dim = hp["gen"]["noise_dim"]
-        self.hop_length = preprocess_config["stft"]["hop_length"]
-        channel_size = hp["gen"]["channel_size"]
-        kpnet_conv_size = hp["gen"]["kpnet_conv_size"]
+        self.mel_channel = preprocess_config.stft.n_mel_channels
+        self.noise_dim = model_config.gen.noise_dim
+        self.hop_length = preprocess_config.stft.hop_length
+        channel_size = model_config.gen.channel_size
+        kpnet_conv_size = model_config.gen.kpnet_conv_size
 
         self.res_stack = nn.ModuleList()
         hop_length = 1
-        for stride in hp["gen"]["strides"]:
+        for stride in model_config.gen.strides:
             hop_length = stride * hop_length
             self.res_stack.append(
                 LVCBlock(
                     channel_size,
-                    preprocess_config["mel"]["n_mel_channels"],
+                    preprocess_config.mel.n_mel_channels,
                     stride=stride,
-                    dilations=hp["gen"]["dilations"],
-                    lReLU_slope=hp["gen"]["lReLU_slope"],
+                    dilations=model_config.gen.dilations,
+                    lReLU_slope=model_config.gen.lReLU_slope,
                     cond_hop_length=hop_length,
                     kpnet_conv_size=kpnet_conv_size,
                 )
@@ -351,7 +352,7 @@ class Generator(nn.Module):
 
         self.conv_pre = nn.utils.weight_norm(
             nn.Conv1d(
-                hp["gen"]["noise_dim"],
+                model_config.gen.noise_dim,
                 channel_size,
                 7,
                 padding=3,
@@ -360,7 +361,7 @@ class Generator(nn.Module):
         )
 
         self.conv_post = nn.Sequential(
-            nn.LeakyReLU(hp["gen"]["lReLU_slope"]),
+            nn.LeakyReLU(model_config.gen.lReLU_slope),
             nn.utils.weight_norm(
                 nn.Conv1d(channel_size, 1, 7, padding=3, padding_mode="reflect")
             ),
@@ -416,16 +417,16 @@ class Generator(nn.Module):
 
 
 class DiscriminatorP(nn.Module):
-    def __init__(self, period):
+    def __init__(self, period, model_config: VocoderModelConfig):
         super(DiscriminatorP, self).__init__()
 
-        self.LRELU_SLOPE = hp["mpd"]["lReLU_slope"]
+        self.LRELU_SLOPE = model_config.mpd.lReLU_slope
         self.period = period
 
-        kernel_size = hp["mpd"]["kernel_size"]
-        stride = hp["mpd"]["stride"]
+        kernel_size = model_config.mpd.kernel_size
+        stride = model_config.mpd.stride
         norm_f = (
-            weight_norm if hp["mpd"]["use_spectral_norm"] == False else spectral_norm
+            spectral_norm if model_config.mpd.use_spectral_norm else weight_norm(module)
         )
 
         self.convs = nn.ModuleList(
@@ -498,11 +499,11 @@ class DiscriminatorP(nn.Module):
 
 
 class MultiPeriodDiscriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, model_config: VocoderModelConfig):
         super(MultiPeriodDiscriminator, self).__init__()
 
         self.discriminators = nn.ModuleList(
-            [DiscriminatorP(period) for period in hp["mpd"]["periods"]]
+            [DiscriminatorP(period) for period in model_config.mpd.periods]
         )
 
     def forward(self, x):
@@ -514,15 +515,13 @@ class MultiPeriodDiscriminator(nn.Module):
 
 
 class DiscriminatorR(torch.nn.Module):
-    def __init__(self, resolution):
+    def __init__(self, resolution, model_config: VocoderModelConfig):
         super(DiscriminatorR, self).__init__()
 
         self.resolution = resolution
-        self.LRELU_SLOPE = hp["mpd"]["lReLU_slope"]
+        self.LRELU_SLOPE = model_config.mrd.lReLU_slope
 
-        norm_f = (
-            weight_norm if hp["mrd"]["use_spectral_norm"] == False else spectral_norm
-        )
+        norm_f = spectral_norm if model_config.mrd.use_spectral_norm else weight_norm
 
         self.convs = nn.ModuleList(
             [
@@ -567,9 +566,9 @@ class DiscriminatorR(torch.nn.Module):
 
 
 class MultiResolutionDiscriminator(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, model_config: VocoderModelConfig):
         super(MultiResolutionDiscriminator, self).__init__()
-        self.resolutions = hp["mrd"]["resolutions"]
+        self.resolutions = model_config.mrd.resolutions
         self.discriminators = nn.ModuleList(
             [DiscriminatorR(resolution) for resolution in self.resolutions]
         )
@@ -583,10 +582,10 @@ class MultiResolutionDiscriminator(torch.nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, model_config: VocoderModelConfig):
         super(Discriminator, self).__init__()
-        self.MRD = MultiResolutionDiscriminator()
-        self.MPD = MultiPeriodDiscriminator()
+        self.MRD = MultiResolutionDiscriminator(model_config=model_config)
+        self.MPD = MultiPeriodDiscriminator(model_config=model_config)
 
     def forward(self, x):
         return self.MRD(x), self.MPD(x)

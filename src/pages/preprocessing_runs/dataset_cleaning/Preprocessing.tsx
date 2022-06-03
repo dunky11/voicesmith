@@ -65,7 +65,9 @@ export default function Configuration({
       stopRun();
     } else if (wouldContinueRun) {
       continueRun({ ID: selectedID, type: "dSCleaningRun" });
-    } else {
+    } else if (
+      ["choose_samples", "apply_changes", "finished"].includes(stage)
+    ) {
       onStepChange(2);
     }
   };

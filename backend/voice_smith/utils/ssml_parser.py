@@ -1,8 +1,15 @@
 from collections import deque
 import xml.etree.ElementTree as ET
+from enum import Enum
+
 
 SUPPORTED_LANGUAGES = ["en-US", "de-DE"]
 REQUIRED_ATTRIBUTES = ["voice", "lang"]
+
+
+class Check(Enum):
+    TEXT = 1
+    TAIL = 2
 
 
 def get_voice(node, parent_map):
@@ -103,32 +110,46 @@ def get_non_processed_children(node, nodes_processed_ids):
 
 def parse_ssml(ssml_string: str):
     root = ET.fromstring(ssml_string)
-    assert root.tag == "speak", "Please wrap your SSML in a <speak> tag ..."
+    assert root.tag == "speak", "Please wrap your text in a '<speak> yourt text ... </speak>' tag ..."
     parent_map = {c: p for p in root.iter() for c in p}
     node2attr = {root: add_attributes(root, {})}
-    node_stack = deque([root])
+    node_stack = deque([(root, "text")])
     out = []
     nodes_processed_ids = set()
     while len(node_stack) > 0:
         # Stage 1 process current element in stack
-        current_node = node_stack.pop()
+        current_node, check = node_stack.pop()
         attr_map = node2attr[current_node]
-        if current_node.text is not None and len(current_node.text.strip()) > 0:
+        if (
+            check == Check.TEXT
+            and current_node.text is not None
+            and len(current_node.text.strip()) > 0
+        ):
             out.append(attributes_from_node(current_node.text.strip(), attr_map))
-        if current_node.tail is not None and len(current_node.tail.strip()) > 0:
+
+        if (
+            check == Check.TAIL
+            and current_node.tail is not None
+            and len(current_node.tail.strip()) > 0
+        ):
             out.append(
                 attributes_from_node(
                     current_node.tail.strip(),
                     node2attr[parent_map[current_node]],
                 )
             )
+
+        if check == Check.TEXT:
+            node_stack.append((current_node, Check.TAIL))
+
         nodes_processed_ids.add(id(current_node))
 
         # Stage 2 push children of curent node to stack
         children = get_non_processed_children(current_node, nodes_processed_ids)
         for child in children[::-1]:
-            node_stack.append(child)
+            node_stack.append((child, Check.TEXT))
             node2attr[child] = add_attributes(child, attr_map)
+
     return out
 
 
@@ -137,18 +158,19 @@ if __name__ == "__main__":
         <speak>
             <lang xml:lang='en-US'>
                 <voice name='michael'>
-                    <prosody rate='slow'>This</prosody> 
-                    will be 
+                    <voice name='michael'>0<p><p>1</p>2</p>3</voice>
+                    <prosody rate='slow'>4</prosody> 
+                    5
                 </voice>
                 <voice name='Tony'>
-                    <prosody rate='slow'>a</prosody> 
-                    great
+                    <prosody rate='slow'>6</prosody> 
+                    7
                     <lang xml:lang='de-DE'>
-                        day!
+                        8
                     </lang>
                 </voice>
                 <voice name='Test'>
-                    And a test
+                    9
                 </voice>
             </lang>
         </speak>

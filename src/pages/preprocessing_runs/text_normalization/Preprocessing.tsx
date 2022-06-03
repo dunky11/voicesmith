@@ -65,7 +65,7 @@ export default function Preprocessing({
       stopRun();
     } else if (wouldContinueRun) {
       continueRun({ ID: selectedID, type: "textNormalizationRun" });
-    } else {
+    } else if (["choose_samples", "finished"].includes(stage)) {
       onStepChange(2);
     }
   };

@@ -107,7 +107,7 @@ export default function Preprocessing({
       stopRun();
     } else if (wouldContinueRun) {
       continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
-    } else {
+    } else if (stage === "finished") {
       onStepChange(3);
     }
   };
