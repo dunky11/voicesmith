@@ -53,7 +53,7 @@ export default function SampleSplitting({
   const selectedIsRunning =
     running !== null &&
     running.type === "sampleSplittingRun" &&
-    running.ID == preprocessingRun.ID;
+    running.ID === preprocessingRun.ID;
 
   const fetchRun = () => {
     ipcRenderer
@@ -152,7 +152,7 @@ export default function SampleSplitting({
             </Steps>
           </Card>
         </Col>
-        <Col className="gutter-row" span={20}>
+        <Col span={20}>
           <Switch>
             <Route
               render={() =>

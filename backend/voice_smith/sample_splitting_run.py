@@ -52,7 +52,7 @@ def continue_sample_splitting_run(
     con = get_con(db_path)
     cur = con.cursor()
     save_current_pid(con=con, cur=cur)
-    data_path = Path(preprocessing_runs_dir) / "sample_splitting_runs" / str(run_id)
+    data_path = Path(preprocessing_runs_dir) / str(run_id)
     dataset_path = Path(datasets_path)
     stage = None
 
@@ -86,7 +86,7 @@ def continue_sample_splitting_run(
             con.commit()
 
         elif stage == "copying_files":
-            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             txt_paths, texts, audio_paths, names = [], [], [], []
             for (
                 txt_path,
@@ -142,7 +142,7 @@ def continue_sample_splitting_run(
 
         elif stage == "gen_vocab":
             (data_path / "data").mkdir(exist_ok=True, parents=True)
-            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             texts = []
             for (text,) in cur.execute(
                 """
@@ -176,7 +176,7 @@ def continue_sample_splitting_run(
                     if word in punct_set:
                         continue
                     f.write(f"{word.lower()} {phones}\n")
- 
+
             merge_lexica(
                 base_lexica_path=base_lexica_path,
                 lang="en",
@@ -190,7 +190,7 @@ def continue_sample_splitting_run(
             con.commit()
 
         elif stage == "gen_alignments":
-            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             p_config = get_config(cur, run_id)
             align(
                 environment_name=environment_name,
@@ -206,13 +206,15 @@ def continue_sample_splitting_run(
             con.commit()
 
         elif stage == "creating_splits":
+            print("WE ARE HERE")
+            quit()
             pass
 
         elif stage == "choose_samples":
             pass
 
         elif stage == "finished":
-            break 
+            break
 
         else:
             raise Exception(f"Stage '{stage}' is not a valid stage ...")
