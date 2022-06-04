@@ -8,7 +8,13 @@ import {
 import path from "path";
 import fsNative from "fs";
 const fsPromises = fsNative.promises;
-import { safeUnlink, exists, safeMkdir, copyDir } from "../utils/files";
+import {
+  safeUnlink,
+  exists,
+  safeMkdir,
+  copyDir,
+  safeRmDir,
+} from "../utils/files";
 import { getDatasetsDir } from "../utils/globals";
 import { DB, getSpeakersWithSamples, getReferencedBy } from "../utils/db";
 import {
@@ -88,9 +94,7 @@ ipcMain.handle(
   REMOVE_DATASET_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, ID: number) => {
     const datasetPath = path.join(getDatasetsDir(), String(ID));
-    if (await exists(datasetPath)) {
-      await fsPromises.rm(datasetPath, { recursive: true, force: true });
-    }
+    await safeRmDir(datasetPath);
     const deleteDSstmt = DB.getInstance().prepare(
       `DELETE FROM dataset WHERE ID=@ID`
     );
@@ -466,7 +470,7 @@ ipcMain.handle(
         String(speakerID)
       );
       if (await exists(speakerDir)) {
-        await fsPromises.rm(speakerDir, { recursive: true, force: true });
+        safeRmDir(speakerDir);
       }
     }
     deleteMany(speakerIDs);

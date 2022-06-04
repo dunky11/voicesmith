@@ -5,24 +5,17 @@ import sys
 import torch
 import json
 import sqlite3
-from typing import Union, Literal, Tuple, Dict, Any
 import argparse
-import multiprocessing as mp
 from voice_smith.preprocessing.copy_files import copy_files
-from voice_smith.preprocessing.extract_data import extract_data
-from voice_smith.preprocessing.ground_truth_alignment import ground_truth_alignment
-from voice_smith.acoustic_training import train_acoustic
-from voice_smith.vocoder_training import train_vocoder
 from voice_smith.config.configs import SampleSplittingRunConfig
 from voice_smith.utils.sql_logger import SQLLogger
-from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchscript
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
-from voice_smith.config.symbols import symbol2id
 from voice_smith.utils.tools import warnings_to_stdout, get_device, get_workers
 from voice_smith.preprocessing.generate_vocab import generate_vocab
 from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
+from voice_smith.preprocessing.sample_splitting import sample_splitting
 from voice_smith.utils.punctuation import get_punct
 
 warnings_to_stdout()
@@ -206,9 +199,42 @@ def continue_sample_splitting_run(
             con.commit()
 
         elif stage == "creating_splits":
-            print("WE ARE HERE")
-            quit()
-            pass
+            sample_ids, texts, textgrid_paths, langs = [], [], [], []
+            for (sample_id, text, audio_path, speaker_name,) in cur.execute(
+                """
+                SELECT sample.ID, sample.text, sample.audio_path, speaker.name AS speaker_name FROM sample_splitting_run INNER JOIN dataset ON sample_splitting_run.dataset_id = dataset.ID 
+                INNER JOIN speaker on speaker.dataset_id = dataset.ID
+                INNER JOIN sample on sample.speaker_id = speaker.ID
+                WHERE sample_splitting_run.ID=?
+                """,
+                (run_id,),
+            ).fetchall():
+                sample_ids.append(sample_id)
+                texts.append(text)
+                textgrid_paths.append(
+                    (Path(data_path) / "data" / "textgrid")
+                    / speaker_name
+                    / f"{Path(audio_path).stem}.TextGrid"
+                )
+                langs.append("en")
+
+            splits = sample_splitting(
+                ids=sample_ids,
+                texts=texts,
+                textgrid_paths=textgrid_paths,
+                languages=langs,
+            )
+
+            for split in splits:
+                cur.execute(
+                    """
+                    INSERT INTO sample_splitting_run_split (text, sample_splitting_run_id, sample_id)
+                    VALUES (?, ?, ?)
+                    """,
+                    (split.text, run_id, split.sample_id),
+                )
+            con.commit()
+            sample_id_to_split = {split.sample_id: split for split in splits}
 
         elif stage == "choose_samples":
             pass

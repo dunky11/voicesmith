@@ -8,7 +8,7 @@ from voice_smith.utils.tokenization import WordTokenizer
 def generate_vocab(
     texts: List[str], lang: str, assets_path: str, device: torch.device
 ) -> Dict[str, List[str]]:
-    tokenizer = WordTokenizer(lang=lang)
+    tokenizer = WordTokenizer(lang=lang, remove_punct=False)
     words_to_tokenize = set()
     for text in texts:
         for word in tokenizer.tokenize(text):

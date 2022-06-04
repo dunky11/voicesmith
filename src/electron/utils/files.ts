@@ -35,3 +35,14 @@ export const safeUnlink = async (path: string) => {
 export const safeMkdir = async (path: string) => {
   await fsPromises.mkdir(path, { recursive: true });
 };
+
+export const safeRmDir = async (path: string) => {
+  try {
+    await fsPromises.rm(path, { recursive: true, force: true });
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      return;
+    }
+    throw err;
+  }
+};

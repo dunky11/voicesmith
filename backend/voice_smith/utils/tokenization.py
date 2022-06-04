@@ -371,12 +371,15 @@ def _get_nlp(lang):
 
 
 class WordTokenizer:
-    def __init__(self, lang: str):
+    def __init__(self, lang: str, remove_punct: bool):
         self.nlp = _get_nlp(lang)
         self.tokenizer = self.nlp.tokenizer
+        self.remove_punct = remove_punct
 
     def tokenize(self, text: str) -> List[str]:
         tokens = self.tokenizer(text)
+        if self.remove_punct:
+            tokens = filter(lambda token: not token.is_punct, tokens)
         tokens = [str(token) for token in tokens]
         return tokens
 
@@ -384,9 +387,12 @@ class WordTokenizer:
 class SentenceTokenizer:
     def __init__(self, lang: str):
         self.nlp = _get_nlp(lang)
-        self.nlp.add_pipe("sentencizer", config={"punct_chars": get_punct(lang=lang)})
+        self.tokenizer = self.nlp.tokenizer
+        self.nlp.add_pipe(
+            "sentencizer", config={"punct_chars": list(get_punct(lang=lang))}
+        )
 
-    def tokenize(self, text: str) -> List[str]:
+    def tokenize(self, text: str) -> Tuple[List[List[str]], List[str]]:
         doc = self.nlp(text)
         sents = [str(sent) for sent in doc.sents]
         return sents

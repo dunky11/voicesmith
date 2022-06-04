@@ -24,7 +24,6 @@ import {
   getTextNormalizationRunsDir,
   getSampleSplittingRunsDir,
 } from "../utils/globals";
-import { DB } from "../utils/db";
 
 ipcMain.handle(
   GET_IMAGE_DATA_URL_CHANNEL.IN,
