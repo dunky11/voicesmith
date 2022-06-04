@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Union, Literal, Dict
 import tgt
+from pathlib import Path
 from voice_smith.utils.tokenization import SentenceTokenizer, WordTokenizer
 
 
@@ -81,9 +82,13 @@ def sample_splitting(
         sentence_tokenizer = SentenceTokenizer(lang)
 
         for sample_id, text, textgrid_path in infos:
+            if not Path(textgrid_path).exists():
+                continue
+            
             sentences = sentence_tokenizer.tokenize(text)
             if len(sentences) == 1:
                 continue
+            
             sentences_words = [word_tokenizer.tokenize(sent) for sent in sentences]
             textgrid = tgt.io.read_textgrid(textgrid_path)
             words_tier = textgrid.get_tier_by_name("words")

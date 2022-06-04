@@ -8,7 +8,7 @@ def align(
     out_path: str,
     n_workers: int,
 ):
-    cmd = f"mfa adapt --clean -j {n_workers} {in_path} {lexicon_path} english_us_arpa {out_path}"
+    cmd = f"mfa align --clean -j {n_workers} {in_path} {lexicon_path} english_us_arpa {out_path}"
     success = run_conda_in_shell(cmd, environment_name, stderr_to_stdout=True)
     # MFA throws an error at end even though it created texgrids, so don't check
     """if not success:

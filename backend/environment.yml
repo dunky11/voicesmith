@@ -21,7 +21,7 @@ dependencies:
   - fire=0.4.0
   - waitress=2.1.1
   - pysoundfile
-  - conda-forge::montreal-forced-aligner
+  - conda-forge::montreal-forced-aligner=2.0.0rc7
   - numpy=1.22.4
   - anaconda::cython=0.29.28
   - pip

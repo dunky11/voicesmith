@@ -46,6 +46,7 @@ def continue_sample_splitting_run(
     cur = con.cursor()
     save_current_pid(con=con, cur=cur)
     data_path = Path(preprocessing_runs_dir) / str(run_id)
+    splits_path = data_path / "splits"
     dataset_path = Path(datasets_path)
     stage = None
 
@@ -79,7 +80,7 @@ def continue_sample_splitting_run(
             con.commit()
 
         elif stage == "copying_files":
-            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             txt_paths, texts, audio_paths, names = [], [], [], []
             for (
                 txt_path,
@@ -134,8 +135,8 @@ def continue_sample_splitting_run(
             con.commit()
 
         elif stage == "gen_vocab":
+            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             (data_path / "data").mkdir(exist_ok=True, parents=True)
-            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             texts = []
             for (text,) in cur.execute(
                 """
@@ -183,7 +184,7 @@ def continue_sample_splitting_run(
             con.commit()
 
         elif stage == "gen_alignments":
-            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             p_config = get_config(cur, run_id)
             align(
                 environment_name=environment_name,
@@ -200,6 +201,18 @@ def continue_sample_splitting_run(
 
         elif stage == "creating_splits":
             sample_ids, texts, textgrid_paths, langs = [], [], [], []
+            if splits_path.exists():
+                shutil.rmtree(splits_path)
+            (data_path / "splits").mkdir(parents=True)
+
+            cur.execute(
+                """
+                DELETE FROM sample_splitting_run_sample WHERE sample_splitting_run_id=?
+                """,
+                (run_id,),
+            )
+
+            con.commit()
             for (sample_id, text, audio_path, speaker_name,) in cur.execute(
                 """
                 SELECT sample.ID, sample.text, sample.audio_path, speaker.name AS speaker_name FROM sample_splitting_run INNER JOIN dataset ON sample_splitting_run.dataset_id = dataset.ID 
@@ -216,7 +229,7 @@ def continue_sample_splitting_run(
                     / speaker_name
                     / f"{Path(audio_path).stem}.TextGrid"
                 )
-                langs.append("en")
+                langs.append("en") 
 
             splits = sample_splitting(
                 ids=sample_ids,
@@ -228,13 +241,42 @@ def continue_sample_splitting_run(
             for split in splits:
                 cur.execute(
                     """
-                    INSERT INTO sample_splitting_run_split (text, sample_splitting_run_id, sample_id)
+                    INSERT INTO sample_splitting_run_sample (text, sample_splitting_run_id, sample_id)
                     VALUES (?, ?, ?)
                     """,
                     (split.text, run_id, split.sample_id),
                 )
             con.commit()
-            sample_id_to_split = {split.sample_id: split for split in splits}
+            sample_splitting_run_split_ids, audio_paths = [], []
+            for (
+                sample_splitting_run_id,
+                txt_path,
+                text,
+                audio_path,
+                dataset_id,
+                speaker_id,
+            ) in cur.execute(
+                """
+                SELECT sample_splitting_run_sample.ID, sample.txt_path, sample.text, sample.audio_path, dataset.ID AS dataset_id, speaker.ID as speaker_id FROM sample_splitting_run_split 
+                INNER JOIN sample on sample_splitting_run_sample.sample_id = sample.ID
+                INNER JOIN speaker on sample.speaker_id = speaker.ID
+                INNER JOIN dataset ON speaker.dataset_id = dataset.ID 
+                WHERE sample_splitting_run_sample.sample_splitting_run_id=?
+                """,
+                (run_id,),
+            ).fetchall():
+                audio_path = (
+                    dataset_path
+                    / str(dataset_id)
+                    / "speakers"
+                    / str(speaker_id)
+                    / audio_path
+                )
+                sample_splitting_run_split_ids.append(sample_splitting_run_id)
+                audio_paths.append(audio_path)
+            
+
+
 
         elif stage == "choose_samples":
             pass
