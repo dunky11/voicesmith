@@ -14,7 +14,6 @@ import {
   getDatasetsDir,
   DB_PATH,
   getTextNormalizationRunsDir,
-  UserDataPath,
   ASSETS_PATH,
 } from "../utils/globals";
 import { DB } from "../utils/db";
@@ -31,14 +30,12 @@ ipcMain.on(
       event,
       "text_normalization_run.py",
       [
-        "--text_normalization_run_id",
+        "--run_id",
         String(runID),
         "--db_path",
         DB_PATH,
         "--text_normalization_runs_path",
         getTextNormalizationRunsDir(),
-        "--user_data_path",
-        UserDataPath().getPath(),
         "--assets_path",
         ASSETS_PATH,
       ],

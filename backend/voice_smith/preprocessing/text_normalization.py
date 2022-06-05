@@ -7,7 +7,7 @@ import multiprocessing as mp
 from joblib import Parallel, delayed
 import sqlite3
 import argparse
-from voice_smith.utils.tokenization import get_word_tokenizer
+from voice_smith.utils.tokenization import WordTokenizer
 
 LATIN_CHARACTERS = list("abcdefghijklmnopqrstuvwxyz")
 GERMAN_CHARACTERS = list("öüäß")
@@ -145,7 +145,7 @@ class DetShouldNormalizeBase:
     or words inside the text and only normalize if necessary.
     """
 
-    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, str]:
+    def should_normalize(self, text: str, tokenizer: WordTokenizer) -> Tuple[bool, str]:
         raise NotImplementedError()
 
     def get_reasons(
@@ -154,10 +154,10 @@ class DetShouldNormalizeBase:
         abbreviations: Dict[str, Any],
         initialisms: Dict[str, Any],
         allowed_characters: Dict[str, Any],
-        tokenizer,
+        tokenizer: WordTokenizer,
     ) -> List[str]:
         reasons, abbr_detected, inits_detected, unusual_chars_detected = [], [], [], []
-        for token in tokenizer(text):
+        for token in tokenizer.tokenize(text):
             token = str(token)
             if token.lower() in abbreviations:
                 abbr_detected.append(token.lower())
@@ -211,7 +211,9 @@ class DetShouldNormalizeEN(DetShouldNormalizeBase):
         self.abbreviations = set(abbr)
         self.initialisms = set(initialisms)
 
-    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, List[str]]:
+    def should_normalize(
+        self, text: str, tokenizer: WordTokenizer
+    ) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
             text,
             self.abbreviations,
@@ -243,7 +245,9 @@ class DetShouldNormalizeES(DetShouldNormalizeBase):
         self.abbreviations = set(abbr, es_punctuation)
         self.initialisms = set(initialisms, es_punctuation)
 
-    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, List[str]]:
+    def should_normalize(
+        self, text: str, tokenizer: WordTokenizer
+    ) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
             text,
             self.abbreviations,
@@ -275,7 +279,9 @@ class DetShouldNormalizeDE(DetShouldNormalizeBase):
         self.abbreviations = set(abbr)
         self.initialisms = set(initialisms)
 
-    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, List[str]]:
+    def should_normalize(
+        self, text: str, tokenizer: WordTokenizer
+    ) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
             text,
             self.abbreviations,
@@ -304,7 +310,9 @@ class DetShouldNormalizeRU(DetShouldNormalizeBase):
         self.abbreviations = set(abbr, ru_punctuation)
         self.initialisms = set(initialisms, ru_punctuation)
 
-    def should_normalize(self, text: str, tokenizer) -> Tuple[bool, List[str]]:
+    def should_normalize(
+        self, text: str, tokenizer: WordTokenizer
+    ) -> Tuple[bool, List[str]]:
         reasons = self.get_reasons(
             text,
             self.abbreviations,
@@ -348,7 +356,7 @@ def normalize_sample(
     detector: DetShouldNormalizeEN,
     normalizer: Normalizer,
     deterministic: bool,
-    tokenizer,
+    tokenizer: WordTokenizer,
 ):
     text_out, reasons_char_norm = char_normalizer.normalize(text_in)
     should_normalize, reasons_det = detector.should_normalize(text_out, tokenizer)
@@ -396,7 +404,7 @@ def text_normalize(
             f"No case selected in switch-statement, '{lang}' is not a valid case ..."
         )
 
-    tokenizer = get_word_tokenizer(lang)
+    tokenizer = WordTokenizer(lang, remove_punct=False)
     char_normalizer = CharNormalizer()
     normalizer = Normalizer(
         input_case="cased",
