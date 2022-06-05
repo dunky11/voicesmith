@@ -15,8 +15,9 @@ from voice_smith.utils.tools import warnings_to_stdout, get_device, get_workers
 from voice_smith.preprocessing.generate_vocab import generate_vocab
 from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
-from voice_smith.preprocessing.sample_splitting import sample_splitting
+from voice_smith.preprocessing.sample_splitting import sample_splitting, split_sample
 from voice_smith.utils.punctuation import get_punct
+from joblib import Parallel, delayed
 
 warnings_to_stdout()
 
@@ -204,7 +205,9 @@ def continue_sample_splitting_run(
             if splits_path.exists():
                 shutil.rmtree(splits_path)
             (data_path / "splits").mkdir(parents=True)
+            p_config = get_config(cur, run_id)
 
+            # TODO delete other table
             cur.execute(
                 """
                 DELETE FROM sample_splitting_run_sample WHERE sample_splitting_run_id=?
@@ -229,7 +232,7 @@ def continue_sample_splitting_run(
                     / speaker_name
                     / f"{Path(audio_path).stem}.TextGrid"
                 )
-                langs.append("en") 
+                langs.append("en")
 
             splits = sample_splitting(
                 ids=sample_ids,
@@ -237,7 +240,7 @@ def continue_sample_splitting_run(
                 textgrid_paths=textgrid_paths,
                 languages=langs,
             )
-
+            run_sample_id_to_split = {}
             for split in splits:
                 cur.execute(
                     """
@@ -246,8 +249,11 @@ def continue_sample_splitting_run(
                     """,
                     (split.text, run_id, split.sample_id),
                 )
+                run_sample_id_to_split[cur.lastrowid] = split
+
             con.commit()
-            sample_splitting_run_split_ids, audio_paths = [], []
+
+            run_sample_infos = []
             for (
                 sample_splitting_run_id,
                 txt_path,
@@ -257,7 +263,7 @@ def continue_sample_splitting_run(
                 speaker_id,
             ) in cur.execute(
                 """
-                SELECT sample_splitting_run_sample.ID, sample.txt_path, sample.text, sample.audio_path, dataset.ID AS dataset_id, speaker.ID as speaker_id FROM sample_splitting_run_split 
+                SELECT sample_splitting_run_sample.ID, sample.txt_path, sample.text, sample.audio_path, dataset.ID AS dataset_id, speaker.ID as speaker_id FROM sample_splitting_run_sample 
                 INNER JOIN sample on sample_splitting_run_sample.sample_id = sample.ID
                 INNER JOIN speaker on sample.speaker_id = speaker.ID
                 INNER JOIN dataset ON speaker.dataset_id = dataset.ID 
@@ -272,14 +278,37 @@ def continue_sample_splitting_run(
                     / str(speaker_id)
                     / audio_path
                 )
-                sample_splitting_run_split_ids.append(sample_splitting_run_id)
-                audio_paths.append(audio_path)
-            
+                run_sample_infos.append((sample_splitting_run_id, audio_path))
 
+            Parallel(n_jobs=p_config.workers)(
+                delayed(split_sample)(
+                    run_sample_id_to_split[sample_splitting_run_id],
+                    audio_path,
+                    str(splits_path),
+                    sample_splitting_run_id,
+                )
+                for (sample_splitting_run_id, audio_path) in run_sample_infos
+            )
 
+            for sample_splitting_run_id, audio_path in run_sample_infos:
+                for split_idx, split in enumerate(
+                    run_sample_id_to_split[sample_splitting_run_id].splits
+                ):
+                    cur.execute(
+                        """
+                        INSERT INTO sample_splitting_run_split (text, split_idx, sample_splitting_run_sample_id)
+                        VALUES (?, ?, ?)
+                        """,
+                        (split.text, split_idx, sample_splitting_run_id),
+                    )
+            cur.execute(
+                "UPDATE sample_splitting_run SET stage='choose_samples', creating_splits_progress=1.0 WHERE ID=?",
+                (run_id,),
+            )
+            con.commit()
 
         elif stage == "choose_samples":
-            pass
+            break
 
         elif stage == "finished":
             break

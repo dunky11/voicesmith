@@ -271,17 +271,18 @@ const createTables = (db: any) => {
         sample_splitting_run_id INTEGER NOT NULL,
         sample_id INTEGER NOT NULL,
         FOREIGN KEY (sample_splitting_run_id) REFERENCES sample_splitting_run(ID),
-        FOREIGN KEY (sample_id) REFERENCES sample(ID)
+        FOREIGN KEY (sample_id) REFERENCES sample(ID) 
     ); 
     `
   ).run();
   db.prepare(
-    `
+    ` 
     CREATE TABLE IF NOT EXISTS sample_splitting_run_split (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         text TEXT NOT NULL,
+        split_idx INTEGER NOT NULL,
         sample_splitting_run_sample_id INTEGER NOT NULL,
-        FOREIGN KEY (sample_splitting_run_sample_id) REFERENCES sample_splitting_run_sample_id(ID)
+        FOREIGN KEY (sample_splitting_run_sample_id) REFERENCES sample_splitting_run_sample(ID) ON DELETE CASCADE
     ); 
     `
   ).run();

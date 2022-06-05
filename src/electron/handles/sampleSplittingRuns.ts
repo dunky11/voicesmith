@@ -5,6 +5,9 @@ import {
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL,
   FINISH_SAMPLE_SPLITTING_RUN_CHANNEL,
   FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL,
+  FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
+  REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
+  REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL,
 } from "../../channels";
 import {
   getDatasetsDir,
@@ -15,7 +18,10 @@ import {
   getModelsDir,
 } from "../utils/globals";
 import { DB } from "../utils/db";
-import { SampleSplittingRunInterface } from "../../interfaces";
+import {
+  SampleSplittingRunInterface,
+  SampleSplittingSampleInterface,
+} from "../../interfaces";
 import { startRun } from "../utils/processes";
 import { CONDA_ENV_NAME } from "../../config";
 
@@ -83,6 +89,95 @@ ipcMain.handle(
         ID: run.ID,
         device: run.device,
       });
+  }
+);
+
+ipcMain.handle(
+  FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL.IN,
+  (event: IpcMainEvent, runID: number) => {
+    const sample2Splits: { [id: number]: SampleSplittingSampleInterface } = {};
+    DB.getInstance()
+      .prepare(
+        `
+      SELECT sample.ID AS sampleID,
+      sample_splitting_run_sample.ID AS sampleSplittingSampleID,
+      sample_splitting_run_split.ID AS sampleSplittingRunSplitID,
+      sample_splitting_run_sample.text AS sampleSplittingSampleText,
+      sample_splitting_run_split.text AS sampleSplittingSplitText,
+      sample_splitting_run_split.split_idx AS splitIdx,
+      sample.audio_path AS audioPath,
+      dataset.ID as datasetID,
+      speaker.ID as speakerID,
+      speaker.name AS speakerName
+      FROM sample_splitting_run_split
+      INNER JOIN sample_splitting_run_sample ON sample_splitting_run_split.sample_splitting_run_sample_id = sample_splitting_run_sample.ID
+      INNER JOIN sample ON sample_splitting_run_sample.sample_id = sample.ID
+      INNER JOIN speaker ON sample.speaker_id = speaker.ID
+      INNER JOIN dataset ON  speaker.dataset_id = dataset.ID
+      WHERE sample_splitting_run_sample.sample_splitting_run_id=@runID
+      `
+      )
+      .all({ runID })
+      .forEach((el: any) => {
+        const split = {
+          ID: el.sampleSplittingRunSplitID,
+          text: el.sampleSplittingSplitText,
+          audioPath: path.join(
+            getSampleSplittingRunsDir(),
+            String(runID),
+            "splits",
+            `${el.sampleSplittingSampleID}_split_${el.splitIdx}.flac`
+          ),
+        };
+        if (sample2Splits[el.sampleSplittingSampleID] === undefined) {
+          sample2Splits[el.sampleSplittingSampleID] = {
+            ID: el.sampleSplittingSampleID,
+            text: el.sampleSplittingSampleText,
+            speakerName: el.speakerName,
+            audioPath: path.join(
+              getDatasetsDir(),
+              String(el.datasetID),
+              "speakers",
+              String(el.speakerID),
+              el.audioPath
+            ),
+            splits: [split],
+          };
+        } else {
+          sample2Splits[el.sampleSplittingSampleID].splits.push(split);
+        }
+      });
+    return Object.values(sample2Splits);
+  }
+);
+
+ipcMain.handle(
+  REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL.IN,
+  (event: IpcMainEvent, sampleIDs: number[]) => {
+    const rmSampleStmt = DB.getInstance().prepare(
+      "DELETE FROM sample_splitting_run_sample WHERE ID=@ID"
+    );
+    DB.getInstance().transaction(() => {
+      for (const ID of sampleIDs) {
+        rmSampleStmt.run({ ID });
+      }
+    })();
+  }
+);
+
+ipcMain.handle(
+  REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL.IN,
+  (event: IpcMainEvent, sampleIDs: number[]) => {
+    console.log("HERE");
+    console.log(sampleIDs);
+    const rmSampleStmt = DB.getInstance().prepare(
+      "DELETE FROM sample_splitting_run_split WHERE ID=@ID"
+    );
+    DB.getInstance().transaction(() => {
+      for (const ID of sampleIDs) {
+        rmSampleStmt.run({ ID });
+      }
+    })();
   }
 );
 

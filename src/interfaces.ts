@@ -326,7 +326,7 @@ export interface SampleSplittingRunInterface {
   device: "CPU" | "GPU";
 }
 
-export interface SampleSplittingSplitIntoInterface {
+export interface SampleSplittingSplitInterface {
   ID: number;
   text: string;
   audioPath: string;
@@ -337,5 +337,5 @@ export interface SampleSplittingSampleInterface {
   speakerName: string;
   text: string;
   audioPath: string;
-  splitInto: SampleSplittingSplitIntoInterface[];
+  splits: SampleSplittingSplitInterface[];
 }

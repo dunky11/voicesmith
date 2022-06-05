@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef, ReactElement } from "react";
-import { Table, Space, Input, Button, Typography, notification } from "antd";
+import {
+  Table,
+  Space,
+  Input,
+  Button,
+  List,
+  Typography,
+  notification,
+} from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import type { FilterConfirmProps } from "antd/lib/table/interface";
 import type { ColumnType } from "antd/lib/table";
@@ -10,6 +18,7 @@ import {
   FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   UPDATE_SAMPLE_SPLITTING_SAMPLE_CHANNEL,
+  REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL,
   GET_AUDIO_DATA_URL_CHANNEL,
 } from "../../../channels";
 import { useHistory } from "react-router-dom";
@@ -19,6 +28,7 @@ import {
   RunInterface,
   SampleSplittingRunInterface,
   SampleSplittingSampleInterface,
+  SampleSplittingSplitInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
@@ -131,7 +141,6 @@ export default function ChooseSamples({
     if (run === null) {
       return;
     }
-
     ipcRenderer
       .invoke(REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL.IN, sampleIDs)
       .then(fetchSamples);
@@ -172,6 +181,12 @@ export default function ChooseSamples({
       });
   };
 
+  const removeSampleSplit = (ID: number) => {
+    ipcRenderer
+      .invoke(REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL.IN, [ID])
+      .then(fetchSamples);
+  };
+
   const onFinish = () => {
     if (run === null) {
       return;
@@ -210,28 +225,10 @@ export default function ChooseSamples({
 
   const columns = [
     {
-      title: "Old Text",
-      dataIndex: "oldText",
-      key: "oldText",
-      ...getColumnSearchProps("oldText"),
-    },
-    {
-      title: "Sample Name",
-      dataIndex: "newText",
-      key: "newText",
-      ...getColumnSearchProps("newText"),
-      render: (text: any, record: SampleSplittingSampleInterface) => (
-        <Typography.Text
-          editable={{
-            tooltip: false,
-            onChange: (newName: string) => {
-              onNewTextEdit(record, newName);
-            },
-          }}
-        >
-          {record.text}
-        </Typography.Text>
-      ),
+      title: "Text",
+      dataIndex: "text",
+      key: "text",
+      ...getColumnSearchProps("text"),
     },
     {
       title: "Speaker",
@@ -252,6 +249,38 @@ export default function ChooseSamples({
             Play
           </a>
         </Space>
+      ),
+    },
+    {
+      title: "Split Into",
+      key: "action",
+      render: (text: any, record: SampleSplittingSampleInterface) => (
+        <List
+          size="small"
+          dataSource={record.splits}
+          renderItem={(item: SampleSplittingSplitInterface, index: number) => (
+            <List.Item>
+              <Typography.Text>{`${index + 1}. ${item.text}`}</Typography.Text>
+              <div>
+                <a
+                  onClick={() => {
+                    loadAudio(item.audioPath);
+                  }}
+                  style={{ marginRight: 8 }}
+                >
+                  Play
+                </a>
+                <a
+                  onClick={() => {
+                    removeSampleSplit(item.ID);
+                  }}
+                >
+                  Delete
+                </a>
+              </div>
+            </List.Item>
+          )}
+        />
       ),
     },
   ];

@@ -2,7 +2,9 @@ from dataclasses import dataclass
 from typing import List, Union, Literal, Dict
 import tgt
 from pathlib import Path
+import torch
 from voice_smith.utils.tokenization import SentenceTokenizer, WordTokenizer
+from voice_smith.utils.audio import safe_load, save_audio
 
 
 @dataclass
@@ -25,13 +27,14 @@ def get_splits(sentences_word, sentences_full, words_tier):
     word_idx = 0
     splits: List[Split] = []
     continue_search = True
+    end_time = None
     for i, (sentence_word, sentence_full) in enumerate(
         zip(sentences_word, sentences_full)
     ):
-        if i == 0:
+        if i == 0 or end_time is None:
             start_time = 0
         else:
-            start_time = (end_time + words_tier[word_idx].start_time) / 2.0
+            start_time = words_tier[word_idx].start_time
         for word_sent in sentence_word:
             word, end_time = words_tier[word_idx].text, words_tier[word_idx].end_time
             if word_sent.lower() != word.lower():
@@ -45,10 +48,11 @@ def get_splits(sentences_word, sentences_full, words_tier):
         if not continue_search:
             break
 
+        if end_time is None:
+            continue
+
         if i == len(sentences_word) - 1:
             end_time = words_tier.end_time
-        elif len(words_tier) > word_idx + 1:
-            end_time = (end_time + words_tier[word_idx + 1].start_time) / 2.0
 
         splits.append(
             Split(text=sentence_full, from_msecs=start_time, to_msecs=end_time)
@@ -84,11 +88,11 @@ def sample_splitting(
         for sample_id, text, textgrid_path in infos:
             if not Path(textgrid_path).exists():
                 continue
-            
+
             sentences = sentence_tokenizer.tokenize(text)
             if len(sentences) == 1:
                 continue
-            
+
             sentences_words = [word_tokenizer.tokenize(sent) for sent in sentences]
             textgrid = tgt.io.read_textgrid(textgrid_path)
             words_tier = textgrid.get_tier_by_name("words")
@@ -107,3 +111,13 @@ def sample_splitting(
                 )
 
     return sample_splits
+
+
+def split_sample(
+    sample_split: SampleSplit, audio_path: str, out_dir: str, sample_split_id: int
+):
+    audio, sr = safe_load(audio_path, sr=None)
+    for i, split in enumerate(sample_split.splits):
+        audio_split = audio[int(split.from_msecs * sr) : int(split.to_msecs * sr)]
+        file_path = Path(out_dir) / f"{sample_split_id}_split_{i}.flac"
+        save_audio(file_path=file_path, audio=torch.FloatTensor(audio_split), sr=sr)

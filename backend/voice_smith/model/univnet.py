@@ -341,7 +341,7 @@ class Generator(nn.Module):
             self.res_stack.append(
                 LVCBlock(
                     channel_size,
-                    preprocess_config.mel.n_mel_channels,
+                    preprocess_config.stft.n_mel_channels,
                     stride=stride,
                     dilations=model_config.gen.dilations,
                     lReLU_slope=model_config.gen.lReLU_slope,
@@ -425,9 +425,7 @@ class DiscriminatorP(nn.Module):
 
         kernel_size = model_config.mpd.kernel_size
         stride = model_config.mpd.stride
-        norm_f = (
-            spectral_norm if model_config.mpd.use_spectral_norm else weight_norm(module)
-        )
+        norm_f = spectral_norm if model_config.mpd.use_spectral_norm else weight_norm
 
         self.convs = nn.ModuleList(
             [
@@ -503,7 +501,10 @@ class MultiPeriodDiscriminator(nn.Module):
         super(MultiPeriodDiscriminator, self).__init__()
 
         self.discriminators = nn.ModuleList(
-            [DiscriminatorP(period) for period in model_config.mpd.periods]
+            [
+                DiscriminatorP(period, model_config=model_config)
+                for period in model_config.mpd.periods
+            ]
         )
 
     def forward(self, x):
@@ -570,7 +571,10 @@ class MultiResolutionDiscriminator(torch.nn.Module):
         super(MultiResolutionDiscriminator, self).__init__()
         self.resolutions = model_config.mrd.resolutions
         self.discriminators = nn.ModuleList(
-            [DiscriminatorR(resolution) for resolution in self.resolutions]
+            [
+                DiscriminatorR(resolution, model_config=model_config)
+                for resolution in self.resolutions
+            ]
         )
 
     def forward(self, x):

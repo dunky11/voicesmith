@@ -173,24 +173,7 @@ ipcMain.on(
       event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, reply);
       return;
     }
-    console.log([
-      "--training_run_id",
-      String(runID),
-      "--training_runs_path",
-      getTrainingRunsDir(),
-      "--assets_path",
-      ASSETS_PATH,
-      "--db_path",
-      DB_PATH,
-      "--models_path",
-      getModelsDir(),
-      "--datasets_path",
-      getDatasetsDir(),
-      "--user_data_path",
-      UserDataPath().getPath(),
-      "--environment_name",
-      CONDA_ENV_NAME,
-    ]);
+
     startRun(
       event,
       "training_run.py",
@@ -207,6 +190,8 @@ ipcMain.on(
         getModelsDir(),
         "--datasets_path",
         getDatasetsDir(),
+        "--user_data_path",
+        UserDataPath().getPath(),
         "--environment_name",
         CONDA_ENV_NAME,
       ],

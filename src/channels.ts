@@ -291,3 +291,7 @@ export const FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL = {
 export const UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL = {
   IN: "update-sample-splitting-run",
 };
+
+export const REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL = {
+  IN: "remove-sample-splitting-splits",
+};
