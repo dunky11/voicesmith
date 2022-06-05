@@ -167,15 +167,26 @@ ipcMain.handle(
 
 ipcMain.handle(
   REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL.IN,
-  (event: IpcMainEvent, sampleIDs: number[]) => {
-    console.log("HERE");
-    console.log(sampleIDs);
-    const rmSampleStmt = DB.getInstance().prepare(
+  (event: IpcMainEvent, sampleID: number, splitIDs: number[]) => {
+    const rmSplitStmt = DB.getInstance().prepare(
       "DELETE FROM sample_splitting_run_split WHERE ID=@ID"
     );
+    const rmSampleStmt = DB.getInstance().prepare(
+      "DELETE FROM sample_splitting_run_sample WHERE ID=@ID"
+    );
+    const countSplitStmt = DB.getInstance().prepare(
+      `
+      SELECT count(*) FROM sample_splitting_run_split 
+      WHERE sample_splitting_run_split.sample_splitting_run_sample_id=@ID
+    `
+    );
     DB.getInstance().transaction(() => {
-      for (const ID of sampleIDs) {
-        rmSampleStmt.run({ ID });
+      for (const ID of splitIDs) {
+        rmSplitStmt.run({ ID });
+      }
+      const count = countSplitStmt.get({ ID: sampleID })["count(*)"];
+      if (count === 0) {
+        rmSampleStmt.run({ ID: sampleID });
       }
     })();
   }

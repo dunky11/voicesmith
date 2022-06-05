@@ -181,9 +181,13 @@ export default function ChooseSamples({
       });
   };
 
-  const removeSampleSplit = (ID: number) => {
+  const removeSampleSplit = (sampleID: number, sampleSplitIDs: number[]) => {
     ipcRenderer
-      .invoke(REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL.IN, [ID])
+      .invoke(
+        REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL.IN,
+        sampleID,
+        sampleSplitIDs
+      )
       .then(fetchSamples);
   };
 
@@ -272,7 +276,7 @@ export default function ChooseSamples({
                 </a>
                 <a
                   onClick={() => {
-                    removeSampleSplit(item.ID);
+                    removeSampleSplit(record.ID, [item.ID]);
                   }}
                 >
                   Delete

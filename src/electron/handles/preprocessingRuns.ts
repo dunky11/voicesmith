@@ -197,7 +197,11 @@ ipcMain.handle(
   FETCH_PREPROCESSING_NAMES_USED_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number | null) => {
     const names: string[] = [];
-    for (const tableName of ["cleaning_run", "text_normalization_run"]) {
+    for (const tableName of [
+      "cleaning_run",
+      "text_normalization_run",
+      "sample_splitting_run",
+    ]) {
       if (ID !== null) {
         DB.getInstance()
           .prepare(`SELECT name FROM ${tableName} WHERE ID!=@ID`)
