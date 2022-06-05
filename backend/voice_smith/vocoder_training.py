@@ -187,7 +187,14 @@ def train_iter(
     return loss_means
 
 
-def evaluate(generator, loader, device, stft_criterion, stft_lamb):
+def evaluate(
+    generator,
+    loader,
+    device,
+    stft_criterion,
+    stft_lamb,
+    preprocess_config: PreprocessingConfig,
+):
     generator.eval()
     loss_means = {"mel_loss": 0, "pesq": 0, "estoi": 0, "rmse": 0}
     len_group = 0
@@ -195,13 +202,13 @@ def evaluate(generator, loader, device, stft_criterion, stft_lamb):
     batch_size = 0
 
     stft = TacotronSTFT(
-        filter_length=preprocess_config["stft"]["filter_length"],
-        hop_length=preprocess_config["stft"]["hop_length"],
-        win_length=preprocess_config["stft"]["win_length"],
-        n_mel_channels=preprocess_config["mel"]["n_mel_channels"],
-        sampling_rate=preprocess_config["sampling_rate"],
-        mel_fmin=preprocess_config["mel"]["mel_fmin"],
-        mel_fmax=preprocess_config["mel"]["mel_fmax"],
+        filter_length=preprocess_config.stft.filter_length,
+        hop_length=preprocess_config.stft.hop_length,
+        win_length=preprocess_config.stft.win_length,
+        n_mel_channels=preprocess_config.stft.n_mel_channels,
+        sampling_rate=preprocess_config.sampling_rate,
+        mel_fmin=preprocess_config.stft.mel_fmin,
+        mel_fmax=preprocess_config.stft.mel_fmax,
         device=device,
         center=False,
     )
@@ -221,12 +228,12 @@ def evaluate(generator, loader, device, stft_criterion, stft_lamb):
             estoi = calc_estoi(
                 audio_real=audio,
                 audio_fake=fake_audio,
-                sampling_rate=preprocess_config["sampling_rate"],
+                sampling_rate=preprocess_config.sampling_rate,
             )
             pesq = calc_pesq(
                 audio_real=audio,
                 audio_fake=fake_audio,
-                sampling_rate=preprocess_config["sampling_rate"],
+                sampling_rate=preprocess_config.sampling_rate,
             )
             rmse = calc_rmse(audio_real=audio, audio_fake=fake_audio, stft=stft)
 
@@ -364,6 +371,7 @@ def train_vocoder(
                 device=device,
                 stft_criterion=stft_criterion,
                 stft_lamb=stft_lamb,
+                preprocess_config=preprocess_config,
             )
             message = f"Validation step {steps}: "
             for j, loss_name in enumerate(loss_means.keys()):

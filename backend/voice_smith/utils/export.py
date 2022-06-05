@@ -61,9 +61,7 @@ def vocoder_to_torchscript(
         preprocess_config=preprocess_config,
         model_config=model_config,
     )
-    vocoder.eval()
-    vocoder.remove_weight_norm()
-    mels = torch.randn((2, 80, 50))
-    speaker_ids = torch.LongTensor([0, 0])
-    vocoder_torch = trace(vocoder, (mels, speaker_ids))
+    vocoder.eval(True)
+    mels = torch.randn((1, preprocess_config.stft.n_mel_channels, 50))
+    vocoder_torch = trace(vocoder, (mels,))
     return vocoder_torch

@@ -74,6 +74,9 @@ export const PREPROCESSING_RUNS_ROUTE = {
     CHOOSE_SAMPLES: {
       ROUTE: "/preprocessing-runs/sample-splitting/choose-samples",
     },
+    APPLY_CHANGES: {
+      ROUTE: "/preprocessing-runs/sample-splitting/apply-changes",
+    },
   },
 };
 

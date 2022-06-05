@@ -13,6 +13,7 @@ import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
+import ApplyChanges from "./ApplyChanges";
 import { FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
@@ -23,6 +24,7 @@ const stepToPath: {
   0: PREPROCESSING_RUNS_ROUTE.SAMPLE_SPLITTING.CONFIGURATION.ROUTE,
   1: PREPROCESSING_RUNS_ROUTE.SAMPLE_SPLITTING.RUNNING.ROUTE,
   2: PREPROCESSING_RUNS_ROUTE.SAMPLE_SPLITTING.CHOOSE_SAMPLES.ROUTE,
+  3: PREPROCESSING_RUNS_ROUTE.SAMPLE_SPLITTING.APPLY_CHANGES.ROUTE,
 };
 
 const stepToTitle: {
@@ -31,6 +33,7 @@ const stepToTitle: {
   0: "Configuration",
   1: "Splitting Samples",
   2: "Pick Samples",
+  3: "Apply Changes",
 };
 
 export default function SampleSplitting({
@@ -149,6 +152,20 @@ export default function SampleSplitting({
                 }
                 title={stepToTitle[2]}
               />
+              <Steps.Step
+                disabled={
+                  run === null ||
+                  [
+                    "not_started",
+                    "copying_files",
+                    "gen_vocab",
+                    "gen_alignments",
+                    "creating_splits",
+                    "choose_samples",
+                  ].includes(run.stage)
+                }
+                title={stepToTitle[3]}
+              />
             </Steps>
           </Card>
         </Col>
@@ -201,6 +218,23 @@ export default function SampleSplitting({
                 )
               }
               path={stepToPath[2]}
+            ></Route>
+            <Route
+              render={() =>
+                run === null ? (
+                  <></>
+                ) : (
+                  <ApplyChanges
+                    onStepChange={onStepChange}
+                    run={run}
+                    running={running}
+                    continueRun={continueRun}
+                    usageStats={usageStats}
+                    stopRun={stopRun}
+                  />
+                )
+              }
+              path={stepToPath[3]}
             ></Route>
           </Switch>
         </Col>

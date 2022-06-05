@@ -6,6 +6,7 @@ import torch
 import json
 import sqlite3
 from typing import Union, Literal, Tuple, Dict, Any, Callable
+import dataclasses
 import argparse
 import multiprocessing as mp
 from voice_smith.acoustic_training import train_acoustic
@@ -654,11 +655,11 @@ def save_model_stage(
     run_id: int,
     data_path: str,
     assets_path: str,
-    model_path: str,
+    models_path: str,
     **kwargs,
 ) -> bool:
     data_path = Path(data_path)
-    model_path = Path(model_path)
+    models_path = Path(models_path)
     checkpoint_acoustic, acoustic_steps = get_latest_checkpoint(
         name="acoustic",
         ckpt_dir=str(data_path / "ckpt" / "acoustic"),
@@ -715,20 +716,14 @@ def save_model_stage(
     config = {
         "acousticSteps": acoustic_steps,
         "vocoderSteps": vocoder_steps,
-        "preprocessing": p_config,
-        "acoustic_model": m_config_acoustic,
-        "vocoder_model": m_config_vocoder,
-        "fine_tuning_acoustic": t_config_acoustic,
-        "fine_tuning_vocoder": t_config_vocoder,
+        "preprocessing": dataclasses.asdict(p_config),
+        "acoustic_model": dataclasses.asdict(m_config_acoustic),
+        "vocoder_model": dataclasses.asdict(m_config_vocoder),
+        "fine_tuning_acoustic": dataclasses.asdict(t_config_acoustic),
+        "fine_tuning_vocoder": dataclasses.asdict(t_config_vocoder),
     }
     description = """
-            DelightfulTTS (https://arxiv.org/pdf/2110.12612.pdf) like architecture with DeepVoice 3 
-            speaker embeddings. Speaker embeddings are pretrained using ECAPA-TDNN. 
-            Attention with TinyBERT is used to improve prosody. Uses a mixed char, phoneme and caps embedding. 
-            Duration is unsupervised using the scheme from "One TTS Alignment To Rule Them All" 
-            (https://arxiv.org/pdf/2108.10447.pdf).
-            Vocoder is 44.1khz FreGANv1 with HiFiGAN discriminators, both generator and discriminator are
-            speaker conditional.
+            TODO
         """
 
     row = cur.execute(
@@ -737,19 +732,19 @@ def save_model_stage(
     ).fetchone()
     con.commit()
 
-    name = get_available_name(model_dir=str(model_path), name=row[0])
-    (model_path / name).mkdir(exist_ok=True, parents=True)
-    models_dir = model_path / name / "torchscript"
+    name = get_available_name(model_dir=str(models_path), name=row[0])
+    (models_path / name).mkdir(exist_ok=True, parents=True)
+    models_dir = models_path / name / "torchscript"
     models_dir.mkdir(exist_ok=True)
     acoustic_model.save(str(models_dir / "acoustic_model.pt"))
     style_predictor.save(models_dir / "style_predictor.pt")
     vocoder.save(models_dir / "vocoder.pt")
-    with open(model_path / name / "config.json", "w", encoding="utf-8") as f:
+    with open(models_path / name / "config.json", "w", encoding="utf-8") as f:
         json.dump(config, f)
 
     lexicon = {}
     with open(
-        Path(".") / "training_runs" / str(run_id) / "data" / "lexicon_post.txt",
+        data_path / "data" / "lexicon_post.txt",
         "r",
         encoding="utf-8",
     ) as f:
@@ -793,9 +788,11 @@ def save_model_stage(
 
 def before_stage(
     data_path: str,
+    stage_name: str,
     **kwargs,
 ):
-    set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+    # set_stream_location(str(Path(data_path) / "logs" / "{stage_name}.txt"))
+    pass
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
