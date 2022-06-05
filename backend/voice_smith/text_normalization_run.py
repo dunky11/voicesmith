@@ -28,7 +28,7 @@ def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
         (run_id,),
     ).fetchone()
     stage = row[0]
-    return row[0]
+    return stage
 
 
 def not_started_stage(
