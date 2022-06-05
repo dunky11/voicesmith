@@ -10,13 +10,14 @@ import {
   FETCH_PREPROCESSING_NAMES_USED_CHANNEL,
 } from "../../channels";
 import { fetchSampleSplittingRuns } from "./sampleSplittingRuns";
-import { exists } from "../utils/files";
+import { safeRmDir } from "../utils/files";
 import {
   PreprocessingRunInterface,
   SampleSplittingRunInterface,
 } from "../../interfaces";
 import {
   getCleaningRunsDir,
+  getSampleSplittingRunsDir,
   getTextNormalizationRunsDir,
 } from "../utils/globals";
 import { DB } from "../utils/db";
@@ -142,13 +143,7 @@ ipcMain.handle(
               ID: preprocessingRun.ID,
             });
         })();
-        const dir = path.join(
-          getCleaningRunsDir(),
-          String(preprocessingRun.ID)
-        );
-        if (await exists(dir)) {
-          await fsPromises.rmdir(dir, { recursive: true });
-        }
+        safeRmDir(path.join(getCleaningRunsDir(), String(preprocessingRun.ID)));
         break;
       }
       case "textNormalizationRun": {
@@ -166,23 +161,29 @@ ipcMain.handle(
               ID: preprocessingRun.ID,
             });
         })();
-        const dir = path.join(
-          getTextNormalizationRunsDir(),
-          String(preprocessingRun.ID)
+        safeRmDir(
+          path.join(getTextNormalizationRunsDir(), String(preprocessingRun.ID))
         );
-        if (await exists(dir)) {
-          await fsPromises.rmdir(dir, { recursive: true });
-        }
         break;
       }
       case "sampleSplittingRun":
         DB.getInstance().transaction(() => {
+          DB.getInstance()
+            .prepare(
+              "DELETE FROM sample_splitting_run_sample WHERE sample_splitting_run_sample.sample_splitting_run_id=@ID"
+            )
+            .run({
+              ID: preprocessingRun.ID,
+            });
           DB.getInstance()
             .prepare("DELETE FROM sample_splitting_run WHERE ID=@ID")
             .run({
               ID: preprocessingRun.ID,
             });
         })();
+        safeRmDir(
+          path.join(getSampleSplittingRunsDir(), String(preprocessingRun.ID))
+        );
         break;
       default: {
         throw new Error(
