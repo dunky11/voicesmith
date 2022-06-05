@@ -7,19 +7,19 @@ class StageRunner:
         self,
         cur: sqlite3.Cursor,
         con: sqlite3.Connection,
-        get_stage_name: Callable[Any, str],
-        stages: List[Tuple[str, Callable[Any, bool]]],
+        get_stage_name: Callable[[Any], str],
+        stages: List[Tuple[str, Callable[[Any], bool]]],
         before_stage: Optional[
-            Callable[Any, None]
+            Callable[[Any], None]
         ] = None,
         after_stage: Optional[
-            Callable[Any, None]
+            Callable[[Any], None]
         ] = None,
         before_run: Optional[
-            Callable[Any, None]
+            Callable[[Any], None]
         ] = None,
         after_run: Optional[
-            Callable[Any, None]
+            Callable[[Any], None]
         ] = None,
     ):
         self.cur = cur

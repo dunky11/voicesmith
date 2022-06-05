@@ -161,7 +161,7 @@ def not_started_stage(
     if data_path.exists():
         shutil.rmtree(data_path)
     (data_path / "logs").mkdir(exist_ok=True, parents=True)
-    (data_path / "raw_data").mkdir(exist_ok=True)
+    (data_path / "raw_data").mkdir(exist_ok=True, parents=True)
     cur.execute(
         "UPDATE training_run SET stage='preprocessing' WHERE ID=?",
         (run_id,),
@@ -216,7 +216,7 @@ def preprocessing_stage(
                 (run_id,),
             ).fetchall():
                 full_audio_path = (
-                    dataset_path
+                    Path(dataset_path)
                     / str(dataset_id)
                     / "speakers"
                     / str(speaker_id)
@@ -342,6 +342,10 @@ def preprocessing_stage(
     return False
 
 
+def before_run(data_path: str, **kwargs):
+    (Path(data_path) / "logs").mkdir(exist_ok=True, parents=True)
+
+
 def acoustic_fine_tuning_stage(
     cur: sqlite3.Cursor,
     con: sqlite3.Connection,
@@ -387,15 +391,15 @@ def acoustic_fine_tuning_stage(
                 reset = False
 
             cur.execute(
-                "DELETE FROM image_statistic WHERE run_id=? AND step>=? AND stage='acoustic'",
+                "DELETE FROM image_statistic WHERE training_run_id=? AND step>=? AND stage='acoustic'",
                 (run_id, step),
             )
             cur.execute(
-                "DELETE FROM graph_statistic WHERE run_id=? AND step>=? AND stage='acoustic'",
+                "DELETE FROM graph_statistic WHERE training_run_id=? AND step>=? AND stage='acoustic'",
                 (run_id, step),
             )
             cur.execute(
-                "DELETE FROM audio_statistic WHERE run_id=? AND step>=? AND stage='acoustic'",
+                "DELETE FROM audio_statistic WHERE training_run_id=? AND step>=? AND stage='acoustic'",
                 (run_id, step),
             )
             con.commit()
@@ -569,15 +573,15 @@ def vocoder_fine_tuning_stage(
             )
 
             cur.execute(
-                "DELETE FROM image_statistic WHERE run_id=? AND step>=? AND stage='vocoder'",
+                "DELETE FROM image_statistic WHERE training_run_id=? AND step>=? AND stage='vocoder'",
                 (run_id, step),
             )
             cur.execute(
-                "DELETE FROM graph_statistic WHERE run_id=? AND step>=? AND stage='vocoder'",
+                "DELETE FROM graph_statistic WHERE training_run_id=? AND step>=? AND stage='vocoder'",
                 (run_id, step),
             )
             cur.execute(
-                "DELETE FROM audio_statistic WHERE run_id=? AND step>=? AND stage='vocoder'",
+                "DELETE FROM audio_statistic WHERE training_run_id=? AND step>=? AND stage='vocoder'",
                 (run_id, step),
             )
             con.commit()
@@ -832,6 +836,7 @@ def continue_training_run(
     runner = StageRunner(
         cur=cur,
         con=con,
+        before_run=before_run,
         before_stage=before_stage,
         get_stage_name=get_stage_name,
         stages=[

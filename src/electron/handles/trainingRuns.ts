@@ -178,7 +178,7 @@ ipcMain.on(
       event,
       "training_run.py",
       [
-        "--training_run_id",
+        "--run_id",
         String(runID),
         "--training_runs_path",
         getTrainingRunsDir(),
