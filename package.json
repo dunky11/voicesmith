@@ -27,7 +27,7 @@
           "assets",
           "backend"
         ],
-        "icon": ".media/icon"
+        "icon": ".assets/icon"
       },
       "makers": [
         {
