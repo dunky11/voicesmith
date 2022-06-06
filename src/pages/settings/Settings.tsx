@@ -4,7 +4,12 @@ import RunCard from "../../components/cards/RunCard";
 import { RunInterface, SettingsInterface } from "../../interfaces";
 import { notifySave } from "../../utils";
 import { createUseStyles } from "react-jss";
-import { SAVE_SETTINGS_CHANNEL, START_SERVER_CHANNEL } from "../../channels";
+import {
+  SAVE_SETTINGS_CHANNEL,
+  FETCH_SETTINGS_CHANNEL,
+  PICK_SINGLE_FOLDER_CHANNEL,
+} from "../../channels";
+import { IpcMainEvent, IpcRendererEvent } from "electron/renderer";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -31,7 +36,7 @@ export default function Settings({
     ipcRenderer.on(
       SAVE_SETTINGS_CHANNEL.REPLY,
       (
-        _: any,
+        _: IpcRendererEvent,
         message: {
           type: string;
         }
@@ -51,23 +56,29 @@ export default function Settings({
         }
       }
     );
-    ipcRenderer.send(START_SERVER_CHANNEL.IN, formRef.current.getFieldsValue());
+    ipcRenderer.send(
+      SAVE_SETTINGS_CHANNEL.IN,
+      formRef.current.getFieldsValue()
+    );
   };
 
   const fetchConfig = () => {
-    ipcRenderer.invoke("fetch-settings").then((settings: SettingsInterface) => {
-      console.log(settings);
-      formRef.current.setFieldsValue(settings);
-    });
+    ipcRenderer
+      .invoke(FETCH_SETTINGS_CHANNEL.IN)
+      .then((settings: SettingsInterface) => {
+        formRef.current.setFieldsValue(settings);
+      });
   };
 
   const onPickStorageClick = () => {
-    ipcRenderer.invoke("pick-single-folder").then((dataPath: string | null) => {
-      if (dataPath == null) {
-        return;
-      }
-      formRef.current.setFieldsValue({ dataPath });
-    });
+    ipcRenderer
+      .invoke(PICK_SINGLE_FOLDER_CHANNEL.IN)
+      .then((dataPath: string | null) => {
+        if (dataPath == null) {
+          return;
+        }
+        formRef.current.setFieldsValue({ dataPath });
+      });
   };
 
   const onSaveClick = () => {
@@ -78,7 +89,7 @@ export default function Settings({
     isMounted.current = true;
     fetchConfig();
     return () => {
-      ipcRenderer.removeAllListeners("save-settings-reply");
+      ipcRenderer.removeAllListeners(SAVE_SETTINGS_CHANNEL.REPLY);
       isMounted.current = false;
     };
   });

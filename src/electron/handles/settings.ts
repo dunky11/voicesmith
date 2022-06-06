@@ -9,7 +9,7 @@ import {
 import { SettingsInterface, AppInfoInterface } from "../../interfaces";
 import { UserDataPath } from "../utils/globals";
 import { DB } from "../utils/db";
-import { copyDir } from "../utils/files";
+import { copyDir, safeRmDir } from "../utils/files";
 
 ipcMain.handle(GET_APP_INFO_CHANNEL.IN, (event: IpcMainEvent) => {
   const info: AppInfoInterface = {
@@ -25,13 +25,17 @@ ipcMain.on(
     const from = UserDataPath().getPath();
     const updatePaths = from !== settings.dataPath;
     if (updatePaths) {
+      console.log("COPY FROM :", from, settings.dataPath);
       await copyDir(from, settings.dataPath);
     }
+    console.log("UPDATING PATHS :", from);
+
     DB.getInstance()
       .prepare("UPDATE settings SET data_path=@dataPath WHERE ID=1")
       .run(settings);
     if (updatePaths) {
-      await fsPromises.rmdir(from, { recursive: true });
+      console.log("DELETING FROM :", from);
+      await safeRmDir(from);
       UserDataPath().setPath(settings.dataPath);
     }
     event.reply(SAVE_SETTINGS_CHANNEL.REPLY, { type: "finished" });
