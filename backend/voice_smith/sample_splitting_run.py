@@ -1,11 +1,12 @@
 from pathlib import Path
 import shutil
-from typing import Literal, Callable
+from typing import Literal, Callable, List, Dict
 import sys
 import torch
 import json
 import sqlite3
 import argparse
+from dataclasses import dataclass
 from joblib import Parallel, delayed
 from voice_smith.preprocessing.copy_files import copy_files
 from voice_smith.config.configs import SampleSplittingRunConfig
@@ -40,11 +41,29 @@ def before_run(data_path: str, **kwargs):
     (Path(data_path) / "logs").mkdir(exist_ok=True, parents=True)
 
 
+def get_log_file_name(stage_name: str) -> str:
+    if stage_name in [
+        "not_started",
+        "copying_files",
+        "gen_vocab",
+        "gen_alignments",
+        "creating_splits",
+    ]:
+        return "preprocessing.txt"
+    elif stage_name == "apply_changes":
+        return "apply_changes.txt"
+    else:
+        raise Exception(
+            f"No branch selected in switch-statement, {stage_name} is not a valid case ..."
+        )
+
+
 def before_stage(
     data_path: str,
+    stage_name: str,
     **kwargs,
 ):
-    set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+    set_stream_location(str(Path(data_path) / "logs" / get_log_file_name(stage_name)))
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
@@ -335,6 +354,129 @@ def creating_splits_stage(
     return True
 
 
+@dataclass
+class ApplyChangesSplit:
+    full_audio_path: str
+    text: str
+
+
+@dataclass
+class ApplyChangesInfo:
+    sample_id: int
+    sample_splitting_run_sample_id: int
+    speaker_id: int
+    old_sample_txt_path: str
+    old_sample_audio_path: str
+    old_sample_full_audio_path: str
+    splits: List[ApplyChangesSplit]
+
+
+def apply_changes_stage(
+    cur: sqlite3.Cursor,
+    con: sqlite3.Connection,
+    run_id: int,
+    splits_path: str,
+    datasets_path: str,
+    **kwargs,
+) -> bool:
+    sample_id_to_info: Dict[int, ApplyChangesInfo] = {}
+    for (
+        sample_splitting_run_sample_id,
+        sample_id,
+        txt_path,
+        audio_path,
+        dataset_id,
+        speaker_id,
+        new_text,
+        split_idx,
+    ) in cur.execute(
+        """
+        SELECT sample_splitting_run_sample.ID AS sample_splitting_run_sample_id, 
+        sample.ID AS sampleID, sample.txt_path, sample.audio_path AS sample_audio_path, 
+        dataset.ID AS dataset_id, speaker.ID AS speaker_id, sample_splitting_run_split.text,
+        sample_splitting_run_sample.split_idx
+        FROM sample_splitting_run_split
+        INNER JOIN sample_splitting_run_sample ON sample_splitting_run_split.sample_splitting_run_sample_id = sample_splitting_run_sample.ID
+        INNER JOIN sample on sample_splitting_run_sample.sample_id = sample.ID
+        INNER JOIN speaker on sample.speaker_id = speaker.ID
+        INNER JOIN dataset ON speaker.dataset_id = dataset.ID
+        WHERE sample_splitting_run_sample.sample_splitting_run_id=?
+
+        """,
+        (run_id,),
+    ).fetchall():
+        full_old_audio_path = (
+            Path(datasets_path)
+            / str(dataset_id)
+            / "speakers"
+            / str(speaker_id)
+            / audio_path
+        )
+        full_new_audio_path = (
+            Path(splits_path)
+            / f"{sample_splitting_run_sample_id}_split_{split_idx}.flac"
+        )
+        apply_changes_split = ApplyChangesSplit(
+            full_audio_path=full_new_audio_path, text=new_text
+        )
+        if sample_splitting_run_sample_id in sample_id_to_info:
+            sample_id_to_info[sample_splitting_run_sample_id].splits.append(
+                apply_changes_split
+            )
+        else:
+            sample_id_to_info[sample_splitting_run_sample_id] = ApplyChangesInfo(
+                sample_id=sample_id,
+                sample_splitting_run_sample_id=sample_splitting_run_sample_id,
+                old_sample_txt_path=txt_path,
+                old_sample_audio_path=full_old_audio_path,
+                old_sample_full_audio_path=full_old_audio_path,
+                speaker_id=speaker_id,
+                splits=[apply_changes_split],
+            )
+
+    for apply_changes_info in sample_id_to_info.values():
+        old_sample_txt_path = Path(apply_changes_info.old_sample_txt_path)
+        old_sample_full_audio_path = Path(apply_changes_info.full_audio_path)
+        delete_audio_paths: List[str] = []
+        for split in apply_changes_info.splits:
+            if not Path(split.full_audio_path).exists():
+                continue
+            copy_audio_to = (
+                old_sample_full_audio_path.name
+                / f"{old_sample_full_audio_path.stem}_split_{split.chunk_idx}{split.full_audio_path.suffix}"
+            )
+            audio_name_to = f"{old_sample_full_audio_path.stem}_split_{split.chunk_idx}{old_sample_full_audio_path.suffix}"
+            text_name_to = f"{old_sample_txt_path.stem}_split_{split.chunk_idx}{old_sample_txt_path.suffix}"
+
+            shutil.copy2(split.full_audio_path, copy_audio_to)
+            cur.execute(
+                "INSERT INTO sample (txt_path, audio_path, speaker_id, text) VALUES (?, ?, ? ,?)",
+                (
+                    text_name_to,
+                    audio_name_to,
+                    apply_changes_info.speaker_id,
+                    split.text,
+                ),
+            )
+            delete_audio_paths.append(split.full_audio_path)
+        delete_audio_paths.append(str(old_sample_full_audio_path))
+        cur.execute("DELETE FROM sample WHERE ID=?", (apply_changes_info.sample_id,))
+        cur.execute(
+            "DELETE FROM sample_splitting_run_sample WHERE ID=?",
+            (apply_changes_info.sample_splitting_run_sample_id,),
+        )
+        con.commit()
+        for delete_audio_path in delete_audio_paths:
+            Path(delete_audio_path).unlink(missing_ok=True)
+
+    cur.execute(
+        "UPDATE sample_splitting_run SET stage='choose_samples', applying_changes_progress=1.0 WHERE ID=?",
+        (run_id,),
+    )
+    con.commit()
+    return True
+
+
 def continue_sample_splitting_run(
     run_id: int,
     preprocessing_runs_dir: str,
@@ -373,6 +515,7 @@ def continue_sample_splitting_run(
             ("gen_vocab", get_vocab_stage),
             ("gen_alignments", gen_alignments_stage),
             ("creating_splits", creating_splits_stage),
+            ("apply_changes", apply_changes_stage),
         ],
     )
     runner.run(
