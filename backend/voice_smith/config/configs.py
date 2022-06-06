@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, Tuple, List
 import torch
 
+
 @dataclass
 class STFTConfig:
     filter_length: int
@@ -126,7 +127,7 @@ class AcousticModelConfig:
         kernel_size_depthwise=7,
     )
     decoder: ConformerConfig = ConformerConfig(
-        n_layers=5,
+        n_layers=6,
         n_heads=6,
         n_hidden=384,
         p_dropout=0.1,

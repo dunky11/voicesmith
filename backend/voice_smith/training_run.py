@@ -791,8 +791,7 @@ def before_stage(
     stage_name: str,
     **kwargs,
 ):
-    # set_stream_location(str(Path(data_path) / "logs" / "{stage_name}.txt"))
-    pass
+    set_stream_location(str(Path(data_path) / "logs" / f"{stage_name}.txt"))
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):

@@ -81,7 +81,7 @@ class AcousticModel(nn.Module):
 
         self.decoder = Conformer(
             dim=model_config.decoder.n_hidden,
-            n_layers=model_config.decoder.n_layers // 2,
+            n_layers=model_config.decoder.n_layers,
             n_heads=model_config.decoder.n_heads,
             embedding_dim=model_config.speaker_embed_dim,
             p_dropout=model_config.decoder.p_dropout,
