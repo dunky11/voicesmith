@@ -1,100 +1,45 @@
 import torch
 import torch.nn as nn
-from piq import SSIMLoss
+import torch.nn.functional as F
 from voice_smith.utils.tools import sample_wise_min_max
 from typing import Dict, Tuple, Any, List
+import torch.nn.functional as F
+
+_SIM_LOSS_FUNC = None
 
 
-class FastSpeech2LossGen(nn.Module):
-    def __init__(self, fine_tuning: bool, device: torch.device):
-        super().__init__()
+def duration_loss(
+    log_y_pred: torch.Tensor,
+    y_true: torch.Tensor,
+    src_masks: torch.Tensor,
+):
+    y_true.requires_grad = False
+    log_y_true = torch.log(y_true.float() + 1)
+    log_y_pred = log_y_pred.masked_select(~src_masks)
+    log_y_true = log_y_true.masked_select(~src_masks)
+    loss = F.mse_loss(log_y_pred, log_y_true)
+    return loss
 
-        self.mse_loss = nn.MSELoss()
-        self.mae_loss = nn.L1Loss()
-        self.ssim_loss = SSIMLoss()
-        self.fine_tuning = fine_tuning
-        self.device = device
 
-    def forward(
-        self,
-        src_masks: torch.Tensor,
-        mel_masks: torch.Tensor,
-        mel_targets: torch.Tensor,
-        mel_predictions: torch.Tensor,
-        log_duration_predictions: torch.Tensor,
-        p_prosody_ref: torch.Tensor,
-        p_prosody_pred: torch.Tensor,
-        durations: torch.Tensor,
-        pitch_predictions: torch.Tensor,
-        p_targets: torch.Tensor,
-    ) -> Tuple[
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-    ]:
-        log_duration_targets = torch.log(durations.float() + 1)
+def pitch_loss(y_pred: torch.Tensor, y_true: torch.Tensor, src_masks):
+    y_true.requires_grad = False
+    y_pred = y_pred.masked_select(~src_masks)
+    y_true = y_true.masked_select(~src_masks)
+    loss = F.mse_loss(y_pred, y_true)
+    return loss
 
-        log_duration_targets.requires_grad = False
-        mel_targets.requires_grad = False
-        p_targets.requires_grad = False
 
-        log_duration_predictions = log_duration_predictions.masked_select(~src_masks)
-        log_duration_targets = log_duration_targets.masked_select(~src_masks)
+def prosody_loss(y_pred: torch.Tensor, y_ref: torch.Tensor, src_masks: torch.Tensor):
+    y_ref = y_ref.permute((0, 2, 1))
+    y_pred = y_pred.permute((0, 2, 1))
 
-        mel_masks_expanded = mel_masks.unsqueeze(1)
+    y_ref = y_ref.detach()
 
-        mel_predictions_normalized = sample_wise_min_max(mel_predictions)
-        mel_targets_normalized = sample_wise_min_max(mel_targets)
-
-        ssim_loss = self.ssim_loss(
-            mel_predictions_normalized.unsqueeze(1), mel_targets_normalized.unsqueeze(1)
-        )
-
-        if ssim_loss.item() > 1.0 or ssim_loss.item() < 0.0:
-            print(
-                f"Overflow in ssim loss detected, which was {ssim_loss.item()}, setting to 1.0"
-            )
-            ssim_loss = torch.FloatTensor([1.0]).to(self.device)
-
-        masked_mel_predictions = mel_predictions.masked_select(~mel_masks_expanded)
-
-        mel_targets = mel_targets.masked_select(~mel_masks_expanded)
-
-        mel_loss = self.mae_loss(masked_mel_predictions, mel_targets)
-
-        p_prosody_ref = p_prosody_ref.permute((0, 2, 1))
-        p_prosody_pred = p_prosody_pred.permute((0, 2, 1))
-
-        p_prosody_ref = p_prosody_ref.masked_fill(src_masks.unsqueeze(1), 0.0)
-        p_prosody_pred = p_prosody_pred.masked_fill(src_masks.unsqueeze(1), 0.0)
-
-        p_prosody_ref = p_prosody_ref.detach()
-
-        p_prosody_loss = 0.5 * self.mae_loss(
-            p_prosody_ref.masked_select(~src_masks.unsqueeze(1)),
-            p_prosody_pred.masked_select(~src_masks.unsqueeze(1)),
-        )
-
-        duration_loss = self.mse_loss(log_duration_predictions, log_duration_targets)
-
-        pitch_predictions = pitch_predictions.masked_select(~src_masks)
-        p_targets = p_targets.masked_select(~src_masks)
-
-        pitch_loss = self.mse_loss(pitch_predictions, p_targets)
-
-        total_loss = mel_loss + duration_loss + p_prosody_loss + ssim_loss + pitch_loss
-
-        return (
-            total_loss,
-            mel_loss,
-            ssim_loss,
-            duration_loss,
-            p_prosody_loss,
-            pitch_loss,
-        )
+    p_prosody_loss = F.mae_loss(
+        y_ref.masked_select(~src_masks.unsqueeze(1)),
+        y_pred.masked_select(~src_masks.unsqueeze(1)),
+    )
+    return p_prosody_loss
 
 
 def feature_loss(

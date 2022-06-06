@@ -21,6 +21,7 @@ class PreprocessingConfig:
     sampling_rate: int = 22050
     use_audio_normalization: bool = True
     workers: int = 11
+    segment_size: int = 32
     stft: STFTConfig = STFTConfig(
         filter_length=1024,
         hop_length=256,
@@ -59,6 +60,7 @@ class AcousticFinetuningConfig:
     optimizer_config: AcousticTrainingOptimizerConfig = AcousticTrainingOptimizerConfig(
         learning_rate=0.0002, weight_decay=0.1, lr_decay=0.99999
     )
+    stft_lamb: int = 2.5
 
 
 @dataclass
@@ -76,6 +78,7 @@ class AcousticPretrainingConfig:
     optimizer_config: AcousticTrainingOptimizerConfig = AcousticTrainingOptimizerConfig(
         learning_rate=0.051, weight_decay=0.1, lr_decay=0.99999
     )
+    stft_lamb: int = 2.5
 
 
 @dataclass
@@ -149,40 +152,6 @@ class AcousticModelConfig:
     variance_adaptor: VarianceAdaptorConfig = VarianceAdaptorConfig(
         n_hidden=384, kernel_size=5, p_dropout=0.5, n_bins=256
     )
-
-
-@dataclass
-class VocoderPretrainingConfig:
-    segment_size: int = 16384
-    learning_rate: float = 0.0001
-    adam_b1: float = 0.5
-    adam_b2: float = 0.9
-    lr_decay: float = 0.995
-    batch_size: int = 14
-    grad_accum_steps: int = 1
-    train_steps: int = 1000000
-    stdout_interval: int = 25
-    synth_interval: int = 250
-    validation_interval: int = 2000
-    checkpoint_interval: int = 250
-    stft_lamb: int = 2.5
-
-
-@dataclass
-class VocoderFinetuningConfig:
-    segment_size: int = 16384
-    learning_rate: float = 0.0001
-    adam_b1: float = 0.5
-    adam_b2: float = 0.9
-    lr_decay: float = 0.995
-    batch_size: int = 5
-    grad_accum_steps: int = 3
-    train_steps: int = 10000
-    stdout_interval: int = 100
-    synth_interval: int = 250
-    validation_interval: int = 4000
-    checkpoint_interval: int = 250
-    stft_lamb: int = 2.5
 
 
 @dataclass
