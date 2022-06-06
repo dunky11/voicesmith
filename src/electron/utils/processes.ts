@@ -40,7 +40,6 @@ export const startRun = (
   args: string[],
   logErr: boolean
 ): void => {
-  console.log(scriptName, ...args);
   pyProc = spawnCondaShell([scriptName, ...args].join(" "));
 
   pyProc.on("exit", () => {
@@ -92,7 +91,7 @@ export const createServerProc = (): void => {
     `${path.join(
       BACKEND_PATH,
       path.join("server.py")
-    )} ${port} ${DB_PATH} ${getAudioSynthDir()} ${getModelsDir()} ${ASSETS_PATH}`
+    )} --port ${port} --db_path ${DB_PATH} --audio_synth_path ${getAudioSynthDir()} --models_path ${getModelsDir()} --assets_path ${ASSETS_PATH}`
   );
   serverProc.stderr.on("data", (data: any) => {
     throw new Error(data.toString());

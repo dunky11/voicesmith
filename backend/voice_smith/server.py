@@ -1,5 +1,6 @@
 import torch
 import sqlite3
+import argparse
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from typing import Dict, List, Any
@@ -70,7 +71,11 @@ def get_model(
 
 
 def run_server(
-    port: int, db_path: str, audio_synth_path: str, models_path: str, assets_path: str
+    port: int,
+    db_path: str,
+    audio_synth_path: str,
+    models_path: str,
+    assets_path: str,
 ):
     app = Flask(__name__)
     CORS(app)
@@ -108,7 +113,7 @@ def run_server(
 
     @app.route("/synthesize", methods=["POST"])
     def synthesize():
-        con = get_con(user_data_path)
+        con = get_con(db_path)
         cur = con.cursor()
         model_id = request.form.get("modelID", type=int)
         speaker_id = request.form.get("speakerID", type=int)
@@ -127,7 +132,7 @@ def run_server(
             "SELECT name, type FROM model WHERE ID=?",
             (model_id,),
         ).fetchone()
-        model_name, type = row
+        model_name, model_type = row
 
         row = cur.execute(
             "SELECT name FROM model_speaker WHERE speaker_id=? AND model_id=?",
@@ -153,15 +158,15 @@ def run_server(
             text=text,
             talking_speed=talking_speed,
             speaker_id=speaker_id,
-            type=type,
+            model_type=model_type,
             symbol2id=__model__["symbol2id"],
             lexicon=__model__["lexicon"],
             g2p=__model__["g2p"],
             acoustic_model=__model__["acoustic_model"],
             text_normalizer=__model__["text_normalizer"],
             vocoder=__model__["vocoder"],
-            bert_tokenizer=__model__["bert_tokenizer"],
             style_predictor=__model__["style_predictor"],
+            bert_tokenizer=__model__["bert_tokenizer"],
         )
 
         audio_name = f"{uuid.uuid1().hex[:12]}.flac"
@@ -188,10 +193,18 @@ def run_server(
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, required=True)
+    parser.add_argument("--db_path", type=str, required=True)
+    parser.add_argument("--audio_synth_path", type=str, required=True)
+    parser.add_argument("--models_path", type=str, required=True)
+    parser.add_argument("--assets_path", type=str, required=True)
+    args = parser.parse_args()
+
     run_server(
-        port=int(sys.argv[1]),
-        db_path=sys.argv[2],
-        audio_synth_path=sys.argv[3],
-        models_path=sys.argv[4],
-        assets_path=sys.argv[5],
+        port=int(args.port),
+        db_path=args.db_path,
+        audio_synth_path=args.audio_synth_path,
+        models_path=args.models_path,
+        assets_path=args.assets_path,
     )

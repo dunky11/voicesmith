@@ -1,7 +1,7 @@
 {
   "name": "voice-smith",
   "productName": "voice-smith",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "VoiceSmith makes training TTS models easy. It also provides utilities for dataset preprocessing.",
   "main": ".webpack/main",
   "scripts": {
@@ -24,7 +24,8 @@
     "forge": {
       "packagerConfig": {
         "extraResource": [
-          "assets"
+          "assets",
+          "backend"
         ],
         "icon": ".media/icon"
       },

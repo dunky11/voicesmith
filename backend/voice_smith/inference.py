@@ -5,12 +5,15 @@ import numpy as np
 from torch.jit._script import ScriptModule
 from g2p_en import G2p
 import re
-from spacy.tokenizer import Tokenizer
 from voice_smith.utils.text_normalization import (
     remove_cont_whitespaces,
     EnglishTextNormalizer,
 )
-from voice_smith.utils.tokenization import WordTokenizer, SentenceTokenizer
+from voice_smith.utils.tokenization import (
+    WordTokenizer,
+    SentenceTokenizer,
+    BertTokenizer,
+)
 
 
 def strip_invalid_symbols(text: str, pad_symbol: str, valid_symbols: List[str]) -> str:
@@ -78,21 +81,21 @@ def synthesize(
     text: str,
     talking_speed: float,
     speaker_id: int,
-    type: str,
+    model_type: str,
     g2p: G2p,
     symbol2id: Dict[str, int],
     lexicon: Dict[str, List[str]],
-    tokenizer: Tokenizer,
     text_normalizer: EnglishTextNormalizer,
+    bert_tokenizer: BertTokenizer,
     acoustic_model: ScriptModule,
     style_predictor: ScriptModule,
     vocoder: ScriptModule,
 ) -> Tuple[np.ndarray, int]:
     text = text.strip()
     text = remove_cont_whitespaces(text)
-    word_tokenizer = WordTokenizer(lang="en")
+    word_tokenizer = WordTokenizer(lang="en", remove_punct=False)
     sentence_tokenizer = SentenceTokenizer(lang="en")
-    if type == "Delighful_FreGANv1_v0.0":
+    if model_type == "Delighful_FreGANv1_v0.0":
         waves = []
         for sentence in sentence_tokenizer.tokenize(text):
             style_sentences = []
@@ -142,7 +145,7 @@ def synthesize(
                     1.0,
                     talking_speed,
                 )
-                wave = vocoder(mel, speaker_ids)
+                wave = vocoder(mel)
                 waves.append(wave.view(-1))
 
         wave_cat = torch.cat(waves).numpy()
