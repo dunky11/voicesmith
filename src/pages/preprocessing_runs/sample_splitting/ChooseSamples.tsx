@@ -13,13 +13,12 @@ import type { FilterConfirmProps } from "antd/lib/table/interface";
 import type { ColumnType } from "antd/lib/table";
 import type { InputRef } from "antd";
 import {
-  FINISH_SAMPLE_SPLITTING_RUN_CHANNEL,
-  REMOVE_PREPROCESSING_RUN_CHANNEL,
   FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   UPDATE_SAMPLE_SPLITTING_SAMPLE_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL,
   GET_AUDIO_DATA_URL_CHANNEL,
+  UPDATE_SAMPLE_SPLITTING_RUN_STAGE_CHANNEL,
 } from "../../../channels";
 import { useHistory } from "react-router-dom";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
@@ -32,6 +31,8 @@ import {
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
+import { getStageIsRunning, getWouldContinueRun } from "../../../utils";
+import { IpcMainEvent } from "electron";
 const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
@@ -48,13 +49,19 @@ export default function ChooseSamples({
   stopRun: () => void;
 }): ReactElement {
   const isMounted = useRef(false);
-  const history = useHistory();
   const [samples, setSamples] = useState<SampleSplittingSampleInterface[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const playFuncRef = useRef<null | (() => void)>(null);
   const [audioDataURL, setAudioDataURL] = useState<string | null>(null);
-
   const searchInput = useRef<InputRef>(null);
+
+  const wouldContinueRun = getWouldContinueRun(
+    ["choose_samples", "apply_changes"],
+    run.stage,
+    running,
+    "sampleSplittingRun",
+    run.ID
+  );
 
   const handleSearch = (
     selectedKeys: string[],
@@ -191,26 +198,32 @@ export default function ChooseSamples({
       .then(fetchSamples);
   };
 
-  const onFinish = () => {
-    if (run === null) {
-      return;
-    }
-    ipcRenderer
-      .invoke(FINISH_SAMPLE_SPLITTING_RUN_CHANNEL.IN, run.ID)
-      .then(() => {
+  const onNext = () => {
+    const navigateNext = () => {
+      if (wouldContinueRun) {
+        continueRun({ ID: run.ID, type: "sampleSplittingRun" });
+      }
+      onStepChange(3);
+    };
+    if (wouldContinueRun) {
+      if (run.stage === "choose_samples")
         ipcRenderer
-          .invoke(REMOVE_PREPROCESSING_RUN_CHANNEL.IN, {
-            ID: run.ID,
-            type: "sampleSplittingRun",
-          })
-          .then(() => {
-            notification["success"]({
-              message: "Your dataset has been normalized",
-              placement: "top",
-            });
-            history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
-          });
-      });
+          .invoke(
+            UPDATE_SAMPLE_SPLITTING_RUN_STAGE_CHANNEL.IN,
+            run.ID,
+            "apply_changes"
+          )
+          .then(navigateNext);
+    } else {
+      navigateNext();
+    }
+  };
+
+  const getNextButtonText = () => {
+    if (wouldContinueRun) {
+      return "Apply Changes";
+    }
+    return "Next";
   };
 
   useEffect(() => {
@@ -295,8 +308,8 @@ export default function ChooseSamples({
         title={`The following samples will be split ... (${samples.length} total)`}
         buttons={[
           <Button onClick={onBackClick}>Back</Button>,
-          <Button onClick={onFinish} type="primary">
-            Apply Sample Splitting
+          <Button onClick={onNext} type="primary">
+            {getNextButtonText()}
           </Button>,
         ]}
       >

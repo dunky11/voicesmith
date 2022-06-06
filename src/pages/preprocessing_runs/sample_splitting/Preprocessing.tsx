@@ -107,6 +107,8 @@ export default function Preprocessing({
         return 3;
       case "choose_samples":
         return 3;
+      case "apply_changes":
+        return 3;
       case "finished":
         return 3;
       default:

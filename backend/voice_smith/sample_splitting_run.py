@@ -358,6 +358,7 @@ def creating_splits_stage(
 class ApplyChangesSplit:
     full_audio_path: str
     text: str
+    split_idx: int
 
 
 @dataclass
@@ -394,7 +395,7 @@ def apply_changes_stage(
         SELECT sample_splitting_run_sample.ID AS sample_splitting_run_sample_id, 
         sample.ID AS sampleID, sample.txt_path, sample.audio_path AS sample_audio_path, 
         dataset.ID AS dataset_id, speaker.ID AS speaker_id, sample_splitting_run_split.text,
-        sample_splitting_run_sample.split_idx
+        sample_splitting_run_split.split_idx
         FROM sample_splitting_run_split
         INNER JOIN sample_splitting_run_sample ON sample_splitting_run_split.sample_splitting_run_sample_id = sample_splitting_run_sample.ID
         INNER JOIN sample on sample_splitting_run_sample.sample_id = sample.ID
@@ -417,7 +418,7 @@ def apply_changes_stage(
             / f"{sample_splitting_run_sample_id}_split_{split_idx}.flac"
         )
         apply_changes_split = ApplyChangesSplit(
-            full_audio_path=full_new_audio_path, text=new_text
+            full_audio_path=full_new_audio_path, text=new_text, split_idx=split_idx
         )
         if sample_splitting_run_sample_id in sample_id_to_info:
             sample_id_to_info[sample_splitting_run_sample_id].splits.append(
@@ -436,17 +437,17 @@ def apply_changes_stage(
 
     for apply_changes_info in sample_id_to_info.values():
         old_sample_txt_path = Path(apply_changes_info.old_sample_txt_path)
-        old_sample_full_audio_path = Path(apply_changes_info.full_audio_path)
+        old_sample_full_audio_path = Path(apply_changes_info.old_sample_full_audio_path)
         delete_audio_paths: List[str] = []
         for split in apply_changes_info.splits:
             if not Path(split.full_audio_path).exists():
                 continue
             copy_audio_to = (
-                old_sample_full_audio_path.name
-                / f"{old_sample_full_audio_path.stem}_split_{split.chunk_idx}{split.full_audio_path.suffix}"
+                Path(old_sample_full_audio_path.parent)
+                / f"{old_sample_full_audio_path.stem}_split_{split.split_idx}{split.full_audio_path.suffix}"
             )
-            audio_name_to = f"{old_sample_full_audio_path.stem}_split_{split.chunk_idx}{old_sample_full_audio_path.suffix}"
-            text_name_to = f"{old_sample_txt_path.stem}_split_{split.chunk_idx}{old_sample_txt_path.suffix}"
+            audio_name_to = f"{old_sample_full_audio_path.stem}_split_{split.split_idx}{old_sample_full_audio_path.suffix}"
+            text_name_to = f"{old_sample_txt_path.stem}_split_{split.split_idx}{old_sample_txt_path.suffix}"
 
             shutil.copy2(split.full_audio_path, copy_audio_to)
             cur.execute(
@@ -459,6 +460,7 @@ def apply_changes_stage(
                 ),
             )
             delete_audio_paths.append(split.full_audio_path)
+            print("HERE", flush=True)
         delete_audio_paths.append(str(old_sample_full_audio_path))
         cur.execute("DELETE FROM sample WHERE ID=?", (apply_changes_info.sample_id,))
         cur.execute(

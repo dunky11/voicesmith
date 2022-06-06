@@ -3,7 +3,7 @@ import path from "path";
 import {
   CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL,
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL,
-  FINISH_SAMPLE_SPLITTING_RUN_CHANNEL,
+  UPDATE_SAMPLE_SPLITTING_RUN_STAGE_CHANNEL,
   FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL,
   FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
@@ -193,23 +193,14 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  FINISH_SAMPLE_SPLITTING_RUN_CHANNEL.IN,
-  (event: IpcMainEvent, runID: number) => {
-    // TODO
-    /**
-    const samples = DB.getInstance()
-      .prepare(
-        "SELECT new_text AS newText, sample_id AS sampleID FROM text_normalization_sample WHERE text_normalization_run_id=@runID"
-      )
-      .all({ runID });
-    const updateSampleStmt = DB.getInstance().prepare(
-      "UPDATE sample SET text=@text WHERE ID=@ID"
-    );
-    DB.getInstance().transaction(() => {
-      for (const sample of samples) {
-        updateSampleStmt.run({ text: sample.newText, ID: sample.sampleID });
-      }
-    })();
-   */
+  UPDATE_SAMPLE_SPLITTING_RUN_STAGE_CHANNEL.IN,
+  (
+    event: IpcMainEvent,
+    runID: number,
+    stage: SampleSplittingRunInterface["stage"]
+  ) => {
+    DB.getInstance()
+      .prepare("UPDATE sample_splitting_run SET stage=@stage WHERE ID=@runID")
+      .run({ stage, runID });
   }
 );

@@ -280,8 +280,8 @@ export const REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL = {
   IN: "remove-sample-splitting-sample",
 };
 
-export const FINISH_SAMPLE_SPLITTING_RUN_CHANNEL = {
-  IN: "finish-sample-splitting-run",
+export const UPDATE_SAMPLE_SPLITTING_RUN_STAGE_CHANNEL = {
+  IN: "update-sample-splitting-run-stage",
 };
 
 export const FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL = {

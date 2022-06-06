@@ -31,7 +31,7 @@ export default function ApplyChanges({
   stopRun: () => void;
 }): ReactElement {
   const stageIsRunning = getStageIsRunning(
-    ["choose_samples"],
+    ["apply_changes"],
     run.stage,
     running,
     "sampleSplittingRun",
@@ -39,26 +39,23 @@ export default function ApplyChanges({
   );
 
   const wouldContinueRun = getWouldContinueRun(
-    ["choose_samples"],
+    ["apply_changes"],
     run.stage,
     running,
     "sampleSplittingRun",
     run.ID
   );
 
-  const onBackClick = () => {
-    onStepChange(2);
-  };
-
   const onNextClick = () => {
-    if (run === null) {
-      return;
-    }
     if (stageIsRunning) {
       stopRun();
-    } else if (wouldContinueRun) {
+    } else if (run.stage !== "finished") {
       continueRun({ ID: run.ID, type: "sampleSplittingRun" });
     }
+  };
+
+  const onBackClick = () => {
+    onStepChange(2);
   };
 
   const getNextButtonText = () => {
@@ -68,7 +65,7 @@ export default function ApplyChanges({
     if (wouldContinueRun) {
       return "Continue Run";
     }
-    return "Continue Run";
+    return "";
   };
 
   const current = 0;
@@ -78,9 +75,11 @@ export default function ApplyChanges({
     <RunCard
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button type="primary" disabled={run === null} onClick={onNextClick}>
-          {getNextButtonText()}
-        </Button>,
+        run.stage !== "finished" && (
+          <Button type="primary" onClick={onNextClick}>
+            {getNextButtonText()}
+          </Button>
+        ),
       ]}
     >
       <Tabs defaultActiveKey="Overview">

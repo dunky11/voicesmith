@@ -137,7 +137,18 @@ export default function SampleSplitting({
               <Steps.Step
                 title={stepToTitle[1]}
                 disabled={run === null || ["not_started"].includes(run.stage)}
-                icon={selectedIsRunning ? <LoadingOutlined /> : undefined}
+                icon={
+                  selectedIsRunning &&
+                  run !== null &&
+                  [
+                    "copying_files",
+                    "gen_vocab",
+                    "gen_alignments",
+                    "creating_splits",
+                  ].includes(run.stage) ? (
+                    <LoadingOutlined />
+                  ) : undefined
+                }
               />
               <Steps.Step
                 disabled={
