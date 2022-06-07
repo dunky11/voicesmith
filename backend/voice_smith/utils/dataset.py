@@ -13,6 +13,7 @@ from voice_smith.utils.text import phones_to_token_ids
 from voice_smith.utils.tools import pad_1D, pad_2D
 from voice_smith.config.configs import PreprocessingConfig
 
+
 def is_phone(string: str) -> bool:
     return len(string) > 1 and string[0] == "@"
 
@@ -60,6 +61,9 @@ class AcousticDataset(Dataset):
         durations = data["durations"]
         phone = torch.LongTensor(phones_to_token_ids(data["phones"]))
 
+        wav_path = self.preprocessed_path / "wav" / speaker_name / f"{basename}.pt"
+        audio = torch.load(wav_path)["wav"]
+
         sample = {
             "id": basename,
             "speaker_name": speaker_name,
@@ -69,11 +73,12 @@ class AcousticDataset(Dataset):
             "mel": mel,
             "pitch": pitch,
             "duration": durations,
+            "audio": audio,
         }
 
-        if mel.shape[1] < 20:
+        if mel.shape[1] < 33:
             print(
-                "Skipping small sample due to the mel-spectrogram containing less than 20 frames"
+                "Skipping small sample due to the mel-spectrogram containing less than 33 frames"
             )
             rand_idx = np.random.randint(0, self.__len__())
             return self.__getitem__(rand_idx)
@@ -99,6 +104,7 @@ class AcousticDataset(Dataset):
         mels = [data[idx]["mel"] for idx in idxs]
         pitches = [data[idx]["pitch"] for idx in idxs]
         durations = [data[idx]["duration"] for idx in idxs]
+        audios = [data[idx]["audio"] for idx in idxs]
         text_lens = np.array([text.shape[0] for text in texts])
         mel_lens = np.array([mel.shape[1] for mel in mels])
         encoding = self.tokenizer(raw_texts)
@@ -107,6 +113,7 @@ class AcousticDataset(Dataset):
         mels = pad_2D(mels)
         pitches = pad_1D(pitches)
         durations = pad_1D(durations)
+        audios = pad_1D(audios)
 
         return (
             ids,
@@ -121,6 +128,7 @@ class AcousticDataset(Dataset):
             mel_lens,
             encoding["input_ids"],
             encoding["attention_mask"],
+            audios,
         )
 
     def collate_fn(self, data):

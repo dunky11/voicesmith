@@ -17,11 +17,10 @@ from voice_smith.config.configs import (
     PreprocessingConfig,
     AcousticFinetuningConfig,
     AcousticModelConfig,
-    VocoderFinetuningConfig,
     VocoderModelConfig,
 )
 from voice_smith.utils.sql_logger import SQLLogger
-from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchscript
+from voice_smith.utils.export import acoustic_to_torchscript
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
 from voice_smith.config.symbols import symbol2id
@@ -30,7 +29,6 @@ from voice_smith.preprocessing.generate_vocab import generate_vocab
 from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
 from voice_smith.utils.punctuation import get_punct
-from voice_smith.vocoder_training import train_vocoder
 from voice_smith.utils.runs import StageRunner
 
 warnings_to_stdout()
@@ -116,7 +114,7 @@ def get_acoustic_configs(
 
 def get_vocoder_configs(
     cur: sqlite3.Cursor, run_id
-) -> Tuple[PreprocessingConfig, VocoderModelConfig, VocoderFinetuningConfig]:
+) -> Tuple[PreprocessingConfig, VocoderModelConfig]:
     row = cur.execute(
         """
         SELECT vocoder_learning_rate, vocoder_training_iterations, vocoder_batch_size, vocoder_grad_accum_steps, vocoder_validate_every 
@@ -133,13 +131,12 @@ def get_vocoder_configs(
     ) = row
     p_config = PreprocessingConfig()
     m_config = VocoderModelConfig()
-    t_config = VocoderFinetuningConfig()
     t_config.batch_size = vocoder_batch_size
     t_config.grad_accum_steps = vocoder_grad_accum_steps
     t_config.train_steps = vocoder_training_iterations
     t_config.learning_rate = vocoder_learning_rate
     t_config.validation_interval = vocoder_validate_every
-    return p_config, m_config, t_config
+    return p_config, m_config
 
 
 def get_device(device: Union[Literal["CPU"], Literal["GPU"]]) -> torch.device:
@@ -164,8 +161,7 @@ def not_started_stage(
     (data_path / "logs").mkdir(exist_ok=True, parents=True)
     (data_path / "raw_data").mkdir(exist_ok=True, parents=True)
     cur.execute(
-        "UPDATE training_run SET stage='preprocessing' WHERE ID=?",
-        (run_id,),
+        "UPDATE training_run SET stage='preprocessing' WHERE ID=?", (run_id,),
     )
     con.commit()
     return False
@@ -186,8 +182,7 @@ def preprocessing_stage(
     preprocessing_stage = None
     while preprocessing_stage != "finished":
         preprocessing_stage = cur.execute(
-            "SELECT preprocessing_stage FROM training_run WHERE ID=?",
-            (run_id,),
+            "SELECT preprocessing_stage FROM training_run WHERE ID=?", (run_id,),
         ).fetchone()[0]
         if preprocessing_stage == "not_started":
             set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
@@ -255,8 +250,7 @@ def preprocessing_stage(
             set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             (Path(data_path) / "data").mkdir(exist_ok=True, parents=True)
             row = cur.execute(
-                "SELECT device FROM training_run WHERE ID=?",
-                (run_id,),
+                "SELECT device FROM training_run WHERE ID=?", (run_id,),
             ).fetchone()
             texts = []
             for (text,) in cur.execute(
@@ -320,8 +314,7 @@ def preprocessing_stage(
         elif preprocessing_stage == "extract_data":
             set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             row = cur.execute(
-                "SELECT validation_size FROM training_run WHERE ID=?",
-                (run_id,),
+                "SELECT validation_size FROM training_run WHERE ID=?", (run_id,),
             ).fetchone()
             p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
             extract_data(
@@ -357,8 +350,7 @@ def acoustic_fine_tuning_stage(
     **kwargs,
 ) -> bool:
     row = cur.execute(
-        "SELECT device FROM training_run WHERE ID=?",
-        (run_id,),
+        "SELECT device FROM training_run WHERE ID=?", (run_id,),
     ).fetchone()
 
     device = row[0]
@@ -456,194 +448,7 @@ def acoustic_fine_tuning_stage(
                 raise e
 
     cur.execute(
-        "UPDATE training_run SET stage='ground_truth_alignment' WHERE ID=?",
-        (run_id,),
-    )
-    con.commit()
-    return False
-
-
-def ground_truth_alignment_stage(
-    cur: sqlite3.Cursor,
-    con: sqlite3.Connection,
-    run_id: int,
-    data_path: str,
-    assets_path: str,
-    training_runs_path: str,
-    **kwargs,
-) -> bool:
-    logger = SQLLogger(
-        training_run_id=run_id,
-        con=con,
-        cursor=cur,
-        out_dir=data_path,
-        stage="ground_truth_alignment",
-    )
-    row = cur.execute(
-        "SELECT acoustic_batch_size, device FROM training_run WHERE ID=?",
-        (run_id,),
-    ).fetchone()
-    batch_size, device = row
-    device = get_device(device)
-    checkpoint_acoustic, step = get_latest_checkpoint(
-        name="acoustic", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic")
-    )
-    checkpoint_style, step = get_latest_checkpoint(
-        name="style", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic")
-    )
-    while True:
-        try:
-            ground_truth_alignment(
-                db_id=run_id,
-                table_name="training_run",
-                training_run_name=str(run_id),
-                batch_size=3 * batch_size,
-                group_size=3,
-                device=device,
-                checkpoint_acoustic=str(checkpoint_acoustic),
-                checkpoint_style=str(checkpoint_style),
-                logger=logger,
-                assets_path=assets_path,
-                training_runs_path=training_runs_path,
-            )
-            break
-        except RuntimeError as e:
-            if "out of memory" in str(e):
-                torch.cuda.empty_cache()
-                if batch_size > 1:
-                    old_batch_size = batch_size
-                    batch_size = batch_size - 1
-                    print(
-                        f"""
-                        Ran out of VRAM during ground truth alignment, setting batch size from {old_batch_size} 
-                        to {batch_size} and trying again...
-                        """
-                    )
-                else:
-                    raise Exception(
-                        f"""
-                        Ran out of VRAM during ground truth alignment, batch size is {batch_size}, so cannot set lower. 
-                        Please restart your PC and try again. If this error continues you may not
-                        have enough VRAM to run this software. You could try training on CPU
-                        instead of on GPU.
-                        """
-                    )
-            else:
-                raise e
-
-    cur.execute(
-        "UPDATE training_run SET stage='vocoder_fine_tuning' WHERE ID=?",
-        (run_id,),
-    )
-    con.commit()
-    return False
-
-
-def vocoder_fine_tuning_stage(
-    cur: sqlite3.Cursor,
-    con: sqlite3.Connection,
-    run_id: int,
-    data_path: str,
-    assets_path: str,
-    training_runs_path: str,
-    **kwargs,
-) -> bool:
-    row = cur.execute(
-        "SELECT device FROM training_run WHERE ID=?",
-        (run_id,),
-    ).fetchone()
-    device = row[0]
-    device = get_device(device)
-
-    p_config, m_config, t_config = get_vocoder_configs(cur=cur, run_id=run_id)
-
-    logger = SQLLogger(
-        training_run_id=run_id,
-        con=con,
-        cursor=cur,
-        out_dir=data_path,
-        stage="vocoder",
-    )
-
-    target_batch_size_total = t_config.batch_size * t_config.grad_accum_steps
-
-    while True:
-        try:
-            checkpoint_path, step = get_latest_checkpoint(
-                name="vocoder", ckpt_dir=str(data_path / "ckpt" / "vocoder")
-            )
-
-            cur.execute(
-                "DELETE FROM image_statistic WHERE training_run_id=? AND step>=? AND stage='vocoder'",
-                (run_id, step),
-            )
-            cur.execute(
-                "DELETE FROM graph_statistic WHERE training_run_id=? AND step>=? AND stage='vocoder'",
-                (run_id, step),
-            )
-            cur.execute(
-                "DELETE FROM audio_statistic WHERE training_run_id=? AND step>=? AND stage='vocoder'",
-                (run_id, step),
-            )
-            con.commit()
-
-            if checkpoint_path is None:
-                reset = True
-                checkpoint_path = str(Path(assets_path) / "vocoder_pretrained.pt")
-            else:
-                reset = False
-
-            train_vocoder(
-                db_id=run_id,
-                training_run_name=str(run_id),
-                train_config=t_config,
-                model_config=VocoderModelConfig(),
-                preprocess_config=p_config,
-                logger=logger,
-                device=device,
-                reset=reset,
-                checkpoint_path=checkpoint_path,
-                training_runs_path=training_runs_path,
-                fine_tuning=True,
-                overwrite_saves=True,
-            )
-            break
-        except RuntimeError as e:
-            if "out of memory" in str(e):
-                torch.cuda.empty_cache()
-                if t_config.batch_size > 1:
-                    old_batch_size, old_grad_accum_steps = (
-                        t_config.batch_size,
-                        t_config.grad_accum_steps,
-                    )
-                    batch_size, grad_acc_step = recalculate_train_size(
-                        batch_size=old_batch_size,
-                        grad_acc_step=old_grad_accum_steps,
-                        target_size=target_batch_size_total,
-                    )
-                    print(
-                        f"""
-                            Ran out of VRAM during vocoder model training, setting batch size from {old_batch_size} 
-                            to {batch_size} and gradient accumulation steps from {old_grad_accum_steps} to {grad_acc_step} and trying again...
-                            """
-                    )
-                    t_config.batch_size = batch_size
-                    t_config.grad_accum_steps = grad_acc_step
-                else:
-                    raise Exception(
-                        f"""
-                            Ran out of VRAM during vocoder model training, batch size is {t_config.batch_size}, so cannot set it lower. 
-                            Please restart your PC and try again. If this error continues you may not
-                            have enough VRAM to run this software. You could try training on CPU
-                            instead of on GPU.
-                            """
-                    )
-            else:
-                raise e
-
-    cur.execute(
-        "UPDATE training_run SET stage='save_model' WHERE ID=?",
-        (run_id,),
+        "UPDATE training_run SET stage='ground_truth_alignment' WHERE ID=?", (run_id,),
     )
     con.commit()
     return False
@@ -661,12 +466,10 @@ def save_model_stage(
     data_path = Path(data_path)
     models_path = Path(models_path)
     checkpoint_acoustic, acoustic_steps = get_latest_checkpoint(
-        name="acoustic",
-        ckpt_dir=str(data_path / "ckpt" / "acoustic"),
+        name="acoustic", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
     )
     checkpoint_style, acoustic_steps = get_latest_checkpoint(
-        name="style",
-        ckpt_dir=str(data_path / "ckpt" / "acoustic"),
+        name="style", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
     )
     checkpoint_vocoder, vocoder_steps = get_latest_checkpoint(
         name="vocoder", ckpt_dir=str(data_path / "ckpt" / "vocoder")
@@ -699,13 +502,6 @@ def save_model_stage(
         checkpoint_style=str(checkpoint_style),
         data_path=str(data_path / "data"),
     )
-    vocoder = vocoder_to_torchscript(
-        ckpt_path=str(checkpoint_vocoder),
-        data_path=str(data_path / "data"),
-        preprocess_config=p_config,
-        model_config=m_config_vocoder,
-        train_config=t_config_vocoder,
-    )
 
     with open(Path(data_path) / "data" / "speakers.json", "r", encoding="utf-8") as f:
         speakers = json.load(f)
@@ -726,10 +522,7 @@ def save_model_stage(
             TODO
         """
 
-    row = cur.execute(
-        "SELECT name FROM training_run WHERE ID=?",
-        (run_id,),
-    ).fetchone()
+    row = cur.execute("SELECT name FROM training_run WHERE ID=?", (run_id,),).fetchone()
     con.commit()
 
     name = get_available_name(model_dir=str(models_path), name=row[0])
@@ -738,16 +531,11 @@ def save_model_stage(
     models_dir.mkdir(exist_ok=True)
     acoustic_model.save(str(models_dir / "acoustic_model.pt"))
     style_predictor.save(models_dir / "style_predictor.pt")
-    vocoder.save(models_dir / "vocoder.pt")
     with open(models_path / name / "config.json", "w", encoding="utf-8") as f:
         json.dump(config, f)
 
     lexicon = {}
-    with open(
-        data_path / "data" / "lexicon_post.txt",
-        "r",
-        encoding="utf-8",
-    ) as f:
+    with open(data_path / "data" / "lexicon_post.txt", "r", encoding="utf-8",) as f:
         for line in f:
             split = line.strip().split(" ")
             lexicon[split[0]] = split[1:]
@@ -778,8 +566,7 @@ def save_model_stage(
     con.commit()
 
     cur.execute(
-        "UPDATE training_run SET stage='finished' WHERE ID=?",
-        (run_id,),
+        "UPDATE training_run SET stage='finished' WHERE ID=?", (run_id,),
     )
     con.commit()
 
@@ -787,17 +574,15 @@ def save_model_stage(
 
 
 def before_stage(
-    data_path: str,
-    stage_name: str,
-    **kwargs,
+    data_path: str, stage_name: str, **kwargs,
 ):
-    set_stream_location(str(Path(data_path) / "logs" / f"{stage_name}.txt"))
+    # set_stream_location(str(Path(data_path) / "logs" / f"{stage_name}.txt"))
+    pass
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
     row = cur.execute(
-        "SELECT stage FROM training_run WHERE ID=?",
-        (run_id,),
+        "SELECT stage FROM training_run WHERE ID=?", (run_id,),
     ).fetchone()
     return row[0]
 
@@ -839,8 +624,6 @@ def continue_training_run(
             ("not_started", not_started_stage),
             ("preprocessing", preprocessing_stage),
             ("acoustic_fine_tuning", acoustic_fine_tuning_stage),
-            ("ground_truth_alignment", ground_truth_alignment_stage),
-            ("vocoder_fine_tuning", vocoder_fine_tuning_stage),
             ("save_model", save_model_stage),
         ],
     )

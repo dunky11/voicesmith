@@ -68,8 +68,7 @@ class AcousticModel(nn.Module):
         )
 
         self.phoneme_prosody_encoder = PhonemeLevelProsodyEncoder(
-            preprocess_config,
-            model_config,
+            preprocess_config, model_config,
         )
         self.phoneme_prosody_predictor = PhonemeProsodyPredictor(
             model_config=model_config, phoneme_level=True
@@ -79,8 +78,7 @@ class AcousticModel(nn.Module):
             model_config.encoder.n_hidden,
         )
         self.p_norm = nn.LayerNorm(
-            model_config.reference_encoder.bottleneck_size_p,
-            elementwise_affine=False,
+            model_config.reference_encoder.bottleneck_size_p, elementwise_affine=False,
         )
 
         self.decoder = Conformer(
@@ -96,8 +94,7 @@ class AcousticModel(nn.Module):
             n_src_vocab, model_config.encoder.n_hidden, padding_idx=padding_idx
         )
         self.to_mel = nn.Linear(
-            model_config.decoder.n_hidden,
-            preprocess_config.stft.n_mel_channels,
+            model_config.decoder.n_hidden, preprocess_config.stft.n_mel_channels,
         )
         # TODO can be removed
         self.proj_speaker = EmbeddingProjBlock(model_config.speaker_embed_dim)
@@ -172,19 +169,13 @@ class AcousticModel(nn.Module):
             )
         )
         p_prosody_pred = self.p_norm(
-            self.phoneme_prosody_predictor(
-                x=x,
-                mask=src_mask,
-            )
+            self.phoneme_prosody_predictor(x=x, mask=src_mask,)
         )
         x = x + self.p_bottle_out(p_prosody_ref)
 
         x_res = x
         x, pitch_prediction, _, _ = self.pitch_adaptor.add_pitch_train(
-            x=x,
-            pitch_target=pitches,
-            src_mask=src_mask,
-            use_ground_truth=True,
+            x=x, pitch_target=pitches, src_mask=src_mask, use_ground_truth=True,
         )
         (x, log_duration_prediction) = self.length_regulator.upsample_train(
             x=x, x_res=x_res, duration_target=durations, src_mask=src_mask
@@ -195,7 +186,8 @@ class AcousticModel(nn.Module):
 
         x = x.permute((0, 2, 1))
 
-        x, ids_slice = tools.rand_slice_segments(x, src_lens, self.segment_size)
+        x, ids_slice = tools.rand_slice_segments(x, mel_lens, self.segment_size)
+
 
         x = self.vocoder.forward_train(x)
 
@@ -249,18 +241,11 @@ class AcousticModel(nn.Module):
         x = self.encoder_2(x, src_mask, embeddings=embeddings, encoding=encoding)
 
         p_prosody_pred = self.p_norm(
-            self.phoneme_prosody_predictor(
-                x=x,
-                mask=src_mask,
-            )
+            self.phoneme_prosody_predictor(x=x, mask=src_mask,)
         )
         x = x + self.p_bottle_out(p_prosody_pred).expand_as(x)
         x_res = x
-        x = self.pitch_adaptor.add_pitch(
-            x=x,
-            src_mask=src_mask,
-            control=p_control,
-        )
+        x = self.pitch_adaptor.add_pitch(x=x, src_mask=src_mask, control=p_control,)
         x, duration_rounded = self.length_regulator.upsample(
             x=x, x_res=x_res, src_mask=src_mask, control=d_control
         )
@@ -636,10 +621,7 @@ class LengthAdaptor(nn.Module):
         src_mask: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         x_res = x_res.detach()
-        log_duration_prediction = self.duration_predictor(
-            x_res,
-            src_mask,
-        )
+        log_duration_prediction = self.duration_predictor(x_res, src_mask,)
         x, _ = self.length_regulate(x, duration_target)
         return x, log_duration_prediction
 
@@ -650,13 +632,9 @@ class LengthAdaptor(nn.Module):
         src_mask: torch.Tensor,
         control: float,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        log_duration_prediction = self.duration_predictor(
-            x_res,
-            src_mask,
-        )
+        log_duration_prediction = self.duration_predictor(x_res, src_mask,)
         duration_rounded = torch.clamp(
-            (torch.round(torch.exp(log_duration_prediction) - 1) * control),
-            min=0,
+            (torch.round(torch.exp(log_duration_prediction) - 1) * control), min=0,
         )
         x, _ = self.length_regulate(x, duration_rounded)
         return x, duration_rounded
@@ -667,9 +645,7 @@ class BertAttention(nn.Module):
         super().__init__()
         self.norm = nn.LayerNorm(d_model)
         self.attn = ConformerMultiHeadedSelfAttention(
-            d_model=d_model,
-            num_heads=num_heads,
-            dropout_p=p_dropout,
+            d_model=d_model, num_heads=num_heads, dropout_p=p_dropout,
         )
 
     def forward(

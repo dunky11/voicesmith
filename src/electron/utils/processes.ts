@@ -40,6 +40,7 @@ export const startRun = (
   args: string[],
   logErr: boolean
 ): void => {
+  console.log([scriptName, ...args].join(" "));
   pyProc = spawnCondaShell([scriptName, ...args].join(" "));
   pyProc.on("exit", () => {
     event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {

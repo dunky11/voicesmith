@@ -48,7 +48,7 @@ def get_acoustic_models(
         model_config=model_config,
         n_speakers=n_speakers,
     ).to(device)
-    disc = Discriminator(model_config=VocoderModelConfig())
+    disc = Discriminator(model_config=VocoderModelConfig()).to(device)
     if checkpoint_acoustic is not None:
         ckpt = torch.load(checkpoint_acoustic)
         if reset:
@@ -91,9 +91,7 @@ def get_acoustic_models(
             current_step=step,
         )
         scheduled_optim_d = ScheduledOptimPretraining(
-            parameters=disc.parameters(),
-            train_config=train_config,
-            current_step=step,
+            parameters=disc.parameters(), train_config=train_config, current_step=step,
         )
 
     if checkpoint_acoustic is not None and not reset:

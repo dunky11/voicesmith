@@ -20,7 +20,7 @@ def warnings_to_stdout():
 
 
 def to_device(
-    data: Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any],
+    data: Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any],
     device: torch.device,
     non_blocking: bool = False,
 ):
@@ -37,6 +37,7 @@ def to_device(
         mel_lens,
         token_ids,
         attention_masks,
+        audio,
     ) = data
 
     speakers = torch.from_numpy(speakers).to(device, non_blocking=non_blocking)
@@ -48,6 +49,7 @@ def to_device(
     mel_lens = torch.from_numpy(mel_lens).to(device, non_blocking=non_blocking)
     token_ids = token_ids.to(device, non_blocking=non_blocking)
     attention_masks = attention_masks.to(device, non_blocking=non_blocking)
+    audio = torch.from_numpy(audio).to(device, non_blocking=non_blocking)
 
     return (
         ids,
@@ -62,6 +64,7 @@ def to_device(
         mel_lens,
         token_ids,
         attention_masks,
+        audio,
     )
 
 
@@ -214,7 +217,7 @@ def iter_logger(
 
 
 def bytes_to_gb(bytes: float) -> float:
-    return bytes / 1024**3
+    return bytes / 1024 ** 3
 
 
 def get_cpu_usage() -> float:
@@ -279,8 +282,9 @@ def stratified_train_test_split(
     for label, samples in label2samples.items():
         split_at = int(np.round(len(samples) * train_size))
         x_split_train, x_split_val = samples[:split_at], samples[split_at:]
-        y_split_train, y_split_val = [label] * len(x_split_train), [label] * len(
-            x_split_val
+        y_split_train, y_split_val = (
+            [label] * len(x_split_train),
+            [label] * len(x_split_val),
         )
         train_x_out.extend(x_split_train)
         train_y_out.extend(y_split_train)
