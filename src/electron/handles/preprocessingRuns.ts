@@ -1,7 +1,5 @@
 import { ipcMain, IpcMainInvokeEvent } from "electron";
 import path from "path";
-import fsNative from "fs";
-const fsPromises = fsNative.promises;
 import {
   CREATE_PREPROCESSING_RUN_CHANNEL,
   FETCH_PREPROCESSING_RUNS_CHANNEL,

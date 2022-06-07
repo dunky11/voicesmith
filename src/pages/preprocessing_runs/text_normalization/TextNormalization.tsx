@@ -152,45 +152,45 @@ export default function TextNormalization({
         <Col span={20}>
           <Switch>
             <Route
-              render={() => (
-                <Configuration
-                  onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
-                  running={running}
-                  continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
-                />
-              )}
+              render={() =>
+                run !== null && (
+                  <Configuration
+                    onStepChange={onStepChange}
+                    run={run}
+                    running={running}
+                    continueRun={continueRun}
+                  />
+                )
+              }
               path={stepToPath[0]}
             ></Route>
             <Route
-              render={() => (
-                <Preprocessing
-                  onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
-                  running={running}
-                  continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
-                  usageStats={usageStats}
-                  stopRun={stopRun}
-                  textNormalizationProgress={
-                    run === null ? 0 : run.textNormalizationProgress
-                  }
-                />
-              )}
+              render={() =>
+                run !== null && (
+                  <Preprocessing
+                    onStepChange={onStepChange}
+                    run={run}
+                    running={running}
+                    continueRun={continueRun}
+                    usageStats={usageStats}
+                    stopRun={stopRun}
+                  />
+                )
+              }
               path={stepToPath[1]}
             ></Route>
             <Route
-              render={() => (
-                <ChooseSamples
-                  onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
-                  running={running}
-                  continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
-                  stopRun={stopRun}
-                />
-              )}
+              render={() =>
+                run !== null && (
+                  <ChooseSamples
+                    onStepChange={onStepChange}
+                    run={run}
+                    running={running}
+                    continueRun={continueRun}
+                    stopRun={stopRun}
+                  />
+                )
+              }
               path={stepToPath[2]}
             ></Route>
           </Switch>

@@ -30,7 +30,7 @@ export default function AcousticModelFinetuning({
   usageStats,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number | null;
+  selectedTrainingRunID: number;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
@@ -100,9 +100,6 @@ export default function AcousticModelFinetuning({
   };
 
   const onNextClick = () => {
-    if (selectedTrainingRunID === null) {
-      return;
-    }
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
@@ -137,11 +134,7 @@ export default function AcousticModelFinetuning({
         <Button onClick={onBackClick}>Back</Button>,
         <Button
           type="primary"
-          disabled={
-            selectedTrainingRunID === null ||
-            stage === "not_started" ||
-            stage === "preprocessing"
-          }
+          disabled={stage === "not_started" || stage === "preprocessing"}
           onClick={onNextClick}
         >
           {getNextButtonText()}
@@ -152,23 +145,17 @@ export default function AcousticModelFinetuning({
         <Tabs.TabPane tab="Overview" key="overview">
           <UsageStatsRow
             usageStats={usageStats}
-            style={{ marginBottom: selectedTrainingRunID === null ? 0 : 16 }}
+            style={{ marginBottom: 16 }}
           ></UsageStatsRow>
-          {selectedTrainingRunID !== null && (
-            <AcousticStatistics
-              audioStatistics={audioStatistics}
-              imageStatistics={imageStatistics}
-              graphStatistics={graphStatistics}
-            ></AcousticStatistics>
-          )}
+          <AcousticStatistics
+            audioStatistics={audioStatistics}
+            imageStatistics={imageStatistics}
+            graphStatistics={graphStatistics}
+          ></AcousticStatistics>
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={
-              selectedTrainingRunID === null
-                ? null
-                : String(selectedTrainingRunID)
-            }
+            name={String(selectedTrainingRunID)}
             logFileName="acoustic_fine_tuning.txt"
             type="trainingRun"
           />

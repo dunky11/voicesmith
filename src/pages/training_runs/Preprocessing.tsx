@@ -26,7 +26,7 @@ export default function Preprocessing({
   extractDataProgress,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number | null;
+  selectedTrainingRunID: number;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
@@ -53,8 +53,6 @@ export default function Preprocessing({
   genAlignProgress: number | null;
   extractDataProgress: number | null;
 }): ReactElement {
-  const [selectedTab, setSelectedTab] = useState<string>("Overview");
-
   const stageIsRunning = getStageIsRunning(
     ["preprocessing"],
     stage,
@@ -72,7 +70,7 @@ export default function Preprocessing({
   );
 
   const getCurrent = () => {
-    if (selectedTrainingRunID === null || preprocessingStage == null) {
+    if (preprocessingStage == null) {
       return 0;
     }
     switch (preprocessingStage) {
@@ -100,9 +98,6 @@ export default function Preprocessing({
   };
 
   const onNextClick = () => {
-    if (selectedTrainingRunID === null) {
-      return;
-    }
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
@@ -113,9 +108,6 @@ export default function Preprocessing({
   };
 
   const getNextButtonText = () => {
-    if (selectedTrainingRunID === null) {
-      return "Next";
-    }
     if (stageIsRunning) {
       return "Pause Training";
     }
@@ -131,16 +123,12 @@ export default function Preprocessing({
     <RunCard
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button
-          type="primary"
-          disabled={selectedTrainingRunID === null}
-          onClick={onNextClick}
-        >
+        <Button type="primary" onClick={onNextClick}>
           {getNextButtonText()}
         </Button>,
       ]}
     >
-      <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
+      <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
           <UsageStatsRow
             usageStats={usageStats}
@@ -197,11 +185,7 @@ export default function Preprocessing({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={
-              selectedTrainingRunID === null
-                ? null
-                : String(selectedTrainingRunID)
-            }
+            name={String(selectedTrainingRunID)}
             logFileName="preprocessing.txt"
             type="trainingRun"
           />

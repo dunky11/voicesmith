@@ -184,9 +184,7 @@ export default function SampleSplitting({
           <Switch>
             <Route
               render={() =>
-                run === null ? (
-                  <></>
-                ) : (
+                run !== null && (
                   <Configuration
                     onStepChange={onStepChange}
                     running={running}
@@ -199,9 +197,7 @@ export default function SampleSplitting({
             ></Route>
             <Route
               render={() =>
-                run === null ? (
-                  <></>
-                ) : (
+                run !== null && (
                   <Preprocessing
                     onStepChange={onStepChange}
                     run={run}
@@ -216,9 +212,7 @@ export default function SampleSplitting({
             ></Route>
             <Route
               render={() =>
-                run === null ? (
-                  <></>
-                ) : (
+                run !== null && (
                   <ChooseSamples
                     onStepChange={onStepChange}
                     run={run}
@@ -232,9 +226,7 @@ export default function SampleSplitting({
             ></Route>
             <Route
               render={() =>
-                run === null ? (
-                  <></>
-                ) : (
+                run !== null && (
                   <ApplyChanges
                     onStepChange={onStepChange}
                     run={run}

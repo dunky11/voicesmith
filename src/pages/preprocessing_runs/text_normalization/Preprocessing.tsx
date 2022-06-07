@@ -1,8 +1,12 @@
-import React, { ReactElement, useState } from "react";
+import React, { ReactElement } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
-import { RunInterface, UsageStatsInterface } from "../../../interfaces";
+import {
+  RunInterface,
+  TextNormalizationInterface,
+  UsageStatsInterface,
+} from "../../../interfaces";
 import { LoadingOutlined } from "@ant-design/icons";
 import {
   getProgressTitle,
@@ -13,44 +17,33 @@ import RunCard from "../../../components/cards/RunCard";
 
 export default function Preprocessing({
   onStepChange,
-  selectedID,
+  run,
   running,
   continueRun,
-  stage,
-  textNormalizationProgress,
   usageStats,
   stopRun,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
+  run: TextNormalizationInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "text_normalization"
-    | "choose_samples"
-    | "finished"
-    | null;
-  textNormalizationProgress: number;
   usageStats: UsageStatsInterface[];
   stopRun: () => void;
 }): ReactElement {
-  const [selectedTab, setSelectedTab] = useState<string>("Overview");
-
   const stageIsRunning = getStageIsRunning(
     ["not_started", "text_normalization"],
-    stage,
+    run.stage,
     running,
     "textNormalizationRun",
-    selectedID
+    run.ID
   );
 
   const wouldContinueRun = getWouldContinueRun(
     ["not_started", "text_normalization"],
-    stage,
+    run.stage,
     running,
     "textNormalizationRun",
-    selectedID
+    run.ID
   );
 
   const onBackClick = () => {
@@ -58,22 +51,16 @@ export default function Preprocessing({
   };
 
   const onNextClick = () => {
-    if (selectedID === null) {
-      return;
-    }
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
-      continueRun({ ID: selectedID, type: "textNormalizationRun" });
-    } else if (["choose_samples", "finished"].includes(stage)) {
+      continueRun({ ID: run.ID, type: "textNormalizationRun" });
+    } else if (["choose_samples", "finished"].includes(run.stage)) {
       onStepChange(2);
     }
   };
 
   const getNextButtonText = () => {
-    if (selectedID === null) {
-      return "Next";
-    }
     if (stageIsRunning) {
       return "Pause Run";
     }
@@ -89,16 +76,12 @@ export default function Preprocessing({
     <RunCard
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button
-          type="primary"
-          disabled={selectedID === null}
-          onClick={onNextClick}
-        >
+        <Button type="primary" onClick={onNextClick}>
           {getNextButtonText()}
         </Button>,
       ]}
     >
-      <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
+      <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
           <UsageStatsRow
             usageStats={usageStats}
@@ -109,7 +92,7 @@ export default function Preprocessing({
               <Steps.Step
                 title={getProgressTitle(
                   "Text Normalization",
-                  textNormalizationProgress
+                  run.textNormalizationProgress
                 )}
                 description="Normalizing text of each file."
                 icon={
@@ -123,7 +106,7 @@ export default function Preprocessing({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={selectedID === null ? null : String(selectedID)}
+            name={String(run.ID)}
             logFileName="preprocessing.txt"
             type="textNormalizationRun"
           />

@@ -28,7 +28,7 @@ export default function VocoderFineTuning({
   usageStats,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number | null;
+  selectedTrainingRunID: number;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
@@ -95,9 +95,6 @@ export default function VocoderFineTuning({
   };
 
   const onNextClick = () => {
-    if (selectedTrainingRunID === null) {
-      return;
-    }
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
@@ -149,11 +146,7 @@ export default function VocoderFineTuning({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={
-              selectedTrainingRunID === null
-                ? null
-                : String(selectedTrainingRunID)
-            }
+            name={String(selectedTrainingRunID)}
             logFileName="vocoder_fine_tuning.txt"
             type="trainingRun"
           />

@@ -45,7 +45,7 @@ export default function ChooseSamples({
   onStepChange: (current: number) => void;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  run: SampleSplittingRunInterface | null;
+  run: SampleSplittingRunInterface;
   stopRun: () => void;
 }): ReactElement {
   const isMounted = useRef(false);
@@ -145,18 +145,12 @@ export default function ChooseSamples({
   });
 
   const removeSamples = (sampleIDs: number[]) => {
-    if (run === null) {
-      return;
-    }
     ipcRenderer
       .invoke(REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL.IN, sampleIDs)
       .then(fetchSamples);
   };
 
   const onSamplesRemove = () => {
-    if (run === null) {
-      return;
-    }
     removeSamples(
       selectedRowKeys.map((selectedRowKey: string) => parseInt(selectedRowKey))
     );
@@ -167,9 +161,6 @@ export default function ChooseSamples({
   };
 
   const fetchSamples = () => {
-    if (run === null) {
-      return;
-    }
     ipcRenderer
       .invoke(FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL.IN, run.ID)
       .then((samples: SampleSplittingSampleInterface[]) => {
@@ -234,9 +225,6 @@ export default function ChooseSamples({
   });
 
   useEffect(() => {
-    if (run === null) {
-      return;
-    }
     fetchSamples();
   }, []);
 
