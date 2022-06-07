@@ -316,6 +316,7 @@ export interface SampleSplittingRunInterface {
     | "gen_alignments"
     | "creating_splits"
     | "choose_samples"
+    | "apply_changes"
     | "finished";
   copyingFilesProgress: number;
   genVocabProgress: number;

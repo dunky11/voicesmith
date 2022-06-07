@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, ReactElement } from "react";
+import React, { ReactElement } from "react";
 import { Tabs, Card, Button, Steps } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import RunCard from "../../components/cards/RunCard";
@@ -17,7 +17,7 @@ export default function VocoderFineTuning({
   usageStats,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number | null;
+  selectedTrainingRunID: number;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
@@ -32,8 +32,6 @@ export default function VocoderFineTuning({
     | null;
   usageStats: UsageStatsInterface[];
 }): ReactElement {
-  const [selectedTab, setSelectedTab] = useState<string>("Overview");
-
   const stageIsRunning = getStageIsRunning(
     ["save_model"],
     stage,
@@ -54,9 +52,6 @@ export default function VocoderFineTuning({
   };
 
   const onNextClick = () => {
-    if (selectedTrainingRunID === null) {
-      return;
-    }
     if (wouldContinueRun) {
       continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
     } else if (stageIsRunning) {
@@ -86,7 +81,7 @@ export default function VocoderFineTuning({
         ),
       ]}
     >
-      <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
+      <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
           <UsageStatsRow usageStats={usageStats}></UsageStatsRow>
           <Card title="Progress">
@@ -100,11 +95,7 @@ export default function VocoderFineTuning({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={
-              selectedTrainingRunID === null
-                ? null
-                : String(selectedTrainingRunID)
-            }
+            name={String(selectedTrainingRunID)}
             logFileName="save_model.txt"
             type="trainingRun"
           />

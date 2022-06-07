@@ -48,7 +48,7 @@ export default function CreateModel({
   continueRun,
   stopRun,
 }: {
-  selectedTrainingRunID: number | null;
+  selectedTrainingRunID: number;
   setSelectedTrainingRunID: (selectedTrainingRunID: number) => void;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
@@ -62,8 +62,7 @@ export default function CreateModel({
   );
   const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
 
-  const selectedIsRunning =
-    selectedTrainingRunID !== null && running?.ID === selectedTrainingRunID;
+  const selectedIsRunning = running?.ID === selectedTrainingRunID;
 
   const pollProgress = () => {
     ipcRenderer
@@ -118,9 +117,7 @@ export default function CreateModel({
   }, []);
 
   useInterval(() => {
-    if (selectedTrainingRunID !== null) {
-      pollProgress();
-    }
+    pollProgress();
   }, POLL_LOGFILE_INTERVALL);
 
   useInterval(pollUsageInfo, 1000);
@@ -160,9 +157,7 @@ export default function CreateModel({
                         4.0
                 )}
                 disabled={
-                  selectedTrainingRunID === null ||
-                  progress === null ||
-                  ["not_started"].includes(progress.stage)
+                  progress === null || ["not_started"].includes(progress.stage)
                 }
                 icon={
                   selectedIsRunning && progress?.stage === "preprocessing" ? (
@@ -172,7 +167,6 @@ export default function CreateModel({
               />
               <Steps.Step
                 disabled={
-                  selectedTrainingRunID === null ||
                   progress === null ||
                   ["not_started", "preprocessing"].includes(progress.stage)
                 }
@@ -189,7 +183,6 @@ export default function CreateModel({
               />
               <Steps.Step
                 disabled={
-                  selectedTrainingRunID === null ||
                   progress === null ||
                   [
                     "not_started",
@@ -212,7 +205,6 @@ export default function CreateModel({
               />
               <Steps.Step
                 disabled={
-                  selectedTrainingRunID === null ||
                   progress === null ||
                   [
                     "not_started",
@@ -234,7 +226,6 @@ export default function CreateModel({
               />
               <Steps.Step
                 disabled={
-                  selectedTrainingRunID === null ||
                   progress === null ||
                   [
                     "not_started",

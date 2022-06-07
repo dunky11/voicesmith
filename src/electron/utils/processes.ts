@@ -41,13 +41,11 @@ export const startRun = (
   logErr: boolean
 ): void => {
   pyProc = spawnCondaShell([scriptName, ...args].join(" "));
-
   pyProc.on("exit", () => {
     event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
       type: "finishedRun",
     });
   });
-
   if (logErr) {
     pyProc.stderr.on("data", (data: any) => {
       event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
@@ -56,7 +54,6 @@ export const startRun = (
       });
     });
   }
-
   event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
     type: "startedRun",
   });
@@ -66,7 +63,7 @@ export const killServerProc = (): void => {
   if (serverProc === null) {
     return;
   }
-  serverProc.kill();
+  serverProc.kill("SIGKILL");
   serverProc = null;
 };
 

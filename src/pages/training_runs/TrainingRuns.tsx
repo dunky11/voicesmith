@@ -24,11 +24,8 @@ export default function TrainingRuns({
 
   const selectTrainingRun = (ID: number) => {
     removeTrainingRunID.current = null;
-    if (selectedTrainingRunID == ID) {
-      history.push(TRAINING_RUNS_ROUTE.CREATE_MODEL.ROUTE);
-    } else {
-      setSelectedTrainingRunID(ID);
-    }
+    setSelectedTrainingRunID(ID);
+    history.push(TRAINING_RUNS_ROUTE.CREATE_MODEL.ROUTE);
   };
 
   const removeTrainingRun = (ID: number) => {
@@ -47,23 +44,23 @@ export default function TrainingRuns({
         removeTrainingRunID.current
       );
       removeTrainingRunID.current = null;
-    } else if (selectedTrainingRunID != null) {
-      history.push(TRAINING_RUNS_ROUTE.CREATE_MODEL.ROUTE);
     }
   }, [selectedTrainingRunID]);
 
   return (
     <Switch>
       <Route
-        render={() => (
-          <CreateModel
-            selectedTrainingRunID={selectedTrainingRunID}
-            setSelectedTrainingRunID={setSelectedTrainingRunID}
-            running={running}
-            continueRun={continueRun}
-            stopRun={stopRun}
-          />
-        )}
+        render={() =>
+          selectedTrainingRunID && (
+            <CreateModel
+              selectedTrainingRunID={selectedTrainingRunID}
+              setSelectedTrainingRunID={setSelectedTrainingRunID}
+              running={running}
+              continueRun={continueRun}
+              stopRun={stopRun}
+            />
+          )
+        }
         path={TRAINING_RUNS_ROUTE.CREATE_MODEL.ROUTE}
       ></Route>
       <Route

@@ -26,12 +26,10 @@ export default function Preprocessing({
   onStepChange: (current: number) => void;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  run: SampleSplittingRunInterface | null;
+  run: SampleSplittingRunInterface;
   usageStats: UsageStatsInterface[];
   stopRun: () => void;
 }): ReactElement {
-  const [selectedTab, setSelectedTab] = useState<string>("Overview");
-
   const stageIsRunning = getStageIsRunning(
     [
       "not_started",
@@ -65,9 +63,6 @@ export default function Preprocessing({
   };
 
   const onNextClick = () => {
-    if (run === null) {
-      return;
-    }
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
@@ -78,9 +73,6 @@ export default function Preprocessing({
   };
 
   const getNextButtonText = () => {
-    if (run === null) {
-      return "Next";
-    }
     if (stageIsRunning) {
       return "Pause Run";
     }
@@ -91,9 +83,6 @@ export default function Preprocessing({
   };
 
   const getCurrent = () => {
-    if (run === null) {
-      return 0;
-    }
     switch (run.stage) {
       case "not_started":
         return 0;
@@ -106,6 +95,8 @@ export default function Preprocessing({
       case "creating_splits":
         return 3;
       case "choose_samples":
+        return 3;
+      case "apply_changes":
         return 3;
       case "finished":
         return 3;
@@ -127,7 +118,7 @@ export default function Preprocessing({
         </Button>,
       ]}
     >
-      <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
+      <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
           <UsageStatsRow
             usageStats={usageStats}
@@ -174,7 +165,7 @@ export default function Preprocessing({
               <Steps.Step
                 title={getProgressTitle(
                   "Creating Splits",
-                  run ? run.creatingSplitsProgress : 0
+                  run.creatingSplitsProgress
                 )}
                 description="Splitting audios by sentence boundaries."
                 icon={
@@ -188,7 +179,7 @@ export default function Preprocessing({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={run === null ? null : String(run.ID)}
+            name={String(run.ID)}
             logFileName="preprocessing.txt"
             type="sampleSplittingRun"
           />

@@ -17,7 +17,7 @@ export default function GroundTruthAlignment({
   usageStats,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number | null;
+  selectedTrainingRunID: number;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
@@ -54,9 +54,6 @@ export default function GroundTruthAlignment({
   };
 
   const onNextClick = () => {
-    if (selectedTrainingRunID === null) {
-      return;
-    }
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
@@ -89,6 +86,10 @@ export default function GroundTruthAlignment({
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
+          <UsageStatsRow
+            usageStats={usageStats}
+            style={{ marginBottom: 16 }}
+          ></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={0}>
               <Steps.Step
@@ -101,11 +102,7 @@ export default function GroundTruthAlignment({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={
-              selectedTrainingRunID === null
-                ? null
-                : String(selectedTrainingRunID)
-            }
+            name={String(selectedTrainingRunID)}
             logFileName="ground_truth_alignment.txt"
             type="trainingRun"
           />
@@ -114,10 +111,3 @@ export default function GroundTruthAlignment({
     </RunCard>
   );
 }
-
-/**
- * <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
- */

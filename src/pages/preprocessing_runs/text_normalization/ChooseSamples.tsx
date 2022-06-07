@@ -17,6 +17,7 @@ import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { defaultPageOptions } from "../../../config";
 import {
   RunInterface,
+  TextNormalizationInterface,
   TextNormalizationSampleInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
@@ -25,22 +26,15 @@ const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
   onStepChange,
-  selectedID,
+  run,
   running,
   continueRun,
-  stage,
   stopRun,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
+  run: TextNormalizationInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "text_normalization"
-    | "choose_samples"
-    | "finished"
-    | null;
   stopRun: () => void;
 }): ReactElement {
   const isMounted = useRef(false);
@@ -140,19 +134,12 @@ export default function ChooseSamples({
   });
 
   const removeSamples = (sampleIDs: number[]) => {
-    if (selectedID === null) {
-      return;
-    }
-
     ipcRenderer
       .invoke(REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL.IN, sampleIDs)
       .then(fetchSamples);
   };
 
   const onSamplesRemove = () => {
-    if (selectedID === null) {
-      return;
-    }
     removeSamples(
       selectedRowKeys.map((selectedRowKey: string) => parseInt(selectedRowKey))
     );
@@ -163,11 +150,8 @@ export default function ChooseSamples({
   };
 
   const fetchSamples = () => {
-    if (selectedID === null) {
-      return;
-    }
     ipcRenderer
-      .invoke(FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL.IN, selectedID)
+      .invoke(FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL.IN, run.ID)
       .then((samples: TextNormalizationSampleInterface[]) => {
         setSamples(samples);
       });
@@ -185,15 +169,12 @@ export default function ChooseSamples({
   };
 
   const onFinish = () => {
-    if (selectedID === null) {
-      return;
-    }
     ipcRenderer
-      .invoke(FINISH_TEXT_NORMALIZATION_RUN_CHANNEL.IN, selectedID)
+      .invoke(FINISH_TEXT_NORMALIZATION_RUN_CHANNEL.IN, run.ID)
       .then(() => {
         ipcRenderer
           .invoke(REMOVE_PREPROCESSING_RUN_CHANNEL.IN, {
-            ID: selectedID,
+            ID: run.ID,
             type: "textNormalizationRun",
           })
           .then(() => {
@@ -214,9 +195,6 @@ export default function ChooseSamples({
   });
 
   useEffect(() => {
-    if (selectedID === null) {
-      return;
-    }
     fetchSamples();
   }, []);
 

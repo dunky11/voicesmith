@@ -36,7 +36,7 @@ export default function Configuration({
 }: {
   onStepChange: (current: number) => void;
   setSelectedTrainingRunID: (selectedTrainingRunID: number) => void;
-  selectedTrainingRunID: number | null;
+  selectedTrainingRunID: number;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stage:
@@ -79,20 +79,13 @@ export default function Configuration({
       ...trainingRunInitialValues,
       ...formRef.current?.getFieldsValue(),
     };
-
-    if (selectedTrainingRunID === null) {
-      ipcRenderer
-        .invoke(CREATE_TRAINING_RUN_CHANNEL.IN, values)
-        .then(afterUpdate);
-    } else {
-      ipcRenderer
-        .invoke(
-          UPDATE_TRAINING_RUN_CONFIG_CHANNEL.IN,
-          values,
-          selectedTrainingRunID
-        )
-        .then(afterUpdate);
-    }
+    ipcRenderer
+      .invoke(
+        UPDATE_TRAINING_RUN_CONFIG_CHANNEL.IN,
+        values,
+        selectedTrainingRunID
+      )
+      .then(afterUpdate);
   };
 
   const onSave = () => {

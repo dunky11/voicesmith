@@ -15,7 +15,6 @@ import { notifySave } from "../../../utils";
 import {
   UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
   FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
-  FETCH_PREPROCESSING_NAMES_USED_CHANNEL,
 } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
@@ -28,23 +27,15 @@ const initialValues: TextNormalizationConfigInterface = {
 
 export default function Configuration({
   onStepChange,
-  selectedID,
+  run,
   running,
   continueRun,
-  stage,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
+  run: TextNormalizationInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "text_normalization"
-    | "choose_samples"
-    | "finished"
-    | null;
 }): ReactElement {
-  const [names, setNames] = useState<string[]>([]);
   const isMounted = useRef(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
   const history = useHistory();
@@ -85,19 +76,15 @@ export default function Configuration({
     };
 
     ipcRenderer
-      .invoke(
-        UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN,
-        selectedID,
-        values
-      )
-      .then((event: any) => {
+      .invoke(UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN, run.ID, values)
+      .then(() => {
         if (!isMounted.current) {
           return;
         }
         if (navigateNextRef.current) {
-          if (stage === "not_started") {
+          if (run.stage === "not_started") {
             continueRun({
-              ID: selectedID,
+              ID: run.ID,
               type: "textNormalizationRun",
             });
           }
@@ -110,11 +97,8 @@ export default function Configuration({
   };
 
   const fetchConfiguration = () => {
-    if (selectedID === null) {
-      return;
-    }
     ipcRenderer
-      .invoke(FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN, selectedID)
+      .invoke(FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN, run.ID)
       .then((configuration: TextNormalizationInterface) => {
         if (!isMounted.current) {
           return;
@@ -127,7 +111,7 @@ export default function Configuration({
   };
 
   const getNextButtonText = () => {
-    if (selectedID === null || stage === "not_started") {
+    if (run.stage === "not_started") {
       return "Save and Start Run";
     }
     return "Save and Next";
@@ -141,17 +125,14 @@ export default function Configuration({
   }, []);
 
   useEffect(() => {
-    if (selectedID === null) {
-      return;
-    }
     fetchConfiguration();
-  }, [selectedID]);
+  }, []);
 
   const disableNameEdit = !configIsLoaded;
-  const disableElseEdit = disableNameEdit || stage !== "not_started";
+  const disableElseEdit = disableNameEdit || run.stage !== "not_started";
 
   const disableNext = !configIsLoaded;
-  const disableDefaults = disableNext || stage != "not_started";
+  const disableDefaults = disableNext || run.stage !== "not_started";
 
   return (
     <RunCard
@@ -178,7 +159,7 @@ export default function Configuration({
         <NameInput
           disabled={disableNameEdit}
           fetchNames={() => {
-            return fetchNames(selectedID);
+            return fetchNames(run.ID);
           }}
         />
         <DatasetInput disabled={disableElseEdit} />

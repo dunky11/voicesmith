@@ -137,7 +137,18 @@ export default function SampleSplitting({
               <Steps.Step
                 title={stepToTitle[1]}
                 disabled={run === null || ["not_started"].includes(run.stage)}
-                icon={selectedIsRunning ? <LoadingOutlined /> : undefined}
+                icon={
+                  selectedIsRunning &&
+                  run !== null &&
+                  [
+                    "copying_files",
+                    "gen_vocab",
+                    "gen_alignments",
+                    "creating_splits",
+                  ].includes(run.stage) ? (
+                    <LoadingOutlined />
+                  ) : undefined
+                }
               />
               <Steps.Step
                 disabled={
@@ -173,9 +184,7 @@ export default function SampleSplitting({
           <Switch>
             <Route
               render={() =>
-                run === null ? (
-                  <></>
-                ) : (
+                run !== null && (
                   <Configuration
                     onStepChange={onStepChange}
                     running={running}
@@ -188,9 +197,7 @@ export default function SampleSplitting({
             ></Route>
             <Route
               render={() =>
-                run === null ? (
-                  <></>
-                ) : (
+                run !== null && (
                   <Preprocessing
                     onStepChange={onStepChange}
                     run={run}
@@ -205,9 +212,7 @@ export default function SampleSplitting({
             ></Route>
             <Route
               render={() =>
-                run === null ? (
-                  <></>
-                ) : (
+                run !== null && (
                   <ChooseSamples
                     onStepChange={onStepChange}
                     run={run}
@@ -221,9 +226,7 @@ export default function SampleSplitting({
             ></Route>
             <Route
               render={() =>
-                run === null ? (
-                  <></>
-                ) : (
+                run !== null && (
                   <ApplyChanges
                     onStepChange={onStepChange}
                     run={run}

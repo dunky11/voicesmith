@@ -25,16 +25,13 @@ ipcMain.on(
     const from = UserDataPath().getPath();
     const updatePaths = from !== settings.dataPath;
     if (updatePaths) {
-      console.log("COPY FROM :", from, settings.dataPath);
       await copyDir(from, settings.dataPath);
     }
-    console.log("UPDATING PATHS :", from);
 
     DB.getInstance()
       .prepare("UPDATE settings SET data_path=@dataPath WHERE ID=1")
       .run(settings);
     if (updatePaths) {
-      console.log("DELETING FROM :", from);
       await safeRmDir(from);
       UserDataPath().setPath(settings.dataPath);
     }

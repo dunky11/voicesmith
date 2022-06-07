@@ -1,7 +1,5 @@
 import { ipcMain, IpcMainInvokeEvent } from "electron";
 import path from "path";
-import fsNative from "fs";
-const fsPromises = fsNative.promises;
 import {
   CREATE_PREPROCESSING_RUN_CHANNEL,
   FETCH_PREPROCESSING_RUNS_CHANNEL,
@@ -79,7 +77,6 @@ ipcMain.handle(FETCH_PREPROCESSING_RUNS_CHANNEL.IN, () => {
   const sampleSplittingRuns = fetchSampleSplittingRuns().map(
     (el: SampleSplittingRunInterface) => ({ ...el, type: "sampleSplittingRun" })
   );
-  console.log(sampleSplittingRuns);
   return cleaningRuns.concat(textNormalizationRuns).concat(sampleSplittingRuns);
 });
 
