@@ -29,7 +29,7 @@ dependencies:
       - -e .
       - tgt==1.4.1
       - piq==0.7.0
-      - nemo-toolkit==1.8.2
+      - nemo-toolkit["all"]==1.8.2
       - spacy==3.3.0
 
 prefix: /home/tim/anaconda3/envs/__voice_smith__
