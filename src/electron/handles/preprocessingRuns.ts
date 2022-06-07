@@ -77,7 +77,6 @@ ipcMain.handle(FETCH_PREPROCESSING_RUNS_CHANNEL.IN, () => {
   const sampleSplittingRuns = fetchSampleSplittingRuns().map(
     (el: SampleSplittingRunInterface) => ({ ...el, type: "sampleSplittingRun" })
   );
-  console.log(sampleSplittingRuns);
   return cleaningRuns.concat(textNormalizationRuns).concat(sampleSplittingRuns);
 });
 
