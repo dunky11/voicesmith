@@ -16,7 +16,9 @@ export const CHART_BG_COLORS_FADED = [
 export const TEXT_EXTENSIONS = ["txt"];
 export const AUDIO_EXTENSIONS = ["wav", "flac"];
 export const STATISTIC_HEIGHT = 200;
-export const CONDA_ENV_NAME = "__voice_smith__";
+export const DOCKER_IMAGE_NAME = "voice_smith";
+export const DOCKER_CONTAINER_NAME = "voice_smith";
+export const CONDA_ENV_NAME = "voice_smith";
 
 export const trainingRunInitialValues: ConfigurationInterface = {
   name: "",

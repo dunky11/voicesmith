@@ -1,6 +1,7 @@
 import { IpcMainEvent } from "electron";
 import { spawn, exec, ChildProcess } from "child_process";
 import path from "path";
+import { stopContainer, spawnCondaCmd } from "./docker";
 import {
   getAudioSynthDir,
   BACKEND_PATH,
@@ -77,33 +78,41 @@ export const killPyProc = (): void => {
   pyProc = null;
 };
 
-const selectPort = (): number => {
-  return PORT;
-};
-
 export const createServerProc = (): void => {
-  const port = String(selectPort());
   // Make sure database object is created
   DB.getInstance();
-  serverProc = spawnCondaShell(
-    `${path.join(
-      BACKEND_PATH,
-      path.join("server.py")
-    )} --port ${port} --db_path ${DB_PATH} --audio_synth_path ${getAudioSynthDir()} --models_path ${getModelsDir()} --assets_path ${ASSETS_PATH}`
+  serverProc = spawnCondaCmd(
+    [
+      "python",
+      "./backend/voice_smith/server.py",
+      "--port",
+      "80",
+      "--db_path",
+      DB_PATH,
+      "--audio_synth_path",
+      getAudioSynthDir(),
+      "--models_path",
+      getModelsDir(),
+      "--assets_path",
+      ASSETS_PATH,
+    ],
+    (data: any) => {
+      console.log(`Server process stdout: ${data}`);
+    },
+    (data: any) => {
+      console.log(`Server process stderr: ${data}`);
+    },
+    (code: number) => {
+      if (code !== 0) {
+        throw new Error(`Error in server process, status code ${code}`);
+      }
+    }
   );
-  serverProc.stderr.on("data", (data: any) => {
-    throw new Error(data.toString());
-  });
-  serverProc.stdout.on("data", (data: any) => {
-    console.log("Server process stdout: " + data.toString());
-  });
-
   if (serverProc != null) {
-    console.log("child process success on port " + port);
+    console.log(`child process success on port ${PORT}`);
   }
 };
 
 export const exit = (): void => {
-  killServerProc();
-  killPyProc();
+  stopContainer();
 };

@@ -23,6 +23,7 @@ import "./handles/sampleSplittingRuns";
 import "./handles/trainingRuns";
 import "./handles/install";
 import "./handles/settings";
+import "./handles/docker";
 
 app.commandLine.appendSwitch("trace-warnings");
 

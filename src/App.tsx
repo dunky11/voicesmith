@@ -384,7 +384,10 @@ export default function App(): ReactElement {
               ></Route>
               <Route
                 render={() => (
-                  <MainLoading onServerIsReady={onServerIsReady}></MainLoading>
+                  <MainLoading
+                    appInfo={appInfo}
+                    onServerIsReady={onServerIsReady}
+                  ></MainLoading>
                 )}
               ></Route>
             </Switch>

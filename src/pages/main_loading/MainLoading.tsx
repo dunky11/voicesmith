@@ -5,18 +5,21 @@ import { createUseStyles } from "react-jss";
 import {
   TerminalMessage,
   InstallBackendReplyInterface,
+  AppInfoInterface,
+  InstallerOptionsInterface,
 } from "../../interfaces";
 import NoCloseModal from "../../components/modals/NoCloseModal";
 import Terminal from "../../components/log_printer/Terminal";
 import {
   INSTALL_BACKEND_CHANNEL,
   START_SERVER_CHANNEL,
-  FETCH_HAS_CONDA_CHANNEL,
   FETCH_NEEDS_INSTALL_CHANNEL,
   FINISH_INSTALL_CHANNEL,
+  START_BACKEND_CHANNEL,
 } from "../../channels";
 import { pingServer } from "../../utils";
-const { ipcRenderer, shell } = window.require("electron");
+import InstallerOptions from "./InstallerOptions";
+const { ipcRenderer } = window.require("electron");
 
 const useClasses = createUseStyles({
   wrapper: {
@@ -29,48 +32,41 @@ const useClasses = createUseStyles({
 
 export default function MainLoading({
   onServerIsReady,
+  appInfo,
 }: {
   onServerIsReady: () => void;
+  appInfo: AppInfoInterface;
 }): ReactElement {
   const [initStep, setInitStep] = useState<
-    | "fetchConda"
-    | "noConda"
     | "fetchNeedsInstall"
-    | "installing"
+    | "getInstallOptions"
     | "finishingInstall"
+    | "startingBackend"
     | "startingServer"
     | "finished"
-  >("fetchConda");
+    | "installing"
+  >("fetchNeedsInstall");
   const [installerMessages, setInstallerMessages] = useState<TerminalMessage[]>(
     []
   );
   const classes = useClasses();
+  const installerOptionsRef = useRef<InstallerOptionsInterface>(null);
 
   const fetchNeedsInstall = () => {
     ipcRenderer
       .invoke(FETCH_NEEDS_INSTALL_CHANNEL.IN)
       .then((needsInstall: boolean) => {
         if (needsInstall) {
-          setInitStep("installing");
+          setInitStep("getInstallOptions");
         } else {
-          setInitStep("startingServer");
+          setInitStep("startingBackend");
         }
       });
   };
 
-  const fetchHasConda = () => {
-    ipcRenderer.invoke(FETCH_HAS_CONDA_CHANNEL.IN).then((hasConda: boolean) => {
-      if (hasConda) {
-        setInitStep("fetchNeedsInstall");
-      } else {
-        setInitStep("noConda");
-      }
-    });
-  };
-
   const finishInstall = () => {
     ipcRenderer.invoke(FINISH_INSTALL_CHANNEL.IN).then(() => {
-      setInitStep("startingServer");
+      setInitStep("startingBackend");
     });
   };
 
@@ -78,6 +74,12 @@ export default function MainLoading({
     ipcRenderer.invoke(START_SERVER_CHANNEL.IN);
     pingServer(true, () => {
       setInitStep("finished");
+    });
+  };
+
+  const startBackend = () => {
+    ipcRenderer.invoke(START_BACKEND_CHANNEL.IN).then(() => {
+      setInitStep("startingServer");
     });
   };
 
@@ -115,17 +117,21 @@ export default function MainLoading({
         }
       }
     );
-    ipcRenderer.send(INSTALL_BACKEND_CHANNEL.IN);
+    ipcRenderer.send(INSTALL_BACKEND_CHANNEL.IN, installerOptionsRef.current);
+  };
+
+  const onInstallerOptions = (installerOptions: InstallerOptionsInterface) => {
+    installerOptionsRef.current = installerOptions;
+    setInitStep("installing");
   };
 
   useEffect(() => {
     switch (initStep) {
-      case "fetchConda": {
-        fetchHasConda();
-        break;
-      }
       case "fetchNeedsInstall": {
         fetchNeedsInstall();
+        break;
+      }
+      case "getInstallOptions": {
         break;
       }
       case "installing": {
@@ -134,6 +140,10 @@ export default function MainLoading({
       }
       case "finishingInstall": {
         finishInstall();
+        break;
+      }
+      case "startingBackend": {
+        startBackend();
         break;
       }
       case "startingServer": {
@@ -155,34 +165,11 @@ export default function MainLoading({
 
   return (
     <div className={classes.wrapper}>
-      <NoCloseModal
-        title="Anaconda was not found on your system"
-        visible={initStep === "noConda"}
-      >
-        <p>
-          There has been no installation of Anaconda detected on your system.
-          Please navigate to{" "}
-          <a
-            onClick={() => {
-              shell.openExternal("https://www.anaconda.com/");
-            }}
-          >
-            https://www.anaconda.com/
-          </a>{" "}
-          or{" "}
-          <a
-            onClick={() => {
-              shell.openExternal(
-                "https://docs.conda.io/en/latest/miniconda.html"
-              );
-            }}
-          >
-            https://docs.conda.io/en/latest/miniconda.html
-          </a>{" "}
-          to download and install either Anaconda or Miniconda. Afterwards,
-          please restart this application.
-        </p>
-      </NoCloseModal>
+      <InstallerOptions
+        appInfo={appInfo}
+        open={initStep === "getInstallOptions"}
+        onFinish={onInstallerOptions}
+      />
       <NoCloseModal
         title="Installing Backend"
         visible={initStep === "installing"}

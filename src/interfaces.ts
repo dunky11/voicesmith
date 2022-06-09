@@ -340,3 +340,9 @@ export interface SampleSplittingSampleInterface {
   audioPath: string;
   splits: SampleSplittingSplitInterface[];
 }
+
+export interface InstallerOptionsInterface {
+  device: "CPU" | "GPU";
+  dockerIsInstalled: boolean | null;
+  hasInstalledNCT: boolean;
+}

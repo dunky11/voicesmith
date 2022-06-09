@@ -1,4 +1,4 @@
-name: __voice_smith__
+name: voice_smith
 channels:
   - conda-forge
   - defaults

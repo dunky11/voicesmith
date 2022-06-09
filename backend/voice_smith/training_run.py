@@ -185,7 +185,7 @@ def preprocessing_stage(
             "SELECT preprocessing_stage FROM training_run WHERE ID=?", (run_id,),
         ).fetchone()[0]
         if preprocessing_stage == "not_started":
-            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='copying_files' WHERE ID=?",
                 (run_id,),
@@ -193,7 +193,7 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "copying_files":
-            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             txt_paths, texts, audio_paths, names = [], [], [], []
             for (
                 txt_path,
@@ -247,7 +247,7 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "gen_vocab":
-            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             (Path(data_path) / "data").mkdir(exist_ok=True, parents=True)
             row = cur.execute(
                 "SELECT device FROM training_run WHERE ID=?", (run_id,),
@@ -296,7 +296,7 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "gen_alignments":
-            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
             align(
                 environment_name=environment_name,
@@ -312,7 +312,7 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "extract_data":
-            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            # set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             row = cur.execute(
                 "SELECT validation_size FROM training_run WHERE ID=?", (run_id,),
             ).fetchone()

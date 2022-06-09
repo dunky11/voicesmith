@@ -71,11 +71,7 @@ def get_model(
 
 
 def run_server(
-    port: int,
-    db_path: str,
-    audio_synth_path: str,
-    models_path: str,
-    assets_path: str,
+    port: int, db_path: str, audio_synth_path: str, models_path: str, assets_path: str,
 ):
     app = Flask(__name__)
     CORS(app)
@@ -129,8 +125,7 @@ def run_server(
             return "Invalid Request.", 400
 
         row = cur.execute(
-            "SELECT name, type FROM model WHERE ID=?",
-            (model_id,),
+            "SELECT name, type FROM model WHERE ID=?", (model_id,),
         ).fetchone()
         model_name, model_type = row
 
@@ -189,7 +184,7 @@ def run_server(
 
         return jsonify(success=True)
 
-    serve(app, host="localhost", port=port)
+    serve(app, host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":

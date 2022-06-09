@@ -7,8 +7,8 @@ export const START_SERVER_CHANNEL = {
   IN: "start-server",
 };
 
-export const FETCH_HAS_CONDA_CHANNEL = {
-  IN: "fetch-has-conda",
+export const FETCH_HAS_DOCKER_CHANNEL = {
+  IN: "fetch-has-docker",
 };
 
 export const FETCH_NEEDS_INSTALL_CHANNEL = {
@@ -294,4 +294,8 @@ export const UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL = {
 
 export const REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL = {
   IN: "remove-sample-splitting-splits",
+};
+
+export const START_BACKEND_CHANNEL = {
+  IN: "start-backend-channel",
 };
