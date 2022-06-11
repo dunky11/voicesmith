@@ -1,12 +1,6 @@
 from pathlib import Path
-import fire
 from nemo_text_processing.text_normalization.normalize import Normalizer
-import multiprocessing as mp
-from typing import Tuple, List, Dict, Any, Callable
-import multiprocessing as mp
-from joblib import Parallel, delayed
-import sqlite3
-import argparse
+from typing import Tuple, List, Dict, Any, Callable, Optional
 from voice_smith.utils.tokenization import WordTokenizer
 
 LATIN_CHARACTERS = list("abcdefghijklmnopqrstuvwxyz")
@@ -339,9 +333,7 @@ class DetShouldNormalizeRU(DetShouldNormalizeBase):
 def apply_nemo_normalization(text: str, normalizer: Normalizer):
     text_in = text
     text_out = normalizer.normalize(
-        text=text_in,
-        verbose=False,
-        punct_post_process=True,
+        text=text_in, verbose=False, punct_post_process=True,
     )
 
     if (
@@ -364,13 +356,16 @@ def apply_nemo_normalization(text: str, normalizer: Normalizer):
 
 def normalize_sample(
     text_in: str,
-    char_normalizer: CharNormalizer,
+    char_normalizer: Optional[CharNormalizer],
     detector: DetShouldNormalizeEN,
     normalizer: Normalizer,
     deterministic: bool,
     tokenizer: WordTokenizer,
 ):
-    text_out, reasons_char_norm = char_normalizer.normalize(text_in)
+    if char_normalizer is None:
+        text_out, reasons_char_norm = text_in, []
+    else:
+        text_out, reasons_char_norm = char_normalizer.normalize(text_in)
     should_normalize, reasons_det = detector.should_normalize(text_out, tokenizer)
     if should_normalize:
         text_out = apply_nemo_normalization(text=text_out, normalizer=normalizer)
@@ -398,6 +393,7 @@ def text_normalize(
     lang: str,
     progress_cb: Callable[[float], None],
     callback_every: int = 50,
+    normalize_characters: bool = True,
 ) -> List[Tuple[int, str, str, str]]:
     if lang == "en":
         detector = DetShouldNormalizeEN(assets_path)
@@ -430,7 +426,7 @@ def text_normalize(
     for i, (sample_id, text) in enumerate(id_text_pairs):
         ret = normalize_sample(
             text_in=text,
-            char_normalizer=char_normalizer,
+            char_normalizer=CharNormalizer() if normalize_characters else None,
             detector=detector,
             normalizer=normalizer,
             deterministic=deterministic,
