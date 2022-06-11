@@ -81,11 +81,11 @@ def text_normalization_stage(
     def callback(progress: float):
         progress = progress * 0.9
         cur.execute(
-            "UPDATE text_normalization_run SET text_normalization_progress=1.0 WHERE ID=?",
-            (run_id,),
+            "UPDATE text_normalization_run SET text_normalization_progress=? WHERE ID=?",
+            (progress, run_id),
         )
         con.commit()
-
+ 
     normalizations = text_normalize(
         id_text_pairs=id_text_pairs,
         assets_path=assets_path,
