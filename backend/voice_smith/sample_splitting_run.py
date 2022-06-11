@@ -20,6 +20,13 @@ from voice_smith.preprocessing.align import align
 from voice_smith.preprocessing.sample_splitting import sample_splitting, split_sample
 from voice_smith.utils.punctuation import get_punct
 from voice_smith.utils.runs import StageRunner
+from voice_smith.config.globals import (
+    DB_PATH,
+    SAMPLE_SPLITTING_RUNS_PATH,
+    ENVIRONMENT_NAME,
+    DATASETS_PATH,
+    ASSETS_PATH,
+)
 
 warnings_to_stdout()
 
@@ -59,17 +66,14 @@ def get_log_file_name(stage_name: str) -> str:
 
 
 def before_stage(
-    data_path: str,
-    stage_name: str,
-    **kwargs,
+    data_path: str, stage_name: str, **kwargs,
 ):
     set_stream_location(str(Path(data_path) / "logs" / get_log_file_name(stage_name)))
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
     row = cur.execute(
-        "SELECT stage FROM sample_splitting_run WHERE ID=?",
-        (run_id,),
+        "SELECT stage FROM sample_splitting_run WHERE ID=?", (run_id,),
     ).fetchone()
     stage = row[0]
     return stage
@@ -84,8 +88,7 @@ def not_started_stage(
     (data_path / "logs").mkdir(exist_ok=True, parents=True)
     (data_path / "raw_data").mkdir(exist_ok=True)
     cur.execute(
-        "UPDATE sample_splitting_run SET stage='copying_files' WHERE ID=?",
-        (run_id,),
+        "UPDATE sample_splitting_run SET stage='copying_files' WHERE ID=?", (run_id,),
     )
     con.commit()
     return False
@@ -148,8 +151,7 @@ def copying_files_stage(
         progress_cb=progress_cb,
     )
     cur.execute(
-        "UPDATE sample_splitting_run SET stage='gen_vocab' WHERE ID=?",
-        (run_id,),
+        "UPDATE sample_splitting_run SET stage='gen_vocab' WHERE ID=?", (run_id,),
     )
     con.commit()
     return False
@@ -177,8 +179,7 @@ def get_vocab_stage(
         texts.append(text)
 
     row = cur.execute(
-        "SELECT device FROM sample_splitting_run WHERE ID=?",
-        (run_id,),
+        "SELECT device FROM sample_splitting_run WHERE ID=?", (run_id,),
     ).fetchone()
     device = row[0]
     device = get_device(device)
@@ -280,10 +281,7 @@ def creating_splits_stage(
         langs.append("en")
 
     splits = sample_splitting(
-        ids=sample_ids,
-        texts=texts,
-        textgrid_paths=textgrid_paths,
-        languages=langs,
+        ids=sample_ids, texts=texts, textgrid_paths=textgrid_paths, languages=langs,
     )
     run_sample_id_to_split = {}
     for split in splits:
@@ -479,22 +477,15 @@ def apply_changes_stage(
     return True
 
 
-def continue_sample_splitting_run(
-    run_id: int,
-    preprocessing_runs_dir: str,
-    assets_path: str,
-    db_path: str,
-    datasets_path: str,
-    environment_name: str,
-):
-    con = get_con(db_path)
+def continue_sample_splitting_run(run_id: int,):
+    con = get_con(DB_PATH)
     cur = con.cursor()
     save_current_pid(con=con, cur=cur)
-    data_path = str(Path(preprocessing_runs_dir) / str(run_id))
+    data_path = str(Path(SAMPLE_SPLITTING_RUNS_PATH) / str(run_id))
     splits_path = str(Path(data_path) / "splits")
 
     def get_logger():
-        con = get_con(db_path)
+        con = get_con(DB_PATH)
         cur = con.cursor()
         logger = SQLLogger(
             training_run_id=run_id,
@@ -525,10 +516,10 @@ def continue_sample_splitting_run(
         con=con,
         run_id=run_id,
         data_path=data_path,
-        assets_path=assets_path,
+        assets_path=ASSETS_PATH,
         get_logger=get_logger,
-        environment_name=environment_name,
-        datasets_path=datasets_path,
+        environment_name=ENVIRONMENT_NAME,
+        datasets_path=DATASETS_PATH,
         splits_path=splits_path,
     )
 
@@ -536,18 +527,7 @@ def continue_sample_splitting_run(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", type=int, required=True)
-    parser.add_argument("--preprocessing_runs_dir", type=str, required=True)
-    parser.add_argument("--assets_path", type=str, required=True)
-    parser.add_argument("--db_path", type=str, required=True)
-    parser.add_argument("--datasets_path", type=str, required=True)
-    parser.add_argument("--environment_name", type=str, required=True)
     args = parser.parse_args()
 
-    continue_sample_splitting_run(
-        run_id=args.run_id,
-        preprocessing_runs_dir=args.preprocessing_runs_dir,
-        assets_path=args.assets_path,
-        db_path=args.db_path,
-        datasets_path=args.datasets_path,
-        environment_name=args.environment_name,
-    )
+    continue_sample_splitting_run(run_id=args.run_id,)
+

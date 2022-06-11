@@ -30,6 +30,15 @@ from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
 from voice_smith.utils.punctuation import get_punct
 from voice_smith.utils.runs import StageRunner
+from voice_smith.config.globals import (
+    DB_PATH,
+    DATASETS_PATH,
+    ASSETS_PATH,
+    TRAINING_RUNS_PATH,
+    MODELS_PATH,
+    ENVIRONMENT_NAME,
+)
+
 
 warnings_to_stdout()
 
@@ -185,7 +194,7 @@ def preprocessing_stage(
             "SELECT preprocessing_stage FROM training_run WHERE ID=?", (run_id,),
         ).fetchone()[0]
         if preprocessing_stage == "not_started":
-            # set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='copying_files' WHERE ID=?",
                 (run_id,),
@@ -193,7 +202,7 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "copying_files":
-            # set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             txt_paths, texts, audio_paths, names = [], [], [], []
             for (
                 txt_path,
@@ -247,7 +256,7 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "gen_vocab":
-            # set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             (Path(data_path) / "data").mkdir(exist_ok=True, parents=True)
             row = cur.execute(
                 "SELECT device FROM training_run WHERE ID=?", (run_id,),
@@ -296,7 +305,7 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "gen_alignments":
-            # set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
             align(
                 environment_name=environment_name,
@@ -312,7 +321,7 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "extract_data":
-            # set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             row = cur.execute(
                 "SELECT validation_size FROM training_run WHERE ID=?", (run_id,),
             ).fetchone()
@@ -576,8 +585,7 @@ def save_model_stage(
 def before_stage(
     data_path: str, stage_name: str, **kwargs,
 ):
-    # set_stream_location(str(Path(data_path) / "logs" / f"{stage_name}.txt"))
-    pass
+    set_stream_location(str(Path(data_path) / "logs" / f"{stage_name}.txt"))
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
@@ -587,23 +595,14 @@ def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
     return row[0]
 
 
-def continue_training_run(
-    run_id: int,
-    training_runs_path: str,
-    assets_path: str,
-    db_path: str,
-    models_path: str,
-    datasets_path: str,
-    user_data_path: str,
-    environment_name: str,
-):
-    con = get_con(db_path)
+def continue_training_run(run_id: int):
+    con = get_con(DB_PATH)
     cur = con.cursor()
     save_current_pid(con=con, cur=cur)
-    data_path = Path(training_runs_path) / str(run_id)
+    data_path = Path(TRAINING_RUNS_PATH) / str(run_id)
 
     def get_logger():
-        con = get_con(db_path)
+        con = get_con(DB_PATH)
         cur = con.cursor()
         logger = SQLLogger(
             training_run_id=run_id,
@@ -632,34 +631,19 @@ def continue_training_run(
         con=con,
         run_id=run_id,
         data_path=data_path,
-        dataset_path=datasets_path,
+        dataset_path=DATASETS_PATH,
         get_logger=get_logger,
-        assets_path=assets_path,
-        environment_name=environment_name,
-        training_runs_path=training_runs_path,
-        models_path=models_path,
+        assets_path=ASSETS_PATH,
+        environment_name=ENVIRONMENT_NAME,
+        training_runs_path=TRAINING_RUNS_PATH,
+        models_path=MODELS_PATH,
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", type=int, required=True)
-    parser.add_argument("--training_runs_path", type=str, required=True)
-    parser.add_argument("--assets_path", type=str, required=True)
-    parser.add_argument("--db_path", type=str, required=True)
-    parser.add_argument("--models_path", type=str, required=True)
-    parser.add_argument("--datasets_path", type=str, required=True)
-    parser.add_argument("--user_data_path", type=str, required=True)
-    parser.add_argument("--environment_name", type=str, required=True)
     args = parser.parse_args()
 
-    continue_training_run(
-        run_id=args.run_id,
-        training_runs_path=args.training_runs_path,
-        assets_path=args.assets_path,
-        db_path=args.db_path,
-        models_path=args.models_path,
-        datasets_path=args.datasets_path,
-        user_data_path=args.user_data_path,
-        environment_name=args.environment_name,
-    )
+    continue_training_run(run_id=args.run_id)
+

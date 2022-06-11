@@ -257,6 +257,7 @@ const createTables = (db: any) => {
         gen_vocab_progress FLOAT NOT NULL DEFAULT 0.0,
         gen_align_progress FLOAT NOT NULL DEFAULT 0.0,
         creating_splits_progress FLOAT NOT NULL DEFAULT 0.0,
+        applying_changes_progress FLOAT NOT NULL DEFAULT 0.0,
         device TEXT NOT NULL DEFAULT "CPU",
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)

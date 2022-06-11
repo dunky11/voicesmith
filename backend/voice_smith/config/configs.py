@@ -21,7 +21,7 @@ class PreprocessingConfig:
     sampling_rate: int = 22050
     use_audio_normalization: bool = True
     workers: int = 11
-    segment_size: int = 32
+    segment_size: int = 64
     stft: STFTConfig = STFTConfig(
         filter_length=1024,
         hop_length=256,
@@ -209,12 +209,3 @@ class SampleSplittingRunConfig:
     workers: int
     device: torch.device
 
-
-if __name__ == "__main__":
-    prep_config = PreprocessingConfig()
-    fine_tuning_config = AcousticFinetuningConfig()
-    pre_training_config = AcousticPretrainingConfig()
-    acoustic_model_config = AcousticModelConfig()
-    vocoder_pre_training_config = VocoderPretrainingConfig()
-    vocoder_fine_tuning_config = VocoderFinetuningConfig()
-    vocoder_model_config = VocoderModelConfig()

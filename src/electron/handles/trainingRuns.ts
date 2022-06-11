@@ -20,16 +20,9 @@ import {
   CREATE_TRAINING_RUN_CHANNEL,
   UPDATE_TRAINING_RUN_CONFIG_CHANNEL,
 } from "../../channels";
-import {
-  ASSETS_PATH,
-  getDatasetsDir,
-  DB_PATH,
-  getModelsDir,
-  getTrainingRunsDir,
-  UserDataPath,
-} from "../utils/globals";
+import { getTrainingRunsDir } from "../utils/globals";
 import { DB, bool2int, getSpeakersWithSamples } from "../utils/db";
-import { CONDA_ENV_NAME, trainingRunInitialValues } from "../../config";
+import { trainingRunInitialValues } from "../../config";
 
 ipcMain.handle(
   CREATE_TRAINING_RUN_CHANNEL.IN,
@@ -176,25 +169,8 @@ ipcMain.on(
 
     startRun(
       event,
-      "training_run.py",
-      [
-        "--run_id",
-        String(runID),
-        "--training_runs_path",
-        getTrainingRunsDir(),
-        "--assets_path",
-        ASSETS_PATH,
-        "--db_path",
-        DB_PATH,
-        "--models_path",
-        getModelsDir(),
-        "--datasets_path",
-        getDatasetsDir(),
-        "--user_data_path",
-        UserDataPath().getPath(),
-        "--environment_name",
-        CONDA_ENV_NAME,
-      ],
+      "/home/backend/voice_smith/training_run.py",
+      ["--run_id", String(runID)],
       true
     );
   }

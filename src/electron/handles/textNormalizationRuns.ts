@@ -10,12 +10,7 @@ import {
   FINISH_TEXT_NORMALIZATION_RUN_CHANNEL,
   REMOVE_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
 } from "../../channels";
-import {
-  getDatasetsDir,
-  DB_PATH,
-  getTextNormalizationRunsDir,
-  ASSETS_PATH,
-} from "../utils/globals";
+import { getDatasetsDir } from "../utils/globals";
 import { DB } from "../utils/db";
 import {
   TextNormalizationRunConfigInterface,
@@ -28,17 +23,8 @@ ipcMain.on(
   (event: IpcMainEvent, runID: number) => {
     startRun(
       event,
-      "text_normalization_run.py",
-      [
-        "--run_id",
-        String(runID),
-        "--db_path",
-        DB_PATH,
-        "--text_normalization_runs_path",
-        getTextNormalizationRunsDir(),
-        "--assets_path",
-        ASSETS_PATH,
-      ],
+      "/home/backend/voice_smith/text_normalization_run.py",
+      ["--run_id", String(runID)],
       false
     );
   }

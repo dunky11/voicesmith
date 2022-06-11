@@ -9,6 +9,11 @@ from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
 from voice_smith.preprocessing.text_normalization import text_normalize
 from voice_smith.utils.runs import StageRunner
+from voice_smith.config.globals import (
+    DB_PATH,
+    TEXT_NORMALIZATION_RUNS_PATH,
+    ASSETS_PATH,
+)
 
 
 def before_run(data_path: str, **kwargs):
@@ -16,16 +21,14 @@ def before_run(data_path: str, **kwargs):
 
 
 def before_stage(
-    data_path: str,
-    **kwargs,
+    data_path: str, **kwargs,
 ):
     set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
     row = cur.execute(
-        "SELECT stage FROM text_normalization_run WHERE ID=?",
-        (run_id,),
+        "SELECT stage FROM text_normalization_run WHERE ID=?", (run_id,),
     ).fetchone()
     stage = row[0]
     return stage
@@ -54,8 +57,7 @@ def text_normalization_stage(
     **kwargs,
 ) -> bool:
     row = cur.execute(
-        "SELECT language FROM text_normalization_run WHERE ID=?",
-        (run_id,),
+        "SELECT language FROM text_normalization_run WHERE ID=?", (run_id,),
     ).fetchone()
     lang = row[0]
     cur.execute(
@@ -108,16 +110,11 @@ def text_normalization_stage(
     return True
 
 
-def continue_text_normalization_run(
-    run_id: int,
-    db_path: str,
-    text_normalization_runs_path: str,
-    assets_path: str,
-):
-    con = get_con(db_path)
+def continue_text_normalization_run(run_id: int):
+    con = get_con(DB_PATH)
     cur = con.cursor()
     save_current_pid(con=con, cur=cur)
-    data_path = str(Path(text_normalization_runs_path) / str(run_id))
+    data_path = str(Path(TEXT_NORMALIZATION_RUNS_PATH) / str(run_id))
 
     runner = StageRunner(
         cur=cur,
@@ -131,25 +128,13 @@ def continue_text_normalization_run(
         ],
     )
     runner.run(
-        cur=cur,
-        con=con,
-        run_id=run_id,
-        data_path=data_path,
-        assets_path=assets_path,
+        cur=cur, con=con, run_id=run_id, data_path=data_path, assets_path=ASSETS_PATH,
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", type=int, required=True)
-    parser.add_argument("--db_path", type=str, required=True)
-    parser.add_argument("--text_normalization_runs_path", type=str, required=True)
-    parser.add_argument("--assets_path", type=str, required=True)
     args = parser.parse_args()
 
-    continue_text_normalization_run(
-        run_id=args.run_id,
-        db_path=args.db_path,
-        text_normalization_runs_path=args.text_normalization_runs_path,
-        assets_path=args.assets_path,
-    )
+    continue_text_normalization_run(run_id=args.run_id)

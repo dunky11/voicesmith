@@ -1,10 +1,17 @@
 import childProcess, { ChildProcessWithoutNullStreams } from "child_process";
+import path from "path";
 import {
   CONDA_ENV_NAME,
   DOCKER_CONTAINER_NAME,
   DOCKER_IMAGE_NAME,
 } from "../../config";
-import { CONDA_PATH, PORT } from "./globals";
+import {
+  CONDA_PATH,
+  DB_PATH,
+  PORT,
+  ASSETS_PATH,
+  UserDataPath,
+} from "./globals";
 
 export const getHasDocker = async () => {
   return await new Promise((resolve, reject) => {
@@ -21,6 +28,7 @@ export const stopContainer = async (): Promise<void> => {
     });
   });
 };
+
 export const removeContainer = async (): Promise<void> => {
   return new Promise((resolve, reject) => {
     childProcess.exec(`docker rm ${DOCKER_CONTAINER_NAME}`, () => {
@@ -49,6 +57,19 @@ export const spawnCondaCmd = (
   onError: ((data: string) => void) | null,
   onExit: ((code: number) => void) | null
 ): ChildProcessWithoutNullStreams => {
+  console.log(
+    [
+      "docker",
+      "exec",
+      DOCKER_CONTAINER_NAME,
+      "conda",
+      "run",
+      "-n",
+      CONDA_ENV_NAME,
+      "--no-capture-output",
+      ...args,
+    ].join(" ")
+  );
   const proc = childProcess.spawn("docker", [
     "exec",
     DOCKER_CONTAINER_NAME,
@@ -77,6 +98,33 @@ export const spawnCondaCmd = (
   return proc;
 };
 
+const spawnCondaCmdPromise = async (
+  args: string[],
+  onData: ((data: string) => void) | null,
+  onError: ((data: string) => void) | null
+): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    spawnCondaCmd(args, onData, onError, (code: number) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        const errorText = `docker ${[
+          "exec",
+          DOCKER_CONTAINER_NAME,
+          "conda",
+          "run",
+          "-n",
+          CONDA_ENV_NAME,
+          ...args,
+        ].join(" ")} failed with a status code of ${code}`;
+        if (onError !== null) {
+          onError(errorText);
+        }
+        throw new Error(errorText);
+      }
+    });
+  });
+};
 const spawnDockerCmdPromise = async (
   args: string[],
   onData: ((data: string) => void) | null,
@@ -104,7 +152,9 @@ const spawnDockerCmdPromise = async (
         const errorText = `docker ${args.join(
           " "
         )} failed with a status code of ${code}`;
-        onError(errorText);
+        if (onError !== null) {
+          onError(errorText);
+        }
         throw new Error(errorText);
       }
     });
@@ -146,6 +196,12 @@ export const createContainer = async (
       "voice_smith",
       "--mount",
       `type=bind,source=${CONDA_PATH},target=/home/backend`,
+      "--mount",
+      `type=bind,source=${ASSETS_PATH},target=/home/assets`,
+      "--mount",
+      `type=bind,source=${path.dirname(DB_PATH)},target=/home/db`,
+      "--mount",
+      `type=bind,source=${UserDataPath().getPath()},target=/home/data`,
       "--ulimit",
       "stack=67108864",
       "-p",
@@ -172,6 +228,16 @@ export const installEnvironment = async (
       "-f",
       "./backend/environment.yml",
     ],
+    onData,
+    onError
+  );
+  await spawnDockerCmdPromise(
+    ["exec", DOCKER_CONTAINER_NAME, "conda", "init", "bash"],
+    onData,
+    onError
+  );
+  await spawnCondaCmdPromise(
+    ["mfa", "models", "download", "acoustic", "english_us_arpa"],
     onData,
     onError
   );

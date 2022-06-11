@@ -1,18 +1,10 @@
 import { IpcMainEvent } from "electron";
-import { spawn, exec, ChildProcess } from "child_process";
-import path from "path";
+import { exec, ChildProcess } from "child_process";
 import { stopContainer, spawnCondaCmd } from "./docker";
-import {
-  getAudioSynthDir,
-  BACKEND_PATH,
-  DB_PATH,
-  getModelsDir,
-  PORT,
-  ASSETS_PATH,
-} from "./globals";
+import { PORT } from "./globals";
 import { DB } from "./db";
-import { CONDA_ENV_NAME } from "../../config";
 import { CONTINUE_TRAINING_RUN_CHANNEL } from "../../channels";
+import { DOCKER_CONTAINER_NAME } from "../../config";
 
 let serverProc: ChildProcess = null;
 let pyProc: ChildProcess = null;
@@ -20,19 +12,8 @@ let pyProc: ChildProcess = null;
 const killLastRun = () => {
   const pid = DB.getInstance().prepare("SELECT pid FROM settings").get().pid;
   if (pid !== null) {
-    exec(`kill -15 ${pid}`);
+    exec(`docker exec ${DOCKER_CONTAINER_NAME} kill -15 ${pid}`);
   }
-};
-
-const spawnCondaShell = (cmd: string): ChildProcess => {
-  return spawn(
-    `conda run -n ${CONDA_ENV_NAME} --no-capture-output python ${cmd}`,
-    {
-      cwd: BACKEND_PATH,
-      env: { ...process.env, PYTHONNOUSERSITE: "True" },
-      shell: true,
-    }
-  );
 };
 
 export const startRun = (
@@ -41,21 +22,24 @@ export const startRun = (
   args: string[],
   logErr: boolean
 ): void => {
-  console.log([scriptName, ...args].join(" "));
-  pyProc = spawnCondaShell([scriptName, ...args].join(" "));
-  pyProc.on("exit", () => {
-    event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
-      type: "finishedRun",
-    });
-  });
-  if (logErr) {
-    pyProc.stderr.on("data", (data: any) => {
+  pyProc = spawnCondaCmd(
+    ["python", scriptName, ...args],
+    null,
+    logErr
+      ? (data: string) => {
+          event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
+            type: "error",
+            errorMessage: data,
+          });
+        }
+      : null,
+    (code: number) => {
       event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
-        type: "error",
-        errorMessage: data.toString(),
+        type: "finishedRun",
       });
-    });
-  }
+    }
+  );
+
   event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
     type: "startedRun",
   });
@@ -82,32 +66,17 @@ export const createServerProc = (): void => {
   // Make sure database object is created
   DB.getInstance();
   serverProc = spawnCondaCmd(
-    [
-      "python",
-      "./backend/voice_smith/server.py",
-      "--port",
-      "80",
-      "--db_path",
-      DB_PATH,
-      "--audio_synth_path",
-      getAudioSynthDir(),
-      "--models_path",
-      getModelsDir(),
-      "--assets_path",
-      ASSETS_PATH,
-    ],
-    (data: any) => {
-      console.log(`Server process stdout: ${data}`);
-    },
-    (data: any) => {
-      console.log(`Server process stderr: ${data}`);
-    },
+    ["python", "./backend/voice_smith/server.py", "--port", "80"],
+    null,
+    null,
     (code: number) => {
       if (code !== 0) {
         throw new Error(`Error in server process, status code ${code}`);
       }
     }
   );
+  console.log("STARTED SERVER PROC");
+
   if (serverProc != null) {
     console.log(`child process success on port ${PORT}`);
   }

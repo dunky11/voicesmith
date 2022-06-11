@@ -8,6 +8,7 @@ from pathlib import Path
 import uuid
 from torch.jit._serialization import load
 from g2p_en import G2p
+from waitress import serve
 from voice_smith.utils.tokenization import BertTokenizer
 from voice_smith.utils.text_normalization import EnglishTextNormalizer
 from voice_smith.sql import get_con
@@ -15,8 +16,12 @@ from voice_smith.utils.tools import get_cpu_usage, get_ram_usage, get_disk_usage
 from voice_smith.inference import synthesize as synthesize_infer
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.utils.audio import save_audio
-import sys
-from waitress import serve
+from voice_smith.config.globals import (
+    DB_PATH,
+    AUDIO_SYNTH_PATH,
+    ASSETS_PATH,
+    MODELS_PATH,
+)
 
 
 def get_lexicon(cur: sqlite3.Cursor, model_id: int) -> Dict[str, List[str]]:
@@ -70,9 +75,7 @@ def get_model(
     }
 
 
-def run_server(
-    port: int, db_path: str, audio_synth_path: str, models_path: str, assets_path: str,
-):
+def run_server(port: int):
     app = Flask(__name__)
     CORS(app)
 
@@ -109,7 +112,7 @@ def run_server(
 
     @app.route("/synthesize", methods=["POST"])
     def synthesize():
-        con = get_con(db_path)
+        con = get_con(DB_PATH)
         cur = con.cursor()
         model_id = request.form.get("modelID", type=int)
         speaker_id = request.form.get("speakerID", type=int)
@@ -137,14 +140,14 @@ def run_server(
 
         __model__ = get_model(
             cur=cur,
-            assets_path=assets_path,
-            models_path=models_path,
+            assets_path=ASSETS_PATH,
+            models_path=MODELS_PATH,
             model_id=model_id,
             model_name=model_name,
         )
 
-        logs_dir = Path(models_path) / model_name / "logs"
-        audio_dir = Path(audio_synth_path)
+        logs_dir = Path(MODELS_PATH) / model_name / "logs"
+        audio_dir = Path(AUDIO_SYNTH_PATH)
         audio_dir.mkdir(parents=True, exist_ok=True)
         logs_dir.mkdir(parents=True, exist_ok=True)
         set_stream_location(str(logs_dir / "synthesize.txt"))
@@ -190,16 +193,5 @@ def run_server(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, required=True)
-    parser.add_argument("--db_path", type=str, required=True)
-    parser.add_argument("--audio_synth_path", type=str, required=True)
-    parser.add_argument("--models_path", type=str, required=True)
-    parser.add_argument("--assets_path", type=str, required=True)
     args = parser.parse_args()
-
-    run_server(
-        port=int(args.port),
-        db_path=args.db_path,
-        audio_synth_path=args.audio_synth_path,
-        models_path=args.models_path,
-        assets_path=args.assets_path,
-    )
+    run_server(port=int(args.port))

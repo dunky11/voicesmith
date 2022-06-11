@@ -76,9 +76,9 @@ class AcousticDataset(Dataset):
             "audio": audio,
         }
 
-        if mel.shape[1] < 33:
+        if mel.shape[1] < 64:
             print(
-                "Skipping small sample due to the mel-spectrogram containing less than 33 frames"
+                "Skipping small sample due to the mel-spectrogram containing less than 64 frames"
             )
             rand_idx = np.random.randint(0, self.__len__())
             return self.__getitem__(rand_idx)

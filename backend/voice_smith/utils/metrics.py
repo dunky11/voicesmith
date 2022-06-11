@@ -3,6 +3,7 @@ import numpy as np
 from scipy.spatial.distance import euclidean
 from typing import Tuple
 import torch
+from torchmetrics.functional.audio.stoi import short_time_objective_intelligibility
 from voice_smith.utils.audio import resample
 
 
@@ -43,11 +44,15 @@ def mcd_dtw(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def calc_estoi(audio_real, audio_fake, sampling_rate):
-    return torch.FloatTensor([0.])
+    return torch.mean(
+        short_time_objective_intelligibility(
+            audio_fake, audio_real, sampling_rate
+        ).float()
+    )
 
 
 def calc_pesq(audio_real, audio_fake, sampling_rate):
-    return torch.FloatTensor([0.])
+    return torch.FloatTensor([0.0])
 
 
 def calc_rmse(audio_real, audio_fake, stft):

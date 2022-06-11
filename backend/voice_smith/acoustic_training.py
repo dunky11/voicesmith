@@ -203,6 +203,7 @@ def train_iter(
     audios, fake_audios = [], []
     optim_g.zero_grad()
 
+    # Train Generator
     for j in range(grad_acc_steps):
         batch = next(train_loader)
         batch = to_device(batch, device)
@@ -280,7 +281,6 @@ def train_iter(
         losses["p_prosody_loss"] += l_prosody * batch_size
         losses["pitch_loss"] += l_pitch * batch_size
         losses["mel_loss"] += stft_loss * batch_size
-        losses["pitch_loss"] += l_pitch * batch_size
         losses["gen_adv_loss"] += score_loss * batch_size
 
         total_batch_size += batch_size
@@ -290,12 +290,10 @@ def train_iter(
         audios.append(audio)
         fake_audios.append(fake_audio.detach())
 
-    # Clipping gradients to avoid gradient explosion
     clip_grad_norm_(
         chain(gen.parameters(), style_predictor.parameters()), grad_clip_thresh
     )
 
-    # Update weights
     optim_g.step_and_update_lr(step)
     optim_d.zero_grad()
 
@@ -318,6 +316,8 @@ def train_iter(
         losses["disc_loss"] += loss_d * batch_size
 
         (loss_d / grad_acc_steps).backward()
+
+    clip_grad_norm_(disc.parameters(), grad_clip_thresh)
 
     optim_d.step_and_update_lr(step)
 
@@ -364,20 +364,21 @@ def eval_iter(
     step: int,
     train_config: Union[AcousticFinetuningConfig, AcousticPretrainingConfig],
     batch_size: int,
+    stft_criterion: MultiResolutionSTFTLoss,
     loader: DataLoader,
     device: torch.device,
     logger: Logger,
+    preprocess_config: PreprocessingConfig,
 ) -> None:
     gen.eval()
     style_predictor.eval()
 
     losses = {
-        "reconstruction_loss": torch.FloatTensor([0.0]).to(device),
         "mel_loss": torch.FloatTensor([0.0]).to(device),
-        "ssim_loss": torch.FloatTensor([0.0]).to(device),
         "duration_loss": torch.FloatTensor([0.0]).to(device),
         "p_prosody_loss": torch.FloatTensor([0.0]).to(device),
         "pitch_loss": torch.FloatTensor([0.0]).to(device),
+        "estoi": torch.FloatTensor([0.0]).to(device),
     }
 
     len_ds = 0
@@ -400,11 +401,10 @@ def eval_iter(
                     attention_masks,
                     audio,
                 ) = batch
+                audio = audio.unsqueeze(1)
                 style_embeds_pred = style_predictor(token_ids, attention_masks)
 
                 src_mask = get_mask_from_lengths(src_lens)
-                mel_mask = get_mask_from_lengths(mel_lens)
-
                 outputs = gen.forward_train(
                     x=texts,
                     speakers=speakers,
@@ -416,102 +416,52 @@ def eval_iter(
                     pitches=pitches,
                     durations=durations,
                 )
+                audio = slice_segments(
+                    audio,
+                    outputs["ids_slice"] * PreprocessingConfig().stft.hop_length,
+                    PreprocessingConfig().segment_size
+                    * PreprocessingConfig().stft.hop_length,
+                )  # slice
+                fake_audio = outputs["y_pred"]
+                sc_loss, mag_loss = stft_criterion(
+                    fake_audio.squeeze(1), audio.squeeze(1)
+                )
+                stft_loss = (sc_loss + mag_loss) * AcousticFinetuningConfig().stft_lamb
 
-                y_pred = outputs["y_pred"]
-                log_duration_prediction = outputs["log_duration_prediction"]
-                p_prosody_ref = outputs["p_prosody_ref"]
-                p_prosody_pred = outputs["p_prosody_pred"]
-                pitch_prediction = outputs["pitch_prediction"]
-
-                (
-                    total_loss,
-                    mel_loss,
-                    ssim_loss,
-                    duration_loss,
-                    p_prosody_loss,
-                    pitch_loss,
-                ) = criterion(
+                l_pitch = pitch_loss(
+                    outputs["pitch_prediction"], y_true=pitches, src_masks=src_mask
+                )
+                l_dur = duration_loss(
+                    log_y_pred=outputs["log_duration_prediction"],
+                    y_true=durations,
                     src_masks=src_mask,
-                    mel_masks=mel_mask,
-                    mel_targets=mels,
-                    mel_predictions=y_pred,
-                    log_duration_predictions=log_duration_prediction,
-                    p_prosody_ref=p_prosody_ref,
-                    p_prosody_pred=p_prosody_pred,
-                    pitch_predictions=pitch_prediction,
-                    p_targets=pitches,
-                    durations=durations,
+                )
+                l_prosody = (
+                    prosody_loss(
+                        y_pred=outputs["p_prosody_pred"],
+                        y_ref=outputs["p_prosody_ref"],
+                        src_masks=src_mask,
+                    )
+                    * 0.5
                 )
 
+                estoi = calc_estoi(audio, fake_audio, preprocess_config.sampling_rate)
+
                 batch_size = mels.shape[0]
-                losses["reconstruction_loss"] += total_loss * batch_size
-                losses["mel_loss"] += mel_loss * batch_size
-                losses["ssim_loss"] += ssim_loss * batch_size
-                losses["duration_loss"] += duration_loss * batch_size
-                losses["p_prosody_loss"] += p_prosody_loss * batch_size
-                losses["pitch_loss"] += pitch_loss * batch_size
+                losses["duration_loss"] += l_dur * batch_size
+                losses["p_prosody_loss"] += l_prosody * batch_size
+                losses["pitch_loss"] += l_pitch * batch_size
+                losses["mel_loss"] += stft_loss * batch_size
+                losses["estoi"] += estoi * batch_size
                 len_ds += batch_size
-
-    samples_to_gen = train_config.mcd_gen_max_samples
-    samples_generated = 0
-    mcds = []
-
-    with torch.no_grad():
-        for batches in iter_logger(loader):
-            for batch in batches:
-                batch = to_device(batch, device)
-                (
-                    ids,
-                    raw_texts,
-                    speakers,
-                    speaker_names,
-                    texts,
-                    src_lens,
-                    mels,
-                    pitches,
-                    durations,
-                    mel_lens,
-                    token_ids,
-                    attention_masks,
-                ) = batch
-                style_embeds_pred = style_predictor(token_ids, attention_masks)
-                for (speaker, text, src_len, mel, mel_len, style_pred,) in zip(
-                    speakers, texts, src_lens, mels, mel_lens, style_embeds_pred,
-                ):
-                    y_pred = gen(
-                        x=text[: src_len.item()].unsqueeze(0),
-                        speakers=speaker.unsqueeze(0),
-                        style_embeds_pred=style_pred.unsqueeze(0),
-                        p_control=1.0,
-                        d_control=1.0,
-                    )
-
-                    samples_generated += 1
-                    mcd = mcd_dtw(
-                        y_pred[0].T.cpu().numpy(),
-                        mel[:, : mel_len.item()].T.cpu().numpy(),
-                    )
-                    mcds.append(mcd)
-                    if samples_generated >= samples_to_gen:
-                        break
-                if samples_generated >= samples_to_gen:
-                    break
-            if samples_generated >= samples_to_gen:
-                break
-
-    losses["reconstruction_loss"] /= len_ds
-    losses["mel_loss"] /= len_ds
-    losses["ssim_loss"] /= len_ds
-    losses["duration_loss"] /= len_ds
-    losses["p_prosody_loss"] /= len_ds
-    losses["pitch_loss"] /= len_ds
-    losses["mcd_dtw"] = sum(mcds) / len(mcds)
 
     message = f"Validation Step {step}: "
     for j, loss_name in enumerate(losses.keys()):
+
         if j != 0:
             message += ", "
         loss_value = losses[loss_name]
+        loss_value /= len_ds
         message += f"{loss_name}: {round(loss_value.item(), 4)}"
 
     print(message)
@@ -638,17 +588,18 @@ def train_acoustic(
         )
 
         if step % val_step == 0 and step != 0:
-            """eval_iter(
+            eval_iter(
                 gen=gen,
                 style_predictor=style_predictor,
+                stft_criterion=stft_criterion,
                 step=step,
                 train_config=train_config,
                 batch_size=batch_size,
                 loader=validation_loader,
                 device=device,
                 logger=logger,
-            )"""
-            pass
+                preprocess_config=preprocess_config,
+            )
 
         if step % synth_step == 0 and step != 0:
             synth_iter(

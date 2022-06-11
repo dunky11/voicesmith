@@ -9,42 +9,21 @@ import {
   REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL,
 } from "../../channels";
-import {
-  getDatasetsDir,
-  DB_PATH,
-  UserDataPath,
-  ASSETS_PATH,
-  getSampleSplittingRunsDir,
-  getModelsDir,
-} from "../utils/globals";
+import { getDatasetsDir, getSampleSplittingRunsDir } from "../utils/globals";
 import { DB } from "../utils/db";
 import {
   SampleSplittingRunInterface,
   SampleSplittingSampleInterface,
 } from "../../interfaces";
 import { startRun } from "../utils/processes";
-import { CONDA_ENV_NAME } from "../../config";
 
 ipcMain.on(
   CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL.IN,
   (event: IpcMainEvent, runID: number) => {
     startRun(
       event,
-      "sample_splitting_run.py",
-      [
-        "--run_id",
-        String(runID),
-        "--db_path",
-        DB_PATH,
-        "--assets_path",
-        ASSETS_PATH,
-        "--preprocessing_runs_dir",
-        getSampleSplittingRunsDir(),
-        "--datasets_path",
-        getDatasetsDir(),
-        "--environment_name",
-        CONDA_ENV_NAME,
-      ],
+      "/home/backend/voice_smith/sample_splitting_run.py",
+      ["--run_id", String(runID)],
       false
     );
   }
