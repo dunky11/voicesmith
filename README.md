@@ -14,7 +14,7 @@ If you want to play around with a model trained on a highly emotional emotional 
 * RAM: 8GB of RAM, you can try with less but it may not work.
 
 #### Software
-* Anaconda or Miniconda, you can [download it here](https://www.anaconda.com).
+* Docker, you can [download it here]([https://docs.docker.com/get-docker/]. If you are on Linux, I would advise you to install [Docker Engine](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) instead of Docker Desktop, as Docker Desktop likes to make the world complicated.
 
 ## How to install
 
