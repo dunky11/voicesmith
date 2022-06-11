@@ -1,15 +1,13 @@
 from pathlib import Path
 import shutil
-from typing import Literal
-import sys
 import torch
 import json
 import sqlite3
-from typing import Union, Literal, Tuple, Dict, Any, Callable
+from typing import Union, Literal, Tuple, Callable
 import dataclasses
 import argparse
-import multiprocessing as mp
 from voice_smith.acoustic_training import train_acoustic
+from voice_smith.vocoder_training import train_vocoder
 from voice_smith.preprocessing.copy_files import copy_files
 from voice_smith.preprocessing.extract_data import extract_data
 from voice_smith.preprocessing.ground_truth_alignment import ground_truth_alignment
@@ -18,6 +16,7 @@ from voice_smith.config.configs import (
     AcousticFinetuningConfig,
     AcousticModelConfig,
     VocoderModelConfig,
+    VocoderFinetuningConfig,
 )
 from voice_smith.utils.sql_logger import SQLLogger
 from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchscript
@@ -123,7 +122,7 @@ def get_acoustic_configs(
 
 def get_vocoder_configs(
     cur: sqlite3.Cursor, run_id
-) -> Tuple[PreprocessingConfig, VocoderModelConfig]:
+) -> Tuple[PreprocessingConfig, VocoderModelConfig, VocoderFinetuningConfig]:
     row = cur.execute(
         """
         SELECT vocoder_learning_rate, vocoder_training_iterations, vocoder_batch_size, vocoder_grad_accum_steps, vocoder_validate_every 
@@ -140,12 +139,13 @@ def get_vocoder_configs(
     ) = row
     p_config = PreprocessingConfig()
     m_config = VocoderModelConfig()
+    t_config = VocoderFinetuningConfig()
     t_config.batch_size = vocoder_batch_size
     t_config.grad_accum_steps = vocoder_grad_accum_steps
     t_config.train_steps = vocoder_training_iterations
     t_config.learning_rate = vocoder_learning_rate
     t_config.validation_interval = vocoder_validate_every
-    return p_config, m_config
+    return p_config, m_config, t_config
 
 
 def get_device(device: Union[Literal["CPU"], Literal["GPU"]]) -> torch.device:
@@ -463,6 +463,184 @@ def acoustic_fine_tuning_stage(
     return False
 
 
+def ground_truth_alignment_stage(
+    cur: sqlite3.Cursor,
+    con: sqlite3.Connection,
+    run_id: int,
+    data_path: str,
+    assets_path: str,
+    training_runs_path: str,
+    **kwargs,
+) -> bool:
+    logger = SQLLogger(
+        training_run_id=run_id,
+        con=con,
+        cursor=cur,
+        out_dir=data_path,
+        stage="ground_truth_alignment",
+    )
+    row = cur.execute(
+        "SELECT acoustic_batch_size, device FROM training_run WHERE ID=?", (run_id,),
+    ).fetchone()
+    batch_size, device = row
+    device = get_device(device)
+    checkpoint_acoustic, step = get_latest_checkpoint(
+        name="acoustic", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic")
+    )
+    checkpoint_style, step = get_latest_checkpoint(
+        name="style", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic")
+    )
+    while True:
+        try:
+            ground_truth_alignment(
+                db_id=run_id,
+                table_name="training_run",
+                training_run_name=str(run_id),
+                batch_size=3 * batch_size,
+                group_size=3,
+                device=device,
+                checkpoint_acoustic=str(checkpoint_acoustic),
+                checkpoint_style=str(checkpoint_style),
+                logger=logger,
+                assets_path=assets_path,
+                training_runs_path=training_runs_path,
+            )
+            break
+        except RuntimeError as e:
+            if "out of memory" in str(e):
+                torch.cuda.empty_cache()
+                if batch_size > 1:
+                    old_batch_size = batch_size
+                    batch_size = batch_size - 1
+                    print(
+                        f"""
+                        Ran out of VRAM during ground truth alignment, setting batch size from {old_batch_size} 
+                        to {batch_size} and trying again...
+                        """
+                    )
+                else:
+                    raise Exception(
+                        f"""
+                        Ran out of VRAM during ground truth alignment, batch size is {batch_size}, so cannot set lower. 
+                        Please restart your PC and try again. If this error continues you may not
+                        have enough VRAM to run this software. You could try training on CPU
+                        instead of on GPU.
+                        """
+                    )
+            else:
+                raise e
+
+    cur.execute(
+        "UPDATE training_run SET stage='vocoder_fine_tuning' WHERE ID=?", (run_id,),
+    )
+    con.commit()
+    return False
+
+
+def vocoder_fine_tuning_stage(
+    cur: sqlite3.Cursor,
+    con: sqlite3.Connection,
+    run_id: int,
+    data_path: str,
+    assets_path: str,
+    training_runs_path: str,
+    **kwargs,
+) -> bool:
+    row = cur.execute(
+        "SELECT device FROM training_run WHERE ID=?", (run_id,),
+    ).fetchone()
+    device = row[0]
+    device = get_device(device)
+
+    p_config, m_config, t_config = get_vocoder_configs(cur=cur, run_id=run_id)
+
+    logger = SQLLogger(
+        training_run_id=run_id, con=con, cursor=cur, out_dir=data_path, stage="vocoder",
+    )
+
+    target_batch_size_total = t_config.batch_size * t_config.grad_accum_steps
+
+    while True:
+        try:
+            checkpoint_path, step = get_latest_checkpoint(
+                name="vocoder", ckpt_dir=str(data_path / "ckpt" / "vocoder")
+            )
+
+            cur.execute(
+                "DELETE FROM image_statistic WHERE training_run_id=? AND step>=? AND stage='vocoder'",
+                (run_id, step),
+            )
+            cur.execute(
+                "DELETE FROM graph_statistic WHERE training_run_id=? AND step>=? AND stage='vocoder'",
+                (run_id, step),
+            )
+            cur.execute(
+                "DELETE FROM audio_statistic WHERE training_run_id=? AND step>=? AND stage='vocoder'",
+                (run_id, step),
+            )
+            con.commit()
+
+            if checkpoint_path is None:
+                reset = True
+                checkpoint_path = str(Path(assets_path) / "vocoder_pretrained.pt")
+            else:
+                reset = False
+
+            train_vocoder(
+                db_id=run_id,
+                training_run_name=str(run_id),
+                train_config=t_config,
+                model_config=VocoderModelConfig(),
+                preprocess_config=p_config,
+                logger=logger,
+                device=device,
+                reset=reset,
+                checkpoint_path=checkpoint_path,
+                training_runs_path=training_runs_path,
+                fine_tuning=True,
+                overwrite_saves=True,
+            )
+            break
+        except RuntimeError as e:
+            if "out of memory" in str(e):
+                torch.cuda.empty_cache()
+                if t_config.batch_size > 1:
+                    old_batch_size, old_grad_accum_steps = (
+                        t_config.batch_size,
+                        t_config.grad_accum_steps,
+                    )
+                    batch_size, grad_acc_step = recalculate_train_size(
+                        batch_size=old_batch_size,
+                        grad_acc_step=old_grad_accum_steps,
+                        target_size=target_batch_size_total,
+                    )
+                    print(
+                        f"""
+                            Ran out of VRAM during vocoder model training, setting batch size from {old_batch_size} 
+                            to {batch_size} and gradient accumulation steps from {old_grad_accum_steps} to {grad_acc_step} and trying again...
+                            """
+                    )
+                    t_config.batch_size = batch_size
+                    t_config.grad_accum_steps = grad_acc_step
+                else:
+                    raise Exception(
+                        f"""
+                            Ran out of VRAM during vocoder model training, batch size is {t_config.batch_size}, so cannot set it lower. 
+                            Please restart your PC and try again. If this error continues you may not
+                            have enough VRAM to run this software. You could try training on CPU
+                            instead of on GPU.
+                            """
+                    )
+            else:
+                raise e
+
+    cur.execute(
+        "UPDATE training_run SET stage='save_model' WHERE ID=?", (run_id,),
+    )
+    con.commit()
+    return False
+
+
 def save_model_stage(
     cur: sqlite3.Cursor,
     con: sqlite3.Connection,
@@ -631,6 +809,8 @@ def continue_training_run(run_id: int):
             ("not_started", not_started_stage),
             ("preprocessing", preprocessing_stage),
             ("acoustic_fine_tuning", acoustic_fine_tuning_stage),
+            ("ground_truth_alignment", ground_truth_alignment_stage),
+            ("vocoder_fine_tuning", vocoder_fine_tuning_stage),
             ("save_model", save_model_stage),
         ],
     )
