@@ -196,7 +196,12 @@ def evaluate(
     preprocess_config: PreprocessingConfig,
 ):
     generator.eval()
-    loss_means = {"mel_loss": 0, "pesq": 0, "estoi": 0, "rmse": 0}
+    loss_means = {
+        "mel_loss": torch.FloatTensor([0.0]).to(device),
+        "pesq": torch.FloatTensor([0.0]).to(device),
+        "estoi": torch.FloatTensor([0.0]).to(device),
+        "rmse": torch.FloatTensor([0.0]).to(device),
+    }
     len_group = 0
     len_group_pesq = 0
     batch_size = 0
