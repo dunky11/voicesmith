@@ -188,7 +188,6 @@ class AcousticModel(nn.Module):
 
         x, ids_slice = tools.rand_slice_segments(x, mel_lens, self.segment_size)
 
-
         x = self.vocoder.forward_train(x)
 
         return {
