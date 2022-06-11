@@ -68,14 +68,17 @@ export const createServerProc = (): void => {
   serverProc = spawnCondaCmd(
     ["python", "./backend/voice_smith/server.py", "--port", "80"],
     null,
-    null,
+    (data: string) => {
+      console.log(`stderr in server process: ${data}`);
+    },
     (code: number) => {
       if (code !== 0) {
-        throw new Error(`Error in server process, status code ${code}`);
+        console.log(
+          `Non zero exit code in server process, status code ${code}`
+        );
       }
     }
   );
-  console.log("STARTED SERVER PROC");
 
   if (serverProc != null) {
     console.log(`child process success on port ${PORT}`);

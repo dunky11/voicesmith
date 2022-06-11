@@ -197,7 +197,7 @@ export default function ChooseSamples({
       onStepChange(3);
     };
     if (wouldContinueRun) {
-      if (run.stage === "choose_samples")
+      if (run.stage === "choose_samples") {
         ipcRenderer
           .invoke(
             UPDATE_SAMPLE_SPLITTING_RUN_STAGE_CHANNEL.IN,
@@ -205,6 +205,9 @@ export default function ChooseSamples({
             "apply_changes"
           )
           .then(navigateNext);
+      } else {
+        navigateNext();
+      }
     } else {
       navigateNext();
     }

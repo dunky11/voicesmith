@@ -37,7 +37,9 @@ export const fetchSampleSplittingRuns = (
         dataset.name AS datasetName, stage, maximum_workers AS maximumWorkers, 
         copying_files_progress AS copyingFilesProgress, gen_vocab_progress AS genVocabProgress,  
         gen_align_progress AS genAlignProgress,
-        creating_splits_progress AS creatingSplitsProgress, dataset_id AS datasetID
+        applying_changes_progress AS applyingChangesProgress,
+        creating_splits_progress AS creatingSplitsProgress, 
+        dataset_id AS datasetID
       FROM sample_splitting_run LEFT JOIN dataset ON dataset.ID = sample_splitting_run.dataset_id ${
         ID === null ? "" : "WHERE sample_splitting_run.ID=@ID"
       }`;

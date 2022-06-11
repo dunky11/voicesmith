@@ -470,7 +470,7 @@ def apply_changes_stage(
             Path(delete_audio_path).unlink(missing_ok=True)
 
     cur.execute(
-        "UPDATE sample_splitting_run SET stage='choose_samples', applying_changes_progress=1.0 WHERE ID=?",
+        "UPDATE sample_splitting_run SET stage='finished', applying_changes_progress=1.0 WHERE ID=?",
         (run_id,),
     )
     con.commit()

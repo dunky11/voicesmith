@@ -32,15 +32,7 @@ ipcMain.handle(FETCH_NEEDS_INSTALL_CHANNEL.IN, async () => {
 
 ipcMain.handle(FINISH_INSTALL_CHANNEL.IN, async () => {
   const installedPath = getInstalledPath();
-  console.log(installedPath);
-  console.log(installedPath);
-  console.log(installedPath);
-  console.log(installedPath);
   if (!(await exists(installedPath))) {
-    console.log("WRITING FILE");
-    console.log("WRITING FILE");
-    console.log("WRITING FILE");
-    console.log("WRITING FILE");
     await fsPromises.writeFile(installedPath, "");
   }
 });

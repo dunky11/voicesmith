@@ -91,7 +91,10 @@ export default function ApplyChanges({
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step
-                title={getProgressTitle("Apply Changes", 0)}
+                title={getProgressTitle(
+                  "Apply Changes",
+                  run.applyingChangesProgress
+                )}
                 description="Splitting dataset by the sentence boundaries."
                 icon={
                   current === 0 && stageIsRunning ? (

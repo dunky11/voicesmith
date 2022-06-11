@@ -322,6 +322,7 @@ export interface SampleSplittingRunInterface {
   genVocabProgress: number;
   genAlignProgress: number;
   creatingSplitsProgress: number;
+  applyingChangesProgress: number;
   datasetID?: number;
   datasetName: string;
   device: "CPU" | "GPU";
