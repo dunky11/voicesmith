@@ -86,11 +86,10 @@ export default function InstallerOptions({
             <Radio.Group
               onChange={onGPURadioChange}
               value={installerOptions.device}
-              disabled={appInfo.platform === "win32"}
             >
               <Space direction="vertical">
                 <Radio value="CPU">I don't want to train on GPU</Radio>
-                <Radio value="GPU">
+                <Radio value="GPU" disabled={appInfo.platform === "win32"}>
                   I want to train on GPU and my GPU is in the list of CUDA
                   enabled GPUs
                 </Radio>
