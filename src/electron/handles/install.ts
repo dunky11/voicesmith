@@ -14,7 +14,6 @@ import {
 } from "../../interfaces";
 import {
   getHasDocker,
-  buildImage,
   resetDocker,
   createContainer,
   installEnvironment,
@@ -55,7 +54,6 @@ ipcMain.on(
       };
       event.reply(INSTALL_BACKEND_CHANNEL.REPLY, reply);
     };
-    await buildImage(onData, onError);
     await createContainer(onData, onError, installerOptions.device === "GPU");
     await installEnvironment(onData, onError);
     const reply: InstallBackendReplyInterface = {

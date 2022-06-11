@@ -58,19 +58,6 @@ export const spawnCondaCmd = (
   onError: ((data: string) => void) | null,
   onExit: ((code: number) => void) | null
 ): ChildProcessWithoutNullStreams => {
-  console.log(
-    [
-      "docker",
-      "exec",
-      DOCKER_CONTAINER_NAME,
-      "conda",
-      "run",
-      "-n",
-      CONDA_ENV_NAME,
-      "--no-capture-output",
-      ...args,
-    ].join(" ")
-  );
   const proc = childProcess.spawn("docker", [
     "exec",
     DOCKER_CONTAINER_NAME,
@@ -164,26 +151,6 @@ const spawnDockerCmdPromise = async (
   });
 };
 
-export const buildImage = async (
-  onData: ((data: string) => void) | null,
-  onError: ((data: string) => void) | null
-): Promise<void> => {
-  await spawnDockerCmdPromise(
-    [
-      "build",
-      ".",
-      "--rm",
-      "-t",
-      DOCKER_IMAGE_NAME,
-      "-f",
-      path.join(ASSETS_PATH, "Dockerfile"),
-    ],
-    onData,
-    onError,
-    { cwd: RESSOURCES_PATH }
-  );
-};
-
 export const startContainer = async (
   onData: ((data: string) => void) | null,
   onError: ((data: string) => void) | null
@@ -205,7 +172,7 @@ export const createContainer = async (
       "run",
       "-itd",
       "--name",
-      "voice_smith",
+      DOCKER_CONTAINER_NAME,
       "--mount",
       `type=bind,source=${CONDA_PATH},target=/home/backend`,
       "--mount",
@@ -219,7 +186,7 @@ export const createContainer = async (
       "-p",
       `${PORT}:80`,
       ...(withGPU ? ["--gpus", "all"] : []),
-      DOCKER_CONTAINER_NAME,
+      DOCKER_IMAGE_NAME,
     ],
     onData,
     onError
@@ -236,9 +203,10 @@ export const installEnvironment = async (
       DOCKER_CONTAINER_NAME,
       "conda",
       "env",
-      "create",
+      "update",
       "-f",
       "./backend/environment.yml",
+      "--prune",
     ],
     onData,
     onError
