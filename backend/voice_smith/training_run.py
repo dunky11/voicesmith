@@ -20,7 +20,7 @@ from voice_smith.config.configs import (
     VocoderModelConfig,
 )
 from voice_smith.utils.sql_logger import SQLLogger
-from voice_smith.utils.export import acoustic_to_torchscript
+from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchscript
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
 from voice_smith.config.symbols import symbol2id
@@ -511,6 +511,13 @@ def save_model_stage(
         checkpoint_style=str(checkpoint_style),
         data_path=str(data_path / "data"),
     )
+    vocoder = vocoder_to_torchscript(
+        ckpt_path=str(checkpoint_vocoder),
+        data_path=str(data_path / "data"),
+        preprocess_config=p_config,
+        model_config=m_config_vocoder,
+        train_config=t_config_vocoder,
+    )
 
     with open(Path(data_path) / "data" / "speakers.json", "r", encoding="utf-8") as f:
         speakers = json.load(f)
@@ -540,6 +547,7 @@ def save_model_stage(
     models_dir.mkdir(exist_ok=True)
     acoustic_model.save(str(models_dir / "acoustic_model.pt"))
     style_predictor.save(models_dir / "style_predictor.pt")
+    vocoder.save(models_dir / "vocoder.pt")
     with open(models_path / name / "config.json", "w", encoding="utf-8") as f:
         json.dump(config, f)
 
@@ -644,6 +652,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", type=int, required=True)
     args = parser.parse_args()
-
     continue_training_run(run_id=args.run_id)
 

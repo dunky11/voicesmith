@@ -6,11 +6,7 @@ import torch.nn.functional as F
 from torch.nn import Parameter
 from pathlib import Path
 from typing import Dict, Any, Tuple
-from voice_smith.config.configs import (
-    PreprocessingConfig,
-    AcousticModelConfig,
-    VocoderModelConfig,
-)
+from voice_smith.config.configs import PreprocessingConfig, AcousticModelConfig
 from voice_smith.model.layers import EmbeddingPadded
 from voice_smith.config.symbols import symbols, symbol2id, pad
 from voice_smith.model.layers import (
@@ -25,7 +21,6 @@ from voice_smith.model.attention import ConformerMultiHeadedSelfAttention
 from voice_smith.model.position_encoding import positional_encoding
 from voice_smith.model.reference_encoder import PhonemeLevelProsodyEncoder
 from voice_smith.utils import tools
-from voice_smith.model.univnet import Generator as UnivNet
 
 LRELU_SLOPE = 0.3
 
@@ -38,6 +33,7 @@ class AcousticModel(nn.Module):
         data_path: str,
         preprocess_config: PreprocessingConfig,
         model_config: AcousticModelConfig,
+        fine_tuning: bool,
         n_speakers: int,
     ):
         super().__init__()
@@ -98,12 +94,9 @@ class AcousticModel(nn.Module):
         )
         # TODO can be removed
         self.proj_speaker = EmbeddingProjBlock(model_config.speaker_embed_dim)
+
         self.speaker_embed = Parameter(
             tools.initialize_embeddings((n_speakers, model_config.speaker_embed_dim))
-        )
-        self.segment_size = preprocess_config.segment_size
-        self.vocoder = UnivNet(
-            model_config=VocoderModelConfig(), preprocess_config=preprocess_config
         )
 
     def get_embeddings(
@@ -141,6 +134,7 @@ class AcousticModel(nn.Module):
         attention_mask: torch.Tensor,
         pitches: torch.Tensor,
         durations: torch.Tensor,
+        use_ground_truth: bool = True,
     ) -> Dict[str, torch.Tensor]:
         src_mask = tools.get_mask_from_lengths(src_lens)
         mel_mask = tools.get_mask_from_lengths(mel_lens)
@@ -171,11 +165,16 @@ class AcousticModel(nn.Module):
         p_prosody_pred = self.p_norm(
             self.phoneme_prosody_predictor(x=x, mask=src_mask,)
         )
-        x = x + self.p_bottle_out(p_prosody_ref)
-
+        if use_ground_truth:
+            x = x + self.p_bottle_out(p_prosody_ref)
+        else:
+            x = x + self.p_bottle_out(p_prosody_pred)
         x_res = x
         x, pitch_prediction, _, _ = self.pitch_adaptor.add_pitch_train(
-            x=x, pitch_target=pitches, src_mask=src_mask, use_ground_truth=True,
+            x=x,
+            pitch_target=pitches,
+            src_mask=src_mask,
+            use_ground_truth=use_ground_truth,
         )
         (x, log_duration_prediction) = self.length_regulator.upsample_train(
             x=x, x_res=x_res, duration_target=durations, src_mask=src_mask
@@ -186,13 +185,8 @@ class AcousticModel(nn.Module):
 
         x = x.permute((0, 2, 1))
 
-        x, ids_slice = tools.rand_slice_segments(x, mel_lens, self.segment_size)
-
-        x = self.vocoder.forward_train(x)
-
         return {
             "y_pred": x,
-            "ids_slice": ids_slice,
             "pitch_prediction": pitch_prediction,
             "log_duration_prediction": log_duration_prediction,
             "p_prosody_pred": p_prosody_pred,
@@ -257,7 +251,6 @@ class AcousticModel(nn.Module):
         x = self.decoder(x, mel_mask, embeddings=embeddings, encoding=encoding)
         x = self.to_mel(x)
         x = x.permute((0, 2, 1))
-        x = self.vocoder(x)
         return x
 
 

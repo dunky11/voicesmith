@@ -10,11 +10,13 @@ from voice_smith.utils.optimizer import (
     ScheduledOptimFinetuning,
 )
 from voice_smith.model import acoustic_model
-from voice_smith.model.univnet import Discriminator
+from voice_smith.model.univnet import Generator as UnivNet, Discriminator
 from voice_smith.config.configs import (
     PreprocessingConfig,
     AcousticPretrainingConfig,
     AcousticFinetuningConfig,
+    VocoderPretrainingConfig,
+    VocoderFinetuningConfig,
     AcousticModelConfig,
     VocoderModelConfig,
 )
@@ -34,8 +36,6 @@ def get_acoustic_models(
 ) -> Tuple[
     acoustic_model.AcousticModel,
     ScriptModule,
-    Discriminator,
-    Union[ScheduledOptimFinetuning, ScheduledOptimPretraining],
     Union[ScheduledOptimFinetuning, ScheduledOptimPretraining],
     int,
 ]:
@@ -46,9 +46,9 @@ def get_acoustic_models(
         data_path=data_path,
         preprocess_config=preprocess_config,
         model_config=model_config,
+        fine_tuning=fine_tuning,
         n_speakers=n_speakers,
     ).to(device)
-    disc = Discriminator(model_config=VocoderModelConfig()).to(device)
     if checkpoint_acoustic is not None:
         ckpt = torch.load(checkpoint_acoustic)
         if reset:
@@ -56,15 +56,9 @@ def get_acoustic_models(
             del ckpt["gen"]["pitch_adaptor.pitch_bins"]
             # del ckpt["gen"]["pitch_adaptor.pitch_embedding.embeddings"]
             step = 0
-            ckpt_vocoder = torch.load(str(Path(assets_path) / "vocoder_pretrained.pt"))
-            gen.vocoder.load_state_dict(ckpt_vocoder["generator"])
-            disc.load_state_dict(ckpt_vocoder["discriminator"])
-            gen.load_state_dict(ckpt["gen"], strict=False)
         else:
             step = ckpt["steps"] + 1
-            gen.load_state_dict(ckpt["gen"], strict=False)
-            disc.load_state_dict(ckpt["disc"])
-
+        gen.load_state_dict(ckpt["gen"], strict=False)
     else:
         step = 0
 
@@ -74,41 +68,112 @@ def get_acoustic_models(
     style_predictor = load(checkpoint_style).to(device)
 
     if fine_tuning:
-        scheduled_optim_g = ScheduledOptimFinetuning(
-            parameters=chain(gen.parameters(), style_predictor.parameters()),
-            train_config=train_config,
-            current_step=step,
-        )
-        scheduled_optim_d = ScheduledOptimPretraining(
+        scheduled_optim = ScheduledOptimFinetuning(
             parameters=chain(gen.parameters(), style_predictor.parameters()),
             train_config=train_config,
             current_step=step,
         )
     else:
-        scheduled_optim_g = ScheduledOptimPretraining(
+        scheduled_optim = ScheduledOptimPretraining(
             parameters=chain(gen.parameters(), style_predictor.parameters()),
             train_config=train_config,
             current_step=step,
         )
-        scheduled_optim_d = ScheduledOptimPretraining(
-            parameters=disc.parameters(), train_config=train_config, current_step=step,
-        )
 
     if checkpoint_acoustic is not None and not reset:
-        scheduled_optim_g.load_state_dict(ckpt["optim_g"])
-        scheduled_optim_d.load_state_dict(ckpt["optim_d"])
+        scheduled_optim.load_state_dict(ckpt["optim"])
 
     gen.train()
     style_predictor.train()
-    disc.train()
 
-    return gen, style_predictor, disc, scheduled_optim_g, scheduled_optim_d, step
+    return gen, style_predictor, scheduled_optim, step
 
 
 def get_param_num(model: torch.nn.Module) -> int:
     num_param = sum(param.numel() for param in model.parameters())
     num_buffers = sum(buffer.numel() for buffer in model.buffers())
     return num_param + num_buffers
+
+
+def get_vocoder(
+    checkpoint: str,
+    train_config: Union[VocoderPretrainingConfig, VocoderFinetuningConfig],
+    model_config: VocoderModelConfig,
+    preprocess_config: PreprocessingConfig,
+    reset: bool,
+    device: torch.device,
+) -> Tuple[
+    UnivNet,
+    Discriminator,
+    int,
+    torch.optim.Optimizer,
+    torch.optim.Optimizer,
+    torch.optim.lr_scheduler.ExponentialLR,
+    torch.optim.lr_scheduler.ExponentialLR,
+]:
+
+    generator = UnivNet(model_config=model_config, preprocess_config=preprocess_config)
+    discriminator = Discriminator(model_config=model_config)
+
+    if checkpoint is None:
+        state_dict = None
+        steps = 0
+    else:
+        state_dict = torch.load(checkpoint, map_location=device)
+        if reset:
+            steps = 0
+        else:
+            steps = state_dict["steps"] + 1
+
+        generator.load_state_dict(state_dict["generator"], strict=False)
+        discriminator.load_state_dict(state_dict["discriminator"], strict=False)
+
+    generator.to(device)
+    discriminator.to(device)
+
+    optim_g = torch.optim.AdamW(
+        generator.parameters(),
+        train_config.learning_rate,
+        betas=(train_config.adam_b1, train_config.adam_b2),
+    )
+    optim_d = torch.optim.AdamW(
+        discriminator.parameters(),
+        train_config.learning_rate,
+        betas=(train_config.adam_b1, train_config.adam_b2),
+    )
+
+    if checkpoint is not None and not reset:
+        optim_g.load_state_dict(state_dict["optim_g"])
+        optim_d.load_state_dict(state_dict["optim_d"])
+
+    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
+        optim_g, gamma=train_config.lr_decay, last_epoch=-1
+    )
+    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
+        optim_d, gamma=train_config.lr_decay, last_epoch=-1
+    )
+
+    assert len(optim_g.param_groups) == 1
+    optim_g.param_groups[0]["lr"] = train_config.learning_rate
+    assert len(optim_d.param_groups) == 1
+    optim_d.param_groups[0]["lr"] = train_config.learning_rate
+    for _ in range(steps // 1000):
+        scheduler_g.step()
+        scheduler_d.step()
+
+    return generator, discriminator, steps, optim_g, optim_d, scheduler_g, scheduler_d
+
+
+def get_infer_vocoder(checkpoint: str, device: torch.device) -> UnivNet:
+    model_config = VocoderModelConfig()
+    preprocess_config = PreprocessingConfig()
+    generator = UnivNet(
+        model_config=model_config, preprocess_config=preprocess_config
+    ).to(device)
+    state_dict = torch.load(checkpoint, map_location=device)
+    generator.load_state_dict(state_dict["generator"])
+    generator.eval(True)
+    return generator
 
 
 def save_torchscript(

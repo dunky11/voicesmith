@@ -20,7 +20,7 @@ def warnings_to_stdout():
 
 
 def to_device(
-    data: Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any],
+    data: Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any],
     device: torch.device,
     non_blocking: bool = False,
 ):
@@ -37,7 +37,6 @@ def to_device(
         mel_lens,
         token_ids,
         attention_masks,
-        audio,
     ) = data
 
     speakers = torch.from_numpy(speakers).to(device, non_blocking=non_blocking)
@@ -49,7 +48,6 @@ def to_device(
     mel_lens = torch.from_numpy(mel_lens).to(device, non_blocking=non_blocking)
     token_ids = token_ids.to(device, non_blocking=non_blocking)
     attention_masks = attention_masks.to(device, non_blocking=non_blocking)
-    audio = torch.from_numpy(audio).to(device, non_blocking=non_blocking)
 
     return (
         ids,
@@ -64,7 +62,6 @@ def to_device(
         mel_lens,
         token_ids,
         attention_masks,
-        audio,
     )
 
 
