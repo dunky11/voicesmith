@@ -44,14 +44,9 @@ export const getSampleSplittingRunsDir = joinUserData("sample_splitting_runs");
 export const getInstalledPath = joinUserData("INSTALLED");
 export const PY_DIST_FOLDER = "backend_dist";
 export const PY_FOLDER = "voice_smith";
-export const CONDA_PATH = path.join(
-  isDev ? BASE_PATH : process.resourcesPath,
-  "backend"
-);
-export const ASSETS_PATH = path.join(
-  isDev ? BASE_PATH : process.resourcesPath,
-  "assets"
-);
+export const RESSOURCES_PATH = isDev ? BASE_PATH : process.resourcesPath;
+export const CONDA_PATH = path.join(RESSOURCES_PATH, "backend");
+export const ASSETS_PATH = path.join(RESSOURCES_PATH, "assets");
 export const BACKEND_PATH = path.join(CONDA_PATH, "voice_smith");
 export const DB_PATH = path.join(
   app.getPath("userData"),

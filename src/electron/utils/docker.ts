@@ -11,6 +11,7 @@ import {
   PORT,
   ASSETS_PATH,
   UserDataPath,
+  RESSOURCES_PATH,
 } from "./globals";
 
 export const getHasDocker = async () => {
@@ -125,13 +126,15 @@ const spawnCondaCmdPromise = async (
     });
   });
 };
+
 const spawnDockerCmdPromise = async (
   args: string[],
   onData: ((data: string) => void) | null,
-  onError: ((data: string) => void) | null
+  onError: ((data: string) => void) | null,
+  options: childProcess.SpawnOptionsWithoutStdio = {}
 ): Promise<void> => {
   return new Promise((resolve, reject) => {
-    const proc = childProcess.spawn("docker", args);
+    const proc = childProcess.spawn("docker", args, options);
 
     if (onData !== null) {
       proc.stdout.on("data", (data: any) => {
@@ -166,9 +169,18 @@ export const buildImage = async (
   onError: ((data: string) => void) | null
 ): Promise<void> => {
   await spawnDockerCmdPromise(
-    ["build", ".", "--rm", "-t", DOCKER_IMAGE_NAME],
+    [
+      "build",
+      ".",
+      "--rm",
+      "-t",
+      DOCKER_IMAGE_NAME,
+      "-f",
+      path.join(ASSETS_PATH, "Dockerfile"),
+    ],
     onData,
-    onError
+    onError,
+    { cwd: RESSOURCES_PATH }
   );
 };
 
