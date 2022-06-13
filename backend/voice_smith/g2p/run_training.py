@@ -8,7 +8,7 @@ import argparse
 
 perform_benchmark = False
 
-name = "G2p ARPA training 4x4 transformer"
+name = "G2p ARPA training 5x5 transformer (384, 1536), [en, de, es, ru, fr]"
 
 if perform_benchmark:
     SPLIT_SIZE = 12753
@@ -25,7 +25,23 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint', type=str, default=None)
     args = parser.parse_args()
 
-    data, phones, text_symbols = parse_dictionary("english_us_arpa.dict", "en")
+    data, phones, text_symbols = [], [], []
+
+    for dictionary_path, lang in [
+        (Path(".") / "dictionaries" / "de" / "german_mfa.dict", "de"),
+        (Path(".") / "dictionaries" / "en" / "english_us_mfa.dict", "en"),
+        (Path(".") / "dictionaries" / "es" / "spanish_mfa.dict", "es"),
+        (Path(".") / "dictionaries" / "fr" / "french_mfa.dict", "fr"),
+        (Path(".") / "dictionaries" / "ru" / "russian_mfa.dict", "ru")
+    ]:
+        d, p, t = parse_dictionary(dictionary_path, lang)
+        data.extend(d)
+        phones.extend(p)
+        text_symbols.extend(t)
+
+    phones = list(set(phones))
+    text_symbols = list(set(text_symbols))
+
     config = read_config(Path(".") / "dp" / "configs" / "autoreg_config.yaml")
     config["preprocessing"]["phoneme_symbols"] = phones
     config["preprocessing"]["text_symbols"] = text_symbols

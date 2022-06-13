@@ -57,6 +57,7 @@ const createTables = (db: any) => {
     CREATE TABLE IF NOT EXISTS speaker (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
+        language TEXT NOT NULL DEFAULT "en",
         dataset_id INTEGER NOT NULL,
         UNIQUE(name, dataset_id),
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
@@ -318,7 +319,8 @@ export const bool2int = (obj: { [key: string]: any }) => {
 export const getSpeakersWithSamples = (datasetID: number) => {
   const samples = DB.getInstance()
     .prepare(
-      `SELECT sample.text AS text, speaker.ID as speakerID, speaker.name, sample.txt_path AS txtPath, 
+      `SELECT sample.text AS text, speaker.ID as speakerID, speaker.name,
+      speaker.language AS language, sample.txt_path AS txtPath, 
       sample.audio_path AS audioPath, sample.ID 
       FROM speaker 
       LEFT JOIN sample ON speaker.ID = sample.speaker_id

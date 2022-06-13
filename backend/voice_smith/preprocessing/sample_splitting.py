@@ -12,7 +12,7 @@ class Split:
     text: str
     from_msecs: float
     to_msecs: float
-
+ 
 
 @dataclass
 class SampleSplit:
@@ -31,6 +31,8 @@ def get_splits(sentences_word, sentences_full, words_tier):
     for i, (sentence_word, sentence_full) in enumerate(
         zip(sentences_word, sentences_full)
     ):
+        if word_idx > len(words_tier) - 1:
+            break
         if i == 0 or end_time is None:
             start_time = 0
         else:

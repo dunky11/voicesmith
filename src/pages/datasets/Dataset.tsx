@@ -149,6 +149,15 @@ export default function Dataset({
       },
     },
     {
+      title: `Language`,
+      key: "language",
+      sorter: {
+        compare: (a: SpeakerInterface, b: SpeakerInterface) => {
+          return stringCompare(a.language, b.language);
+        },
+      },
+    },
+    {
       title:
         "Number of Samples" +
         (totalSampleCount === 0 ? "" : ` (${totalSampleCount} Total)`),

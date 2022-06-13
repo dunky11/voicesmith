@@ -3,7 +3,7 @@ paths:
   data_dir: datasets # Directory to store processed data, will be created if not existing.
 
 preprocessing:
-  languages: ["en"] # All languages in the dataset.
+  languages: ["en", "de", "es", "fr", "ru"] # All languages in the dataset.
 
   char_repeats:
     1 # Number of grapheme character repeats to allow for mapping to longer phoneme sequences.
@@ -15,11 +15,11 @@ model:
   type:
     "autoreg_transformer" # Whether to use a forward transformer or autoregressive transformer model.
     # Choices: ['transformer', 'autoreg_transformer']
-  d_model: 128
-  d_fft: 512
-  layers: 4
+  d_model: 384
+  d_fft: 1536
+  layers: 5
   dropout: 0.1
-  heads: 4
+  heads: 8
 
 training:
   # Hyperparams for learning rate and scheduler.
@@ -27,8 +27,8 @@ training:
 
   learning_rate: 0.0002 # Learning rate of Adam.
   warmup_steps: 10000 # Linear increase of the lr from zero to the given lr within the given number of steps.
-  batch_size: 128 # Training batch size.
-  batch_size_val: 128 # Validation batch size.
+  batch_size: 192 # Training batch size.
+  batch_size_val: 192 # Validation batch size.
   generate_steps:
     1000 # Interval of training steps to generate sample outputs. Also, at this step the phoneme and word
     # error rates are calculated for the scheduler.
@@ -42,6 +42,6 @@ training:
     # It will be loaded by the phonemizer object.
   adam_beta1: 0.9
   adam_beta2: 0.998
-  scheduler_milestones: [150000, 225000]
+  scheduler_milestones: [200000, 300000]
   scheduler_gamma: 0.3
   total_steps: 500000

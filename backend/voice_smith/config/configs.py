@@ -101,9 +101,6 @@ class ReferenceEncoderConfig:
     predictor_kernel_size: int
 
 
-@dataclass
-class StylePredictorConfig:
-    n_head_layers: int
 
 
 @dataclass
@@ -117,7 +114,6 @@ class VarianceAdaptorConfig:
 @dataclass
 class AcousticModelConfig:
     speaker_embed_dim: int = 384
-    style_embed_dim: int = 384
     encoder: ConformerConfig = ConformerConfig(
         n_layers=4,
         n_heads=6,
@@ -145,7 +141,6 @@ class AcousticModelConfig:
         token_num=32,
         predictor_kernel_size=5,
     )
-    style_predictor: StylePredictorConfig = StylePredictorConfig(n_head_layers=2)
     variance_adaptor: VarianceAdaptorConfig = VarianceAdaptorConfig(
         n_hidden=384, kernel_size=5, p_dropout=0.5, n_bins=256
     )
