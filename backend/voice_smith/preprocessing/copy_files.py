@@ -32,11 +32,12 @@ def copy_files(
     texts: List[str],
     audio_paths: List[str],
     names: List[str],
+    langs: List[str],
     workers: int,
     progress_cb: Callable[[int], None],
     log_every: int = 200,
 ) -> None:
-    assert len(txt_paths) == len(texts)
+    assert len(txt_paths) == len(texts) == len(langs)
 
     def txt_callback(index: int):
         if index % log_every == 0:
@@ -48,17 +49,20 @@ def copy_files(
             progress = (index / len(audio_paths) / 2) + 0.5
             progress_cb(progress)
 
-
     print("Writing text files ...")
     Parallel(n_jobs=workers)(
-        delayed(write_text_file)(file_path, text, Path(data_path) / "raw_data" / name)
-        for file_path, text, name in iter_logger(
-            zip(txt_paths, texts, names), cb=txt_callback
+        delayed(write_text_file)(
+            file_path, text, Path(data_path) / "raw_data" / lang / name
+        )
+        for file_path, text, name, lang in iter_logger(
+            zip(txt_paths, texts, names, langs), cb=txt_callback
         )
     )
     print("Copying audio files ...")
     Parallel(n_jobs=workers)(
-        delayed(copy_audio_file)(file_path, Path(data_path) / "raw_data" / name)
-        for file_path, name in iter_logger(zip(audio_paths, names), cb=audio_callback)
+        delayed(copy_audio_file)(file_path, Path(data_path) / "raw_data" / lang / name)
+        for file_path, name, lang in iter_logger(
+            zip(audio_paths, names, langs), cb=audio_callback
+        )
     )
     progress_cb(1.0)

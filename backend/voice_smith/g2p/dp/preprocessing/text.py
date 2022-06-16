@@ -28,8 +28,10 @@ class LanguageTokenizer:
         """
 
         if lang not in self.lang_index:
-            raise ValueError(f'Language not supported: {lang}. '
-                             f'Supported languages: {self.lang_index.keys()}')
+            raise ValueError(
+                f"Language not supported: {lang}. "
+                f"Supported languages: {self.lang_index.keys()}"
+            )
 
         return self.lang_index[lang]
 
@@ -50,14 +52,16 @@ class SequenceTokenizer:
 
     """Tokenizes text and optionally attaches language-specific start index (and non-specific end index)."""
 
-    def __init__(self,
-                 symbols: List[str],
-                 languages: List[str],
-                 char_repeats: int,
-                 lowercase: bool = True,
-                 append_start_end: bool =True,
-                 pad_token='_',
-                 end_token='<end>') -> None:
+    def __init__(
+        self,
+        symbols: List[str],
+        languages: List[str],
+        char_repeats: int,
+        lowercase: bool = True,
+        append_start_end: bool = True,
+        pad_token="_",
+        end_token="<end>",
+    ) -> None:
         """
         Initializes a SequenceTokenizer object.
 
@@ -105,7 +109,9 @@ class SequenceTokenizer:
 
         sentence = [item for item in sentence for i in range(self.char_repeats)]
         if language not in self.languages:
-            raise ValueError(f'Language not supported: {language}. Supported languages: {self.languages}')
+            raise ValueError(
+                f"Language not supported: {language}. Supported languages: {self.languages}"
+            )
         if self.lowercase:
             sentence = [s.lower() for s in sentence]
         sequence = [self.token_to_idx[c] for c in sentence if c in self.token_to_idx]
@@ -113,7 +119,9 @@ class SequenceTokenizer:
             sequence = [self._get_start_index(language)] + sequence + [self.end_index]
         return sequence
 
-    def decode(self, sequence: Iterable[int], remove_special_tokens: bool = False) -> List[str]:
+    def decode(
+        self, sequence: Iterable[int], remove_special_tokens: bool = False
+    ) -> List[str]:
         """Maps a sequence of indices to a sequence of symbols.
 
         Args:
@@ -127,10 +135,14 @@ class SequenceTokenizer:
 
         sequence = list(sequence)
         if self.append_start_end:
-            sequence = sequence[:1] + sequence[1:-1:self.char_repeats] + sequence[-1:]
+            sequence = (
+                sequence[:1] + sequence[1 : -1 : self.char_repeats] + sequence[-1:]
+            )
         else:
-            sequence = sequence[::self.char_repeats]
-        decoded = [self.idx_to_token[int(t)] for t in sequence if int(t) in self.idx_to_token]
+            sequence = sequence[:: self.char_repeats]
+        decoded = [
+            self.idx_to_token[int(t)] for t in sequence if int(t) in self.idx_to_token
+        ]
         if remove_special_tokens:
             decoded = [d for d in decoded if d not in self.special_tokens]
         return decoded
@@ -140,17 +152,19 @@ class SequenceTokenizer:
         return self.token_to_idx[lang_token]
 
     def _make_start_token(self, language: str) -> str:
-        return '<' + language + '>'
+        return "<" + language + ">"
 
 
 class Preprocessor:
 
     """ Preprocesses data for a phonemizer training session. """
 
-    def __init__(self,
-                 lang_tokenizer: LanguageTokenizer,
-                 text_tokenizer: SequenceTokenizer,
-                 phoneme_tokenizer: SequenceTokenizer) -> None:
+    def __init__(
+        self,
+        lang_tokenizer: LanguageTokenizer,
+        text_tokenizer: SequenceTokenizer,
+        phoneme_tokenizer: SequenceTokenizer,
+    ) -> None:
         """
         Initializes a preprocessor object.
 
@@ -164,9 +178,9 @@ class Preprocessor:
         self.text_tokenizer = text_tokenizer
         self.phoneme_tokenizer = phoneme_tokenizer
 
-    def __call__(self,
-                 item: Tuple[str, Iterable[str], Iterable[str]]) \
-            -> Tuple[int, List[int], List[int]]:
+    def __call__(
+        self, item: Tuple[str, Iterable[str], Iterable[str]]
+    ) -> Tuple[int, List[int], List[int]]:
         """
         Preprocesses a data point.
 
@@ -183,7 +197,7 @@ class Preprocessor:
         return lang_token, text_tokens, phoneme_tokens
 
     @classmethod
-    def from_config(cls, config: Dict[str, Any]) -> 'Preprocessor':
+    def from_config(cls, config: Dict[str, Any]) -> "Preprocessor":
         """Initializes a preprocessor from a config.
 
         Args:
@@ -193,22 +207,29 @@ class Preprocessor:
           Preprocessor: Preprocessor object.
         """
 
-        text_symbols = config['preprocessing']['text_symbols']
-        phoneme_symbols = config['preprocessing']['phoneme_symbols']
-        lang_symbols = config['preprocessing']['languages']
-        char_repeats = config['preprocessing']['char_repeats']
-        lowercase = config['preprocessing']['lowercase']
+        text_symbols = config["preprocessing"]["text_symbols"]
+        phoneme_symbols = config["preprocessing"]["phoneme_symbols"]
+        lang_symbols = config["preprocessing"]["languages"]
+        char_repeats = config["preprocessing"]["char_repeats"]
+        lowercase = config["preprocessing"]["lowercase"]
         lang_tokenizer = LanguageTokenizer(lang_symbols)
-        text_tokenizer = SequenceTokenizer(symbols=text_symbols,
-                                           languages=lang_symbols,
-                                           char_repeats=char_repeats,
-                                           lowercase=lowercase,
-                                           append_start_end=True)
-        phoneme_tokenizer = SequenceTokenizer(phoneme_symbols,
-                                              languages=lang_symbols,
-                                              lowercase=False,
-                                              char_repeats=1,
-                                              append_start_end=True)
-        return Preprocessor(lang_tokenizer=lang_tokenizer,
-                            text_tokenizer=text_tokenizer,
-                            phoneme_tokenizer=phoneme_tokenizer)
+        text_tokenizer = SequenceTokenizer(
+            symbols=text_symbols,
+            languages=lang_symbols,
+            char_repeats=char_repeats,
+            lowercase=lowercase,
+            append_start_end=True,
+        )
+        phoneme_tokenizer = SequenceTokenizer(
+            phoneme_symbols,
+            languages=lang_symbols,
+            lowercase=False,
+            char_repeats=1,
+            append_start_end=True,
+        )
+        return Preprocessor(
+            lang_tokenizer=lang_tokenizer,
+            text_tokenizer=text_tokenizer,
+            phoneme_tokenizer=phoneme_tokenizer,
+        )
+

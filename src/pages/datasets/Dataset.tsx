@@ -151,6 +151,7 @@ export default function Dataset({
     {
       title: `Language`,
       key: "language",
+      dataIndex: "language",
       sorter: {
         compare: (a: SpeakerInterface, b: SpeakerInterface) => {
           return stringCompare(a.language, b.language);

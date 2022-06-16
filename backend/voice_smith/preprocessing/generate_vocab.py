@@ -15,6 +15,8 @@ def generate_vocab(
             words_to_tokenize.add(word)
     words_to_tokenize = list(words_to_tokenize)
     g2p = get_g2p(assets_path=assets_path, device=device)
-    predicted_phones = batched_predict(model=g2p, texts=words_to_tokenize)
+    predicted_phones = batched_predict(
+        model=g2p, texts=words_to_tokenize, langs=[lang for _ in range(len(words_to_tokenize))]
+    )
     vocab = {word: phones for word, phones in zip(words_to_tokenize, predicted_phones)}
     return vocab
