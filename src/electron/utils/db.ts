@@ -331,6 +331,7 @@ export const getSpeakersWithSamples = (datasetID: number) => {
       text: sample.text,
       speakerID: sample.speakerID,
       name: sample.name,
+      language: sample.language,
       txtPath: sample.txtPath,
       audioPath: sample.audioPath,
       ID: sample.ID,
@@ -347,12 +348,19 @@ export const getSpeakersWithSamples = (datasetID: number) => {
     }));
 
   const speaker2Samples: { [key: string]: SpeakerSampleInterface[] } = {};
-  const speaker2SpeakerID: { [key: string]: number } = {};
+  const speaker2info: {
+    [key: string]: {
+      speakerID: number;
+      language: string;
+    };
+  } = {};
   samples.forEach((sample: any) => {
     const name = sample.name;
     const speakerID = sample.speakerID;
+    const language = sample.language;
     delete sample.name;
     delete sample.speakerID;
+    delete sample.language;
     if (name in speaker2Samples) {
       if (sample.txtPath != null) {
         speaker2Samples[name].push(sample);
@@ -363,12 +371,16 @@ export const getSpeakersWithSamples = (datasetID: number) => {
       } else {
         speaker2Samples[name] = [sample];
       }
-      speaker2SpeakerID[name] = speakerID;
+      speaker2info[name] = {
+        speakerID: speakerID,
+        language: language,
+      };
     }
   });
   const speakers = Object.keys(speaker2Samples).map((key) => ({
-    ID: speaker2SpeakerID[key],
+    ID: speaker2info[key].speakerID,
     name: key,
+    language: speaker2info[key].language,
     samples: speaker2Samples[key],
   }));
   return speakers;

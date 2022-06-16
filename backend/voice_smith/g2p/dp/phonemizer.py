@@ -26,17 +26,14 @@ class Phonemizer:
         self.lang_phoneme_dict = lang_phoneme_dict
 
     def phonemise_list(
-        self,
-        words: List[str],
-        lang: str,
-        batch_size: int = 8,
+        self, words: List[str], langs: List[str], batch_size: int = 8,
     ) -> PhonemizerResult:
         """Phonemizes a list of texts and returns tokenized texts,
         phonemes and word predictions with probabilities.
 
         Args:
           texts (List[str]): List texts to phonemize.
-          lang (str): Language used for phonemization.
+          lang (List[str]): Languages used for phonemization.
           punctuation (str): Punctuation symbols by which the texts are split. (Default value = DEFAULT_PUNCTUATION)
           batch_size (int): Batch size of model to speed up inference. (Default value = 8)
 
@@ -44,25 +41,36 @@ class Phonemizer:
           PhonemizerResult: Object containing original texts, phonemes, split texts, split phonemes, and predictions.
 
         """
-
-        punc_set = get_punct(lang=lang)
-        unique_words = set(words)
+        if len(words) == 0:
+            return []
+        # TODO currently works because get_punct returns same set for every language,
+        # has to be changed when get_punct gets language specific
+        punc_set = get_punct(lang=langs[0])
         # collect dictionary phonemes for words and hyphenated words
         word_phonemes = {
-            word: self._get_dict_entry(word=word, lang=lang, punc_set=punc_set)
-            for word in unique_words
+            (word, lang): self._get_dict_entry(word=word, lang=lang, punc_set=punc_set)
+            for word, lang in zip(words, langs)
         }
         # predict all subwords that are missing in the phoneme dict
         words_to_predict = [
-            word for word, phons in word_phonemes.items() if phons is None
+            (word, lang)
+            for (word, lang), phons in word_phonemes.items()
+            if phons is None
         ]
+        words_pred = [tup[0] for tup in words_to_predict]
+        langs_pred = [tup[1] for tup in words_to_predict]
         predictions = self.predictor(
-            words=words_to_predict, lang=lang, batch_size=batch_size
+            words=words_pred, langs=langs_pred, batch_size=batch_size,
         )
-        word_phonemes.update({pred.word: pred.phonemes_list for pred in predictions})
+        word_phonemes.update(
+            {
+                (pred.word, lang): pred.phonemes_list
+                for pred, lang in zip(predictions, langs_pred)
+            }
+        )
         phoneme_lists = []
-        for word in words:
-            phoneme_lists.append(word_phonemes[word])
+        for word, lang in zip(words, langs):
+            phoneme_lists.append(word_phonemes[(word, lang)])
 
         return phoneme_lists
 

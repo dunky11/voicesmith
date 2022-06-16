@@ -35,13 +35,13 @@ training:
   validate_steps:
     1000 # Interval of training steps to validate the model
     # (for the autoregressive model this is teacher-forced).
-  checkpoint_steps: 10000 # Interval of training steps to save the model.
+  checkpoint_steps: 2000 # Interval of training steps to save the model.
   n_generate_samples: 10 # Number of result samples to show on tensorboard.
   store_phoneme_dict_in_model:
     true # Whether to store the raw phoneme dict in the model.
     # It will be loaded by the phonemizer object.
   adam_beta1: 0.9
   adam_beta2: 0.998
-  scheduler_milestones: [200000, 300000]
+  scheduler_milestones: [150000, 225000]
   scheduler_gamma: 0.3
   total_steps: 500000
