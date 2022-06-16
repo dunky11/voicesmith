@@ -90,15 +90,17 @@ def synth_iter(
                     pitches,
                     durations,
                     mel_lens,
+                    langs,
                 ) = batch
-                for (speaker, text, src_len, mel, mel_len) in zip(
-                    speakers, texts, src_lens, mels, mel_lens
+                for (speaker, text, src_len, mel, mel_len, lang) in zip(
+                    speakers, texts, src_lens, mels, mel_lens, langs
                 ):
                     y_pred = gen(
                         x=text[: src_len.item()].unsqueeze(0),
                         speakers=speaker.unsqueeze(0),
                         p_control=1.0,
                         d_control=1.0,
+                        lang=lang.unsqueeze(0),
                     )
 
                     wav_prediction = vocoder(y_pred)
@@ -217,6 +219,7 @@ def train_iter(
             pitches,
             durations,
             mel_lens,
+            langs,
         ) = batch
 
         src_mask = get_mask_from_lengths(src_lens)
@@ -229,6 +232,7 @@ def train_iter(
             mel_lens=mel_lens,
             pitches=pitches,
             durations=durations,
+            langs=langs,
         )
         y_pred = outputs["y_pred"]
         log_duration_prediction = outputs["log_duration_prediction"]
@@ -268,9 +272,7 @@ def train_iter(
         (total_loss / grad_acc_steps).backward()
 
     # Clipping gradients to avoid gradient explosion
-    clip_grad_norm_(
-        gen.parameters(), grad_clip_thresh
-    )
+    clip_grad_norm_(gen.parameters(), grad_clip_thresh)
 
     # Update weights
     optim.step_and_update_lr(step)
@@ -346,11 +348,11 @@ def eval_iter(
                     pitches,
                     durations,
                     mel_lens,
+                    langs,
                 ) = batch
 
                 src_mask = get_mask_from_lengths(src_lens)
                 mel_mask = get_mask_from_lengths(mel_lens)
-
                 outputs = gen.forward_train(
                     x=texts,
                     speakers=speakers,
@@ -359,8 +361,8 @@ def eval_iter(
                     mel_lens=mel_lens,
                     pitches=pitches,
                     durations=durations,
+                    langs=langs,
                 )
-
                 y_pred = outputs["y_pred"]
                 log_duration_prediction = outputs["log_duration_prediction"]
                 p_prosody_ref = outputs["p_prosody_ref"]
@@ -415,15 +417,17 @@ def eval_iter(
                     pitches,
                     durations,
                     mel_lens,
+                    langs,
                 ) = batch
-                for (speaker, text, src_len, mel, mel_len) in zip(
-                    speakers, texts, src_lens, mels, mel_lens
+                for (speaker, text, src_len, mel, mel_len, lang) in zip(
+                    speakers, texts, src_lens, mels, mel_lens, langs
                 ):
                     y_pred = gen(
                         x=text[: src_len.item()].unsqueeze(0),
                         speakers=speaker.unsqueeze(0),
                         p_control=1.0,
                         d_control=1.0,
+                        langs=lang.unsqueeze(0),
                     )
 
                     samples_generated += 1
@@ -470,7 +474,6 @@ def train_acoustic(
     device: torch.device,
     reset: bool,
     checkpoint_acoustic: Union[str, None],
-    checkpoint_style: Union[str, None],
     fine_tuning: bool,
     overwrite_saves: bool,
     assets_path: str,
@@ -483,7 +486,6 @@ def train_acoustic(
     gen, optim, step = get_acoustic_models(
         data_path=str(data_path),
         checkpoint_acoustic=checkpoint_acoustic,
-        checkpoint_style=checkpoint_style,
         train_config=train_config,
         preprocess_config=preprocess_config,
         model_config=model_config,

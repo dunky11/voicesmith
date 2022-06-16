@@ -1,10 +1,11 @@
 from pathlib import Path
+import random
+import argparse
 from voice_smith.g2p.dp.preprocess import preprocess
 from voice_smith.g2p.dp.train import train
 from voice_smith.g2p.dp.utils.io import read_config
 from parse_dictionary import parse_dictionary
-import random
-import argparse
+
 
 perform_benchmark = False
 
@@ -47,6 +48,12 @@ if __name__ == "__main__":
 
     phones = list(set(phones))
     text_symbols = list(set(text_symbols))
+
+    with open(Path(".") / "text_symbols.txt", "w", encoding="utf-8") as f:
+        f.write(str(text_symbols))
+
+    with open(Path(".") / "phones.txt", "w", encoding="utf-8") as f:
+        f.write(str(phones))
 
     print(phones)
     print(text_symbols)

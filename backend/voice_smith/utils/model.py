@@ -56,21 +56,17 @@ def get_acoustic_models(
             step = 0
         else:
             step = ckpt["steps"] + 1
-        gen.load_state_dict(ckpt["gen"], strict=False)
+        # gen.load_state_dict(ckpt["gen"], strict=False)
     else:
         step = 0
 
     if fine_tuning:
         scheduled_optim = ScheduledOptimFinetuning(
-            parameters=gen.parameters(),
-            train_config=train_config,
-            current_step=step,
+            parameters=gen.parameters(), train_config=train_config, current_step=step,
         )
     else:
         scheduled_optim = ScheduledOptimPretraining(
-            parameters=gen.parameters(),
-            train_config=train_config,
-            current_step=step,
+            parameters=gen.parameters(), train_config=train_config, current_step=step,
         )
 
     if checkpoint_acoustic is not None and not reset:

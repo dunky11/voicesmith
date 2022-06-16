@@ -270,7 +270,7 @@ def extract_data(
     out = []
     speaker_names = []
     n_frames_total = 0
-    speakers = {speaker.name: i for i, speaker in enumerate(in_dir.iterdir())}
+    speakers = {speaker.name: i for i, speaker in enumerate(in_dir.glob("*/*"))}
 
     for speaker_path in in_dir.glob("*/*"):
         (out_dir / "data" / speaker_path.name).mkdir(exist_ok=True, parents=True)

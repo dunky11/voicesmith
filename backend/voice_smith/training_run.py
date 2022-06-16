@@ -397,13 +397,9 @@ def acoustic_fine_tuning_stage(
             checkpoint_acoustic, step = get_latest_checkpoint(
                 name="acoustic", ckpt_dir=str(data_path / "ckpt" / "acoustic")
             )
-            checkpoint_style, step = get_latest_checkpoint(
-                name="style", ckpt_dir=str(data_path / "ckpt" / "acoustic")
-            )
-            if checkpoint_acoustic is None or checkpoint_style is None:
+            if checkpoint_acoustic is None:
                 reset = True
                 checkpoint_acoustic = str(Path(assets_path) / "acoustic_pretrained.pt")
-                checkpoint_style = str(Path(assets_path) / "style_pretrained.pt")
             else:
                 reset = False
 
@@ -431,7 +427,6 @@ def acoustic_fine_tuning_stage(
                 device=device,
                 reset=reset,
                 checkpoint_acoustic=checkpoint_acoustic,
-                checkpoint_style=checkpoint_style,
                 fine_tuning=True,
                 overwrite_saves=True,
                 assets_path=assets_path,
@@ -502,9 +497,6 @@ def ground_truth_alignment_stage(
     checkpoint_acoustic, step = get_latest_checkpoint(
         name="acoustic", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic")
     )
-    checkpoint_style, step = get_latest_checkpoint(
-        name="style", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic")
-    )
     while True:
         try:
             ground_truth_alignment(
@@ -515,7 +507,6 @@ def ground_truth_alignment_stage(
                 group_size=3,
                 device=device,
                 checkpoint_acoustic=str(checkpoint_acoustic),
-                checkpoint_style=str(checkpoint_style),
                 logger=logger,
                 assets_path=assets_path,
                 training_runs_path=training_runs_path,
@@ -670,9 +661,6 @@ def save_model_stage(
     checkpoint_acoustic, acoustic_steps = get_latest_checkpoint(
         name="acoustic", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
     )
-    checkpoint_style, acoustic_steps = get_latest_checkpoint(
-        name="style", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
-    )
     checkpoint_vocoder, vocoder_steps = get_latest_checkpoint(
         name="vocoder", ckpt_dir=str(data_path / "ckpt" / "vocoder")
     )
@@ -680,9 +668,6 @@ def save_model_stage(
         raise ValueError(
             "Acoustic path is None in save_model, no model has been saved?"
         )
-
-    if checkpoint_style is None:
-        raise ValueError("Style path is None in save_model, no model has been saved?")
 
     if checkpoint_vocoder is None:
         raise ValueError("Vocoder path is None in save_model, no model has been saved?")
@@ -695,13 +680,12 @@ def save_model_stage(
         cur=cur, run_id=run_id
     )
 
-    acoustic_model, style_predictor = acoustic_to_torchscript(
+    acoustic_model = acoustic_to_torchscript(
         checkpoint_acoustic=str(checkpoint_acoustic),
         preprocess_config=p_config,
         model_config=m_config_acoustic,
         train_config=t_config_acoustic,
         assets_path=assets_path,
-        checkpoint_style=str(checkpoint_style),
         data_path=str(data_path / "data"),
     )
     vocoder = vocoder_to_torchscript(
@@ -739,7 +723,6 @@ def save_model_stage(
     models_dir = models_path / name / "torchscript"
     models_dir.mkdir(exist_ok=True)
     acoustic_model.save(str(models_dir / "acoustic_model.pt"))
-    style_predictor.save(models_dir / "style_predictor.pt")
     vocoder.save(models_dir / "vocoder.pt")
     with open(models_path / name / "config.json", "w", encoding="utf-8") as f:
         json.dump(config, f)

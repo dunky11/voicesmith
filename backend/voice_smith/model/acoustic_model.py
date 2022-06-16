@@ -21,6 +21,7 @@ from voice_smith.model.attention import ConformerMultiHeadedSelfAttention
 from voice_smith.model.position_encoding import positional_encoding
 from voice_smith.model.reference_encoder import PhonemeLevelProsodyEncoder
 from voice_smith.utils import tools
+from voice_smith.config.langs import languages
 
 LRELU_SLOPE = 0.3
 
@@ -43,7 +44,7 @@ class AcousticModel(nn.Module):
             dim=model_config.encoder.n_hidden,
             n_layers=model_config.encoder.n_layers,
             n_heads=model_config.encoder.n_heads,
-            embedding_dim=model_config.speaker_embed_dim,
+            embedding_dim=model_config.speaker_embed_dim + model_config.lang_embed_dim,
             p_dropout=model_config.encoder.p_dropout,
             kernel_size_conv_mod=model_config.encoder.kernel_size_conv_mod,
         )
@@ -68,7 +69,7 @@ class AcousticModel(nn.Module):
             dim=model_config.decoder.n_hidden,
             n_layers=model_config.decoder.n_layers,
             n_heads=model_config.decoder.n_heads,
-            embedding_dim=model_config.speaker_embed_dim,
+            embedding_dim=model_config.speaker_embed_dim + model_config.lang_embed_dim,
             p_dropout=model_config.decoder.p_dropout,
             kernel_size_conv_mod=model_config.decoder.kernel_size_conv_mod,
         )
@@ -79,23 +80,29 @@ class AcousticModel(nn.Module):
         self.to_mel = nn.Linear(
             model_config.decoder.n_hidden, preprocess_config.stft.n_mel_channels,
         )
-        # TODO can be removed
-        self.proj_speaker = EmbeddingProjBlock(model_config.speaker_embed_dim)
 
         self.speaker_embed = Parameter(
             tools.initialize_embeddings((n_speakers, model_config.speaker_embed_dim))
         )
+        self.lang_embed = Parameter(
+            tools.initialize_embeddings((len(languages), model_config.lang_embed_dim))
+        )
 
     def get_embeddings(
-        self, token_idx: torch.Tensor, speaker_ids: torch.Tensor, src_mask: torch.Tensor
+        self,
+        token_idx: torch.Tensor,
+        speaker_idx: torch.Tensor,
+        src_mask: torch.Tensor,
+        lang_idx: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         token_embeddings = self.src_word_emb(token_idx)
-        speaker_embeds = torch.index_select(self.speaker_embed, 0, speaker_ids).squeeze(
+        speaker_embeds = torch.index_select(self.speaker_embed, 0, speaker_idx).squeeze(
             1
         )
-        speaker_embeds = self.proj_speaker(speaker_embeds)
+        lang_embeds = torch.index_select(self.lang_embed, 0, lang_idx)
+        embeddings = torch.cat([speaker_embeds, lang_embeds], dim=1)
         token_embeddings = token_embeddings.masked_fill(src_mask.unsqueeze(-1), 0.0)
-        return token_embeddings, speaker_embeds
+        return token_embeddings, embeddings
 
     def prepare_for_export(self) -> None:
         del self.phoneme_prosody_encoder
@@ -119,17 +126,18 @@ class AcousticModel(nn.Module):
         mel_lens: torch.Tensor,
         pitches: torch.Tensor,
         durations: torch.Tensor,
+        langs: torch.Tensor,
         use_ground_truth: bool = True,
     ) -> Dict[str, torch.Tensor]:
         src_mask = tools.get_mask_from_lengths(src_lens)
         mel_mask = tools.get_mask_from_lengths(mel_lens)
 
-        x, embeddings = self.get_embeddings(x, speakers, src_mask)
+        x, embeddings = self.get_embeddings(
+            token_idx=x, speaker_idx=speakers, src_mask=src_mask, lang_idx=langs
+        )
 
         encoding = positional_encoding(
-            self.emb_dim,
-            max(x.shape[1], max(mel_lens)),
-            device=x.device,
+            self.emb_dim, max(x.shape[1], max(mel_lens)), device=x.device,
         )
 
         x = self.encoder(x, src_mask, embeddings=embeddings, encoding=encoding)
@@ -174,6 +182,7 @@ class AcousticModel(nn.Module):
         self,
         x: torch.Tensor,
         speakers: torch.Tensor,
+        langs: torch.Tensor,
         p_control: float,
         d_control: float,
     ) -> torch.Tensor:
@@ -181,11 +190,10 @@ class AcousticModel(nn.Module):
             torch.tensor([x.shape[1]], dtype=torch.int64, device=x.device)
         )
 
-        x, embeddings = self.get_embeddings(x, speakers, src_mask)
-
-        encoding = positional_encoding(
-            self.emb_dim, x.shape[1], device=x.device
+        x, embeddings = self.get_embeddings(
+            token_idx=x, speaker_idx=speakers, src_mask=src_mask, lang_idx=langs
         )
+        encoding = positional_encoding(self.emb_dim, x.shape[1], device=x.device)
 
         x = self.encoder(x, src_mask, embeddings=embeddings, encoding=encoding)
 
@@ -586,8 +594,6 @@ class LengthAdaptor(nn.Module):
         )
         x, _ = self.length_regulate(x, duration_rounded)
         return x, duration_rounded
-
-
 
 
 class VariancePredictor(nn.Module):
