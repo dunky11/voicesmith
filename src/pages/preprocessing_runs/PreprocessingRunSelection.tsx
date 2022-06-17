@@ -275,6 +275,8 @@ export default function PreprocessingRunSelection({
     };
   }, []);
 
+  console.log(preprocessingRuns);
+
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>

@@ -10,6 +10,7 @@ import {
 } from "antd";
 import { Link, useHistory } from "react-router-dom";
 import { IpcRendererEvent } from "electron";
+import { createUseStyles } from "react-jss";
 import Speaker from "./Speaker";
 import InfoButton from "./InfoButton";
 import { defaultPageOptions } from "../../config";
@@ -18,18 +19,25 @@ import { DatasetInterface, SpeakerInterface } from "../../interfaces";
 import {
   ADD_SPEAKER_CHANNEL,
   REMOVE_SPEAKERS_CHANNEL,
-  EDIT_SPEAKER_NAME_CHANNEL,
+  EDIT_SPEAKER_CHANNEL,
   PICK_SPEAKERS_CHANNEL,
   FETCH_DATASET_CHANNEL,
 } from "../../channels";
 import { DATASETS_ROUTE } from "../../routes";
+import LanguageSelect from "../../components/inputs/LanguageSelect";
+
 const { ipcRenderer } = window.require("electron");
+
+const useStyles = createUseStyles({
+  languageSelect: { width: 150 },
+});
 
 export default function Dataset({
   datasetID,
 }: {
   datasetID: number | null;
 }): ReactElement {
+  const classes = useStyles();
   const isMounted = useRef(false);
   const history = useHistory();
   const [isDisabled, setIsDisabled] = useState(false);
@@ -49,14 +57,18 @@ export default function Dataset({
     totalSampleCount += speaker.samples.length;
   });
 
-  const onSpeakerNameEdit = (speakerID: number, newName: string) => {
+  const onSpeakerNameEdit = (speaker: SpeakerInterface, newName: string) => {
     if (!speakerNameIsValid(newName)) {
       return;
     }
+    onSpeakerChange({
+      ...speaker,
+      name: newName,
+    });
+  };
 
-    ipcRenderer
-      .invoke(EDIT_SPEAKER_NAME_CHANNEL.IN, speakerID, newName)
-      .then(fetchDataset);
+  const onSpeakerChange = (speaker: SpeakerInterface) => {
+    ipcRenderer.invoke(EDIT_SPEAKER_CHANNEL.IN, speaker).then(fetchDataset);
   };
 
   const onRemoveSpeakers = () => {
@@ -136,7 +148,7 @@ export default function Dataset({
           editable={{
             tooltip: false,
             onChange: (newName: string) => {
-              onSpeakerNameEdit(record.ID, newName);
+              onSpeakerNameEdit(record, newName);
             },
           }}
         >
@@ -151,12 +163,23 @@ export default function Dataset({
     {
       title: `Language`,
       key: "language",
-      dataIndex: "language",
       sorter: {
         compare: (a: SpeakerInterface, b: SpeakerInterface) => {
           return stringCompare(a.language, b.language);
         },
       },
+      render: (text: any, record: SpeakerInterface) => (
+        <LanguageSelect
+          className={classes.languageSelect}
+          value={record.language}
+          onChange={(lang: SpeakerInterface["language"]) => {
+            onSpeakerChange({
+              ...record,
+              language: lang,
+            });
+          }}
+        />
+      ),
     },
     {
       title:

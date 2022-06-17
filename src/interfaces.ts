@@ -64,7 +64,21 @@ export interface SpeakerSampleInterface {
 export interface SpeakerInterface {
   ID: number;
   name: string;
-  language: "en" | "de" | "ru" | "es" | "fr";
+  language:
+    | "bg"
+    | "cs"
+    | "de"
+    | "en"
+    | "es"
+    | "fr"
+    | "hr"
+    | "pl"
+    | "pt"
+    | "ru"
+    | "sv"
+    | "th"
+    | "tr"
+    | "uk";
   samples: SpeakerSampleInterface[];
 }
 

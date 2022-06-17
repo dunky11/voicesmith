@@ -3,7 +3,23 @@ paths:
   data_dir: datasets # Directory to store processed data, will be created if not existing.
 
 preprocessing:
-  languages: ["en", "de", "es", "fr", "ru"] # All languages in the dataset.
+  languages: [
+      "bg",
+      "cs",
+      "de",
+      "en",
+      "es",
+      "fr",
+      "hr",
+      "pl",
+      "pt",
+      "ru",
+      "sv",
+      "sw",
+      "th",
+      "tr",
+      "uk",
+    ] # All languages in the dataset.
 
   char_repeats:
     1 # Number of grapheme character repeats to allow for mapping to longer phoneme sequences.
@@ -17,7 +33,7 @@ model:
     # Choices: ['transformer', 'autoreg_transformer']
   d_model: 384
   d_fft: 1536
-  layers: 5
+  layers: 6
   dropout: 0.1
   heads: 8
 
@@ -30,10 +46,10 @@ training:
   batch_size: 192 # Training batch size.
   batch_size_val: 192 # Validation batch size.
   generate_steps:
-    1000 # Interval of training steps to generate sample outputs. Also, at this step the phoneme and word
+    2000 # Interval of training steps to generate sample outputs. Also, at this step the phoneme and word
     # error rates are calculated for the scheduler.
   validate_steps:
-    1000 # Interval of training steps to validate the model
+    2000 # Interval of training steps to validate the model
     # (for the autoregressive model this is teacher-forced).
   checkpoint_steps: 2000 # Interval of training steps to save the model.
   n_generate_samples: 10 # Number of result samples to show on tensorboard.

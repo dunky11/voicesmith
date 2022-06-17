@@ -124,8 +124,8 @@ export const REMOVE_SAMPLES_CHANNEL = {
   IN: "remove-samples",
 };
 
-export const EDIT_SPEAKER_NAME_CHANNEL = {
-  IN: "edit-speaker-name",
+export const EDIT_SPEAKER_CHANNEL = {
+  IN: "edit-speaker",
 };
 
 export const PICK_SPEAKERS_CHANNEL = {

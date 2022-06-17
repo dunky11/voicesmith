@@ -1,4 +1,24 @@
-languages = ["en", "de", "ru", "es", "fr", "it"]
+languages = [
+    "bg",
+    "cs",
+    "de",
+    "en",
+    "es",
+    "fr",
+    "ha",
+    "hr",
+    "ko",
+    "pl",
+    "pt",
+    "ru",
+    "sv",
+    "sw",
+    "th",
+    "tr",
+    "uk",
+    "vi",
+    "zh",
+]
 
 # Mappings from symbol to numeric ID and vice versa:
 lang2id = {s: i for i, s in enumerate(languages)}

@@ -67,7 +67,7 @@ ipcMain.handle(FETCH_PREPROCESSING_RUNS_CHANNEL.IN, () => {
     }));
   const textNormalizationRuns = DB.getInstance()
     .prepare(
-      `SELECT text_normalization_run.ID AS ID, text_normalization_run.name AS name, stage, dataset_id FROM text_normalization_run LEFT JOIN dataset ON text_normalization_run.dataset_id = dataset.ID`
+      `SELECT text_normalization_run.ID AS ID, text_normalization_run.name AS name, stage, dataset_id, dataset.name AS datasetName FROM text_normalization_run LEFT JOIN dataset ON text_normalization_run.dataset_id = dataset.ID`
     )
     .all()
     .map((el: any) => ({

@@ -26,7 +26,7 @@ import {
   EDIT_DATASET_NAME_CHANNEL,
   ADD_SAMPLES_CHANNEL,
   REMOVE_SAMPLES_CHANNEL,
-  EDIT_SPEAKER_NAME_CHANNEL,
+  EDIT_SPEAKER_CHANNEL,
   PICK_SPEAKERS_CHANNEL,
   REMOVE_SPEAKERS_CHANNEL,
   PICK_SPEAKER_FILES_CHANNEL,
@@ -434,12 +434,11 @@ ipcMain.on(
 );
 
 ipcMain.handle(
-  EDIT_SPEAKER_NAME_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, speakerID: number, newName: string) => {
-    DB.getInstance().prepare("UPDATE speaker SET name=@name WHERE ID=@ID").run({
-      name: newName,
-      ID: speakerID,
-    });
+  EDIT_SPEAKER_CHANNEL.IN,
+  (event: IpcMainInvokeEvent, speaker: SpeakerInterface) => {
+    DB.getInstance()
+      .prepare("UPDATE speaker SET name=@name, language=@language WHERE ID=@ID")
+      .run(speaker);
   }
 );
 
