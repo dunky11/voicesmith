@@ -65,10 +65,10 @@ ipcMain.handle(
       )
       .run({
         name: run.name,
-        datasetID: run.datasetID,
+        datasetID: run.configuration.datasetID,
         maximumWorkers: run.maximumWorkers,
         ID: run.ID,
-        device: run.device,
+        device: run.configuration.device,
       });
   }
 );

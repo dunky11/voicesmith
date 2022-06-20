@@ -17,7 +17,7 @@ import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { defaultPageOptions } from "../../../config";
 import {
   RunInterface,
-  TextNormalizationInterface,
+  TextNormalizationRunInterface,
   TextNormalizationSampleInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
@@ -32,7 +32,7 @@ export default function ChooseSamples({
   stopRun,
 }: {
   onStepChange: (current: number) => void;
-  run: TextNormalizationInterface;
+  run: TextNormalizationRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;

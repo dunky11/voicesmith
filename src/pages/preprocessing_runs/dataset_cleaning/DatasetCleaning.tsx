@@ -1,11 +1,10 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import {
-  PreprocessingRunInterface,
   RunInterface,
-  DSCleaningInterface,
+  CleaningRunInterface,
   UsageStatsInterface,
 } from "../../../interfaces";
 import { useInterval } from "../../../utils";
@@ -39,20 +38,20 @@ export default function DatasetCleaning({
   continueRun,
   stopRun,
 }: {
-  preprocessingRun: PreprocessingRunInterface | null;
+  preprocessingRun: RunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-}) {
+}): ReactElement {
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
-  const [run, setRun] = useState<DSCleaningInterface | null>(null);
+  const [run, setRun] = useState<CleaningRunInterface | null>(null);
   const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
 
   const selectedIsRunning =
     running !== null &&
-    running.type === "dSCleaningRun" &&
+    running.type === "cleaningRun" &&
     running.ID == preprocessingRun?.ID;
 
   const fetchCleaningRun = () => {
@@ -61,7 +60,7 @@ export default function DatasetCleaning({
     }
     ipcRenderer
       .invoke(FETCH_CLEANING_RUN_CHANNEL.IN, preprocessingRun.ID)
-      .then((run: DSCleaningInterface) => {
+      .then((run: CleaningRunInterface) => {
         if (!isMounted.current) {
           return;
         }
@@ -154,29 +153,31 @@ export default function DatasetCleaning({
         <Col className="gutter-row" span={20}>
           <Switch>
             <Route
-              render={() => (
-                <Configuration
-                  onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
-                  running={running}
-                  continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
-                />
-              )}
+              render={() =>
+                run !== null && (
+                  <Configuration
+                    onStepChange={onStepChange}
+                    run={run}
+                    running={running}
+                    continueRun={continueRun}
+                  />
+                )
+              }
               path={stepToPath[0]}
             ></Route>
             <Route
-              render={() => (
-                <Preprocessing
-                  onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
-                  running={running}
-                  continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
-                  usageStats={usageStats}
-                  stopRun={stopRun}
-                />
-              )}
+              render={() =>
+                run !== null && (
+                  <Preprocessing
+                    onStepChange={onStepChange}
+                    run={run}
+                    running={running}
+                    continueRun={continueRun}
+                    usageStats={usageStats}
+                    stopRun={stopRun}
+                  />
+                )
+              }
               path={stepToPath[1]}
             ></Route>
             <Route

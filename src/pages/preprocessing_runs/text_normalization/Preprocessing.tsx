@@ -4,7 +4,7 @@ import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
 import {
   RunInterface,
-  TextNormalizationInterface,
+  TextNormalizationRunInterface,
   UsageStatsInterface,
 } from "../../../interfaces";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -24,7 +24,7 @@ export default function Preprocessing({
   stopRun,
 }: {
   onStepChange: (current: number) => void;
-  run: TextNormalizationInterface;
+  run: TextNormalizationRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   usageStats: UsageStatsInterface[];
@@ -54,7 +54,7 @@ export default function Preprocessing({
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
-      continueRun({ ID: run.ID, type: "textNormalizationRun" });
+      continueRun({ ID: run.ID, type: "textNormalizationRun", name: run.name });
     } else if (["choose_samples", "finished"].includes(run.stage)) {
       onStepChange(2);
     }

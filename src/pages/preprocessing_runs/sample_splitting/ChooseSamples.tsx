@@ -192,7 +192,7 @@ export default function ChooseSamples({
   const onNext = () => {
     const navigateNext = () => {
       if (wouldContinueRun) {
-        continueRun({ ID: run.ID, type: "sampleSplittingRun" });
+        continueRun({ ID: run.ID, type: "sampleSplittingRun", name: run.name });
       }
       onStepChange(3);
     };

@@ -109,7 +109,7 @@ export function getStageIsRunning(
   running: RunInterface | null,
   type:
     | "trainingRun"
-    | "dSCleaning"
+    | "cleaningRun"
     | "textNormalizationRun"
     | "sampleSplittingRun",
   ID: number | null
@@ -128,7 +128,7 @@ export function getWouldContinueRun(
   running: RunInterface | null,
   type:
     | "trainingRun"
-    | "dSCleaning"
+    | "cleaningRun"
     | "textNormalizationRun"
     | "sampleSplittingRun",
   ID: number | null

@@ -3,7 +3,6 @@ import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import {
-  PreprocessingRunInterface,
   RunInterface,
   UsageStatsInterface,
   SampleSplittingRunInterface,
@@ -42,7 +41,7 @@ export default function SampleSplitting({
   continueRun,
   stopRun,
 }: {
-  preprocessingRun: PreprocessingRunInterface;
+  preprocessingRun: RunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;

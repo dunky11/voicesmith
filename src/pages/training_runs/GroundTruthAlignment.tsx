@@ -5,48 +5,43 @@ import RunCard from "../../components/cards/RunCard";
 import LogPrinter from "../../components/log_printer/LogPrinter";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
-import { RunInterface, UsageStatsInterface } from "../../interfaces";
+import {
+  RunInterface,
+  TrainingRunInterface,
+  UsageStatsInterface,
+} from "../../interfaces";
 
 export default function GroundTruthAlignment({
   onStepChange,
-  selectedTrainingRunID,
+  trainingRun,
   running,
   continueRun,
   stopRun,
-  stage,
   usageStats,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number;
+  trainingRun: TrainingRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-  stage:
-    | "not_started"
-    | "preprocessing"
-    | "acoustic_fine_tuning"
-    | "ground_truth_alignment"
-    | "vocoder_fine_tuning"
-    | "save_model"
-    | "finished"
-    | null;
+
   usageStats: UsageStatsInterface[];
 }): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
 
   const stageIsRunning = getStageIsRunning(
     ["ground_truth_alignment"],
-    stage,
+    trainingRun.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    trainingRun.ID
   );
   const wouldContinueRun = getWouldContinueRun(
     ["ground_truth_alignment"],
-    stage,
+    trainingRun.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    trainingRun.ID
   );
 
   const onBackClick = () => {
@@ -57,7 +52,11 @@ export default function GroundTruthAlignment({
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
+      continueRun({
+        ID: trainingRun.ID,
+        type: "trainingRun",
+        name: trainingRun.name,
+      });
     } else {
       onStepChange(5);
     }
@@ -102,7 +101,7 @@ export default function GroundTruthAlignment({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(selectedTrainingRunID)}
+            name={String(trainingRun.ID)}
             logFileName="ground_truth_alignment.txt"
             type="trainingRun"
           />

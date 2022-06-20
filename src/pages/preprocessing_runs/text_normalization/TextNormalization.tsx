@@ -3,10 +3,9 @@ import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import {
-  PreprocessingRunInterface,
   RunInterface,
   UsageStatsInterface,
-  TextNormalizationInterface,
+  TextNormalizationRunInterface,
 } from "../../../interfaces";
 import { useInterval } from "../../../utils";
 import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
@@ -39,7 +38,7 @@ export default function TextNormalization({
   continueRun,
   stopRun,
 }: {
-  preprocessingRun: PreprocessingRunInterface | null;
+  preprocessingRun: RunInterface | null;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
@@ -47,7 +46,7 @@ export default function TextNormalization({
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
-  const [run, setRun] = useState<TextNormalizationInterface | null>(null);
+  const [run, setRun] = useState<TextNormalizationRunInterface | null>(null);
   const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
 
   const selectedIsRunning =
@@ -61,7 +60,7 @@ export default function TextNormalization({
     }
     ipcRenderer
       .invoke(FETCH_TEXT_NORMALIZATION_RUN_CHANNEL.IN, preprocessingRun.ID)
-      .then((run: TextNormalizationInterface) => {
+      .then((run: TextNormalizationRunInterface) => {
         if (!isMounted.current) {
           return;
         }

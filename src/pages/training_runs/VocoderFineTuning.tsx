@@ -8,6 +8,7 @@ import {
   AudioStatisticInterface,
   UsageStatsInterface,
   RunInterface,
+  TrainingRunInterface,
 } from "../../interfaces";
 import {
   useInterval,
@@ -20,27 +21,17 @@ const { ipcRenderer } = window.require("electron");
 
 export default function VocoderFineTuning({
   onStepChange,
-  selectedTrainingRunID,
+  trainingRun,
   running,
   continueRun,
   stopRun,
-  stage,
   usageStats,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number;
+  trainingRun: TrainingRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-  stage:
-    | "not_started"
-    | "preprocessing"
-    | "acoustic_fine_tuning"
-    | "ground_truth_alignment"
-    | "vocoder_fine_tuning"
-    | "save_model"
-    | "finished"
-    | null;
   usageStats: UsageStatsInterface[];
 }): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
@@ -58,22 +49,22 @@ export default function VocoderFineTuning({
 
   const stageIsRunning = getStageIsRunning(
     ["vocoder_fine_tuning"],
-    stage,
+    trainingRun.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    trainingRun.ID
   );
   const wouldContinueRun = getWouldContinueRun(
     ["vocoder_fine_tuning"],
-    stage,
+    trainingRun.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    trainingRun.ID
   );
 
   const pollStatistics = () => {
     ipcRenderer
-      .invoke("fetch-training-run-statistics", selectedTrainingRunID, "vocoder")
+      .invoke("fetch-training-run-statistics", trainingRun.ID, "vocoder")
       .then(
         (statistics: {
           graphStatistics: GraphStatisticInterface[];
@@ -98,7 +89,11 @@ export default function VocoderFineTuning({
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
+      continueRun({
+        ID: trainingRun.ID,
+        type: "trainingRun",
+        name: trainingRun.name,
+      });
     } else {
       onStepChange(6);
     }
@@ -146,7 +141,7 @@ export default function VocoderFineTuning({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(selectedTrainingRunID)}
+            name={String(trainingRun.ID)}
             logFileName="vocoder_fine_tuning.txt"
             type="trainingRun"
           />

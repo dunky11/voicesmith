@@ -13,7 +13,7 @@ import { safeUnlink } from "../utils/files";
 import { getCleaningRunsDir, getDatasetsDir, DB_PATH } from "../utils/globals";
 import { DB, getSpeakersWithSamples } from "../utils/db";
 import {
-  DSCleaningInterface,
+  CleaningRunInterface,
   CleaningRunConfigInterface,
   SpeakerInterface,
   ContinueTrainingRunReplyInterface,
@@ -72,7 +72,7 @@ ipcMain.on(
 ipcMain.handle(
   FETCH_CLEANING_RUN_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number) => {
-    const run: DSCleaningInterface = DB.getInstance()
+    const run: CleaningRunConfigInterface = DB.getInstance()
       .prepare("SELECT ID, name, stage FROM cleaning_run WHERE ID=@ID")
       .get({ ID });
     return run;

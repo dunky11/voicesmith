@@ -14,7 +14,7 @@ import { getDatasetsDir } from "../utils/globals";
 import { DB } from "../utils/db";
 import {
   TextNormalizationRunConfigInterface,
-  TextNormalizationInterface,
+  TextNormalizationRunInterface,
 } from "../../interfaces";
 import { startRun } from "../utils/processes";
 
@@ -45,7 +45,7 @@ ipcMain.handle(
 ipcMain.handle(
   FETCH_TEXT_NORMALIZATION_RUN_CHANNEL.IN,
   (event: IpcMainInvokeEvent, ID: number) => {
-    const run: TextNormalizationInterface = DB.getInstance()
+    const run: TextNormalizationRunInterface = DB.getInstance()
       .prepare(
         "SELECT ID, name, stage, language, text_normalization_progress AS textNormalizationProgress FROM text_normalization_run WHERE ID=@ID"
       )

@@ -66,7 +66,7 @@ export default function Preprocessing({
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
-      continueRun({ ID: run.ID, type: "sampleSplittingRun" });
+      continueRun({ ID: run.ID, type: "sampleSplittingRun", name: run.name });
     } else if (["choose_samples", "finished"].includes(run.stage)) {
       onStepChange(2);
     }

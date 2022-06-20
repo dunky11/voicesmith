@@ -8,41 +8,34 @@ import {
   GraphStatisticInterface,
   ImageStatisticInterface,
   RunInterface,
+  TrainingRunInterface,
   UsageStatsInterface,
 } from "../../interfaces";
-import { POLL_LOGFILE_INTERVALL } from "../../config";
 import {
   useInterval,
   getStageIsRunning,
   getWouldContinueRun,
 } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
-import { FETCH_TRAINING_RUN_STATISTICS_CHANNEL } from "../../channels";
+import {
+  FETCH_TRAINING_RUNS_CHANNEL,
+  FETCH_TRAINING_RUNS_CHANNEL_TYPES,
+} from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
 export default function AcousticModelFinetuning({
   onStepChange,
-  selectedTrainingRunID,
   running,
   continueRun,
   stopRun,
-  stage,
+  trainingRun,
   usageStats,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-  stage:
-    | "not_started"
-    | "preprocessing"
-    | "acoustic_fine_tuning"
-    | "ground_truth_alignment"
-    | "vocoder_fine_tuning"
-    | "save_model"
-    | "finished"
-    | null;
+  trainingRun: TrainingRunInterface;
   usageStats: UsageStatsInterface[];
 }): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
@@ -59,40 +52,35 @@ export default function AcousticModelFinetuning({
 
   const stageIsRunning = getStageIsRunning(
     ["acoustic_fine_tuning"],
-    stage,
+    trainingRun.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    trainingRun.ID
   );
   const wouldContinueRun = getWouldContinueRun(
     ["acoustic_fine_tuning"],
-    stage,
+    trainingRun.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    trainingRun.ID
   );
 
   const pollStatistics = () => {
+    const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      withStatistics: false,
+      stage: "acoustic",
+      ID: trainingRun.ID,
+    };
     ipcRenderer
-      .invoke(
-        FETCH_TRAINING_RUN_STATISTICS_CHANNEL.IN,
-        selectedTrainingRunID,
-        "acoustic"
-      )
-      .then(
-        (statistics: {
-          graphStatistics: GraphStatisticInterface[];
-          imageStatistics: ImageStatisticInterface[];
-          audioStatistics: AudioStatisticInterface[];
-        }) => {
-          if (!isMounted.current) {
-            return;
-          }
-          setGraphStatistics(statistics.graphStatistics);
-          setImageStatistics(statistics.imageStatistics);
-          setAudioStatistics(statistics.audioStatistics);
+      .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN, args)
+      .then((runs: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
+        if (!isMounted.current) {
+          return;
         }
-      );
+        setGraphStatistics(runs[0].graphStatistics);
+        setImageStatistics(runs[0].imageStatistics);
+        setAudioStatistics(runs[0].audioStatistics);
+      });
   };
 
   const onBackClick = () => {
@@ -103,7 +91,11 @@ export default function AcousticModelFinetuning({
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
+      continueRun({
+        ID: trainingRun.ID,
+        type: "trainingRun",
+        name: trainingRun.name,
+      });
     } else {
       onStepChange(4);
     }
@@ -134,7 +126,10 @@ export default function AcousticModelFinetuning({
         <Button onClick={onBackClick}>Back</Button>,
         <Button
           type="primary"
-          disabled={stage === "not_started" || stage === "preprocessing"}
+          disabled={
+            trainingRun.stage === "not_started" ||
+            trainingRun.stage === "preprocessing"
+          }
           onClick={onNextClick}
         >
           {getNextButtonText()}
@@ -155,7 +150,7 @@ export default function AcousticModelFinetuning({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(selectedTrainingRunID)}
+            name={String(trainingRun.ID)}
             logFileName="acoustic_fine_tuning.txt"
             type="trainingRun"
           />

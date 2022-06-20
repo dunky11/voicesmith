@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, ReactElement } from "react";
-import { Button, Form, Input, Select, notification } from "antd";
+import { Button, Form } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import {
@@ -7,7 +7,11 @@ import {
   FETCH_CLEANING_RUN_CONFIG_CHANNEL,
 } from "../../../channels";
 import { fetchNames } from "../PreprocessingRuns";
-import { RunInterface, CleaningRunConfigInterface } from "../../../interfaces";
+import {
+  RunInterface,
+  CleaningRunConfigInterface,
+  CleaningRunInterface,
+} from "../../../interfaces";
 import DatasetInput from "../../../components/inputs/DatasetInput";
 import NameInput from "../../../components/inputs/NameInput";
 import RunCard from "../../../components/cards/RunCard";
@@ -17,28 +21,19 @@ const { ipcRenderer } = window.require("electron");
 const initialValues: CleaningRunConfigInterface = {
   name: "",
   datasetID: null,
+  datasetName: null,
 };
 
 export default function Configuration({
   onStepChange,
-  selectedID,
+  run,
   running,
   continueRun,
-  stage,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
+  run: CleaningRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "preparing"
-    | "gen_file_embeddings"
-    | "detect_outliers"
-    | "choose_samples"
-    | "apply_changes"
-    | "finished"
-    | null;
 }): ReactElement {
   const isMounted = useRef(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
@@ -81,16 +76,17 @@ export default function Configuration({
     };
 
     ipcRenderer
-      .invoke(UPDATE_CLEANING_RUN_CONFIG_CHANNEL.IN, selectedID, values)
+      .invoke(UPDATE_CLEANING_RUN_CONFIG_CHANNEL.IN, run.ID, values)
       .then(() => {
         if (!isMounted.current) {
           return;
         }
         if (navigateNextRef.current) {
-          if (stage === "not_started") {
+          if (run.stage === "not_started") {
             continueRun({
-              ID: selectedID,
-              type: "dSCleaningRun",
+              ID: run.ID,
+              type: "cleaningRun",
+              name: run.name,
             });
           }
           onStepChange(1);
@@ -102,11 +98,8 @@ export default function Configuration({
   };
 
   const fetchConfiguration = () => {
-    if (selectedID === null) {
-      return;
-    }
     ipcRenderer
-      .invoke(FETCH_CLEANING_RUN_CONFIG_CHANNEL.IN, selectedID)
+      .invoke(FETCH_CLEANING_RUN_CONFIG_CHANNEL.IN, run.ID)
       .then((configuration: CleaningRunConfigInterface) => {
         if (!isMounted.current) {
           return;
@@ -119,7 +112,7 @@ export default function Configuration({
   };
 
   const getNextButtonText = () => {
-    if (selectedID === null || stage == "not_started") {
+    if (run.stage == "not_started") {
       return "Save and Start Run";
     }
     return "Save and Next";
@@ -133,17 +126,14 @@ export default function Configuration({
   }, []);
 
   useEffect(() => {
-    if (selectedID === null) {
-      return;
-    }
     fetchConfiguration();
-  }, [selectedID]);
+  }, []);
 
   const disableNameEdit = !configIsLoaded;
-  const disableElseEdit = disableNameEdit || stage !== "not_started";
+  const disableElseEdit = disableNameEdit || run.stage !== "not_started";
 
   const disableNext = !configIsLoaded;
-  const disableDefaults = disableNext || stage != "not_started";
+  const disableDefaults = disableNext || run.stage != "not_started";
 
   return (
     <RunCard
@@ -169,7 +159,7 @@ export default function Configuration({
       >
         <NameInput
           fetchNames={() => {
-            return fetchNames(selectedID);
+            return fetchNames(run.ID);
           }}
           disabled={disableNameEdit}
         ></NameInput>

@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, Route, useHistory } from "react-router-dom";
 import { PREPROCESSING_RUNS_ROUTE } from "../../routes";
-import { PreprocessingRunInterface, RunInterface } from "../../interfaces";
+import { RunInterface } from "../../interfaces";
 import PreprocessingRunSelection from "./PreprocessingRunSelection";
 import TextNormalization from "./text_normalization/TextNormalization";
 import DatasetCleaning from "./dataset_cleaning/DatasetCleaning";
 import SampleSplitting from "./sample_splitting/SampleSplitting";
+import { FETCH_PREPROCESSING_NAMES_USED_CHANNEL } from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
 export const fetchNames = (runID: number): Promise<string[]> => {
   return new Promise((resolve) => {
     ipcRenderer
-      .invoke("fetch-preprocessing-names-used", runID)
+      .invoke(FETCH_PREPROCESSING_NAMES_USED_CHANNEL.IN, runID)
       .then((names: string[]) => {
         resolve(names);
       });
@@ -30,7 +31,7 @@ export default function PreprcocessingRuns({
   const isMounted = useRef(false);
   const history = useHistory();
   const [selectedPreprocessingRun, setSelectedPreprocessingRun] =
-    useState<PreprocessingRunInterface | null>(null);
+    useState<RunInterface | null>(null);
 
   useEffect(() => {
     if (selectedPreprocessingRun === null) {
@@ -42,7 +43,7 @@ export default function PreprcocessingRuns({
           PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.CONFIGURATION.ROUTE
         );
         break;
-      case "dSCleaningRun":
+      case "cleaningRun":
         history.push(
           PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.CONFIGURATION.ROUTE
         );

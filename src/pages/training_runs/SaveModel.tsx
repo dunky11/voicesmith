@@ -4,47 +4,41 @@ import { LoadingOutlined } from "@ant-design/icons";
 import RunCard from "../../components/cards/RunCard";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
 import LogPrinter from "../../components/log_printer/LogPrinter";
-import { RunInterface, UsageStatsInterface } from "../../interfaces";
+import {
+  RunInterface,
+  TrainingRunInterface,
+  UsageStatsInterface,
+} from "../../interfaces";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 
 export default function VocoderFineTuning({
   onStepChange,
-  selectedTrainingRunID,
+  trainingRun,
   running,
   continueRun,
   stopRun,
-  stage,
   usageStats,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number;
+  trainingRun: TrainingRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-  stage:
-    | "not_started"
-    | "preprocessing"
-    | "acoustic_fine_tuning"
-    | "ground_truth_alignment"
-    | "vocoder_fine_tuning"
-    | "save_model"
-    | "finished"
-    | null;
   usageStats: UsageStatsInterface[];
 }): ReactElement {
   const stageIsRunning = getStageIsRunning(
     ["save_model"],
-    stage,
+    trainingRun.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    trainingRun.ID
   );
   const wouldContinueRun = getWouldContinueRun(
     ["save_model"],
-    stage,
+    trainingRun.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    trainingRun.ID
   );
 
   const onBackClick = () => {
@@ -53,7 +47,11 @@ export default function VocoderFineTuning({
 
   const onNextClick = () => {
     if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
+      continueRun({
+        ID: trainingRun.ID,
+        type: "trainingRun",
+        name: trainingRun.name,
+      });
     } else if (stageIsRunning) {
       stopRun();
     }
@@ -95,7 +93,7 @@ export default function VocoderFineTuning({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(selectedTrainingRunID)}
+            name={String(trainingRun.ID)}
             logFileName="save_model.txt"
             type="trainingRun"
           />

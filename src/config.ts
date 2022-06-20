@@ -1,4 +1,4 @@
-import { ConfigurationInterface, SpeakerInterface } from "./interfaces";
+import { TrainingRunConfigInterface, SpeakerInterface } from "./interfaces";
 
 export const SERVER_URL = "http://localhost:12118";
 export const POLL_LOGFILE_INTERVALL = 1000;
@@ -81,7 +81,7 @@ export const LANGUAGES: {
   },
 ];
 
-export const trainingRunInitialValues: ConfigurationInterface = {
+export const trainingRunInitialValues: TrainingRunConfigInterface = {
   name: "",
   maximumWorkers: -1,
   validationSize: 5.0,
@@ -101,6 +101,7 @@ export const trainingRunInitialValues: ConfigurationInterface = {
   device: "CPU",
   onlyTrainSpeakerEmbUntil: 5000,
   datasetID: null,
+  datasetName: null,
 };
 
 export const defaultPageOptions = {

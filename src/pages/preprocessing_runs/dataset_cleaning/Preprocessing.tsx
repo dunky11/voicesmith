@@ -1,56 +1,47 @@
-import React, { useState } from "react";
+import React, { ReactElement, useState } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
-import { RunInterface, UsageStatsInterface } from "../../../interfaces";
-import { LoadingOutlined } from "@ant-design/icons";
 import {
-  getProgressTitle,
-  getStageIsRunning,
-  getWouldContinueRun,
-} from "../../../utils";
+  CleaningRunInterface,
+  RunInterface,
+  UsageStatsInterface,
+} from "../../../interfaces";
+import { LoadingOutlined } from "@ant-design/icons";
+import { getStageIsRunning, getWouldContinueRun } from "../../../utils";
 import RunCard from "../../../components/cards/RunCard";
 
 export default function Configuration({
   onStepChange,
-  selectedID,
+  run,
   running,
   continueRun,
-  stage,
   usageStats,
   stopRun,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
+  run: CleaningRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "gen_file_embeddings"
-    | "detect_outliers"
-    | "choose_samples"
-    | "apply_changes"
-    | "finished"
-    | null;
   usageStats: UsageStatsInterface[];
   stopRun: () => void;
-}) {
+}): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
 
   const stageIsRunning = getStageIsRunning(
     ["not_started", "gen_file_embeddings", "detect_outliers"],
-    stage,
+    run.stage,
     running,
-    "dSCleaning",
-    selectedID
+    "cleaningRun",
+    run.ID
   );
 
   const wouldContinueRun = getWouldContinueRun(
     ["not_started", "gen_file_embeddings", "detect_outliers"],
-    stage,
+    run.stage,
     running,
-    "dSCleaning",
-    selectedID
+    "cleaningRun",
+    run.ID
   );
 
   const onBackClick = () => {
@@ -58,24 +49,18 @@ export default function Configuration({
   };
 
   const onNextClick = () => {
-    if (selectedID === null) {
-      return;
-    }
     if (stageIsRunning) {
       stopRun();
     } else if (wouldContinueRun) {
-      continueRun({ ID: selectedID, type: "dSCleaningRun" });
+      continueRun({ ID: run.ID, type: "cleaningRun", name: run.name });
     } else if (
-      ["choose_samples", "apply_changes", "finished"].includes(stage)
+      ["choose_samples", "apply_changes", "finished"].includes(run.stage)
     ) {
       onStepChange(2);
     }
   };
 
   const getNextButtonText = () => {
-    if (selectedID === null) {
-      return "Next";
-    }
     if (stageIsRunning) {
       return "Pause Run";
     }
@@ -86,16 +71,11 @@ export default function Configuration({
   };
 
   const getCurrent = () => {
-    if (selectedID === null || stage == null) {
-      return 0;
-    }
-    switch (stage) {
+    switch (run.stage) {
       case "not_started":
         return 0;
       case "gen_file_embeddings":
         return 0;
-      case "detect_outliers":
-        return 1;
       case "choose_samples":
         return 1;
       case "apply_changes":
@@ -104,7 +84,7 @@ export default function Configuration({
         return 1;
       default:
         throw new Error(
-          `No case selected in switch-statemen, '${stage}' is not a valid case ...`
+          `No case selected in switch-statement, '${run.stage}' is not a valid case ...`
         );
     }
   };
@@ -115,11 +95,7 @@ export default function Configuration({
     <RunCard
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button
-          type="primary"
-          disabled={selectedID === null}
-          onClick={onNextClick}
-        >
+        <Button type="primary" onClick={onNextClick}>
           {getNextButtonText()}
         </Button>,
       ]}
@@ -155,7 +131,7 @@ export default function Configuration({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={selectedID === null ? null : String(selectedID)}
+            name={String(run.ID)}
             logFileName="preprocessing.txt"
             type="cleaningRun"
           />

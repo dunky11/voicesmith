@@ -10,8 +10,9 @@ import {
 import { fetchSampleSplittingRuns } from "./sampleSplittingRuns";
 import { safeRmDir } from "../utils/files";
 import {
-  PreprocessingRunInterface,
+  RunInterface,
   SampleSplittingRunInterface,
+  PreprocessingRunType,
 } from "../../interfaces";
 import {
   getCleaningRunsDir,
@@ -77,18 +78,21 @@ ipcMain.handle(FETCH_PREPROCESSING_RUNS_CHANNEL.IN, () => {
   const sampleSplittingRuns = fetchSampleSplittingRuns().map(
     (el: SampleSplittingRunInterface) => ({ ...el, type: "sampleSplittingRun" })
   );
-  return cleaningRuns.concat(textNormalizationRuns).concat(sampleSplittingRuns);
+  const ret: PreprocessingRunType[] = cleaningRuns
+    .concat(textNormalizationRuns)
+    .concat(sampleSplittingRuns);
+  return ret;
 });
 
 ipcMain.handle(
   EDIT_PREPROCESSING_RUN_NAME_CHANNEL.IN,
   (
     event: IpcMainInvokeEvent,
-    preprocessingRun: PreprocessingRunInterface,
+    preprocessingRun: RunInterface,
     newName: string
   ) => {
     switch (preprocessingRun.type) {
-      case "dSCleaningRun":
+      case "cleaningRun":
         DB.getInstance()
           .prepare("UPDATE cleaning_run SET name=@name WHERE ID=@ID")
           .run({
@@ -122,12 +126,9 @@ ipcMain.handle(
 
 ipcMain.handle(
   REMOVE_PREPROCESSING_RUN_CHANNEL.IN,
-  async (
-    event: IpcMainInvokeEvent,
-    preprocessingRun: PreprocessingRunInterface
-  ) => {
+  async (event: IpcMainInvokeEvent, preprocessingRun: RunInterface) => {
     switch (preprocessingRun.type) {
-      case "dSCleaningRun": {
+      case "cleaningRun": {
         DB.getInstance().transaction(() => {
           DB.getInstance()
             .prepare("DELETE FROM noisy_sample WHERE cleaning_run_id=@ID")

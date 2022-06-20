@@ -262,6 +262,7 @@ def preprocessing_stage(
         elif preprocessing_stage == "gen_vocab":
             set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             vocab_path.mkdir(exist_ok=True, parents=True)
+            p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
 
             row = cur.execute(
                 "SELECT device FROM training_run WHERE ID=?", (run_id,),
@@ -284,7 +285,6 @@ def preprocessing_stage(
                 ).fetchall():
                     texts.append(text)
 
-                p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
                 lexica_path = str(vocab_path / f"{lang}.txt")
                 predicted_phones = generate_vocab(
                     texts=texts, lang=lang, assets_path=assets_path, device=device

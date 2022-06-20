@@ -9,6 +9,9 @@ import {
   SettingOutlined,
 } from "@ant-design/icons";
 import { createUseStyles } from "react-jss";
+import { useDispatch, useSelector } from "react-redux";
+import { editAppInfo } from "./features/appInfoSlice";
+import { RootState } from "./app/store";
 import MainLoading from "./pages/main_loading/MainLoading";
 import Models from "./pages/models/Models";
 import Synthesize from "./pages/models/Synthesize";
@@ -33,6 +36,8 @@ import {
   GET_APP_INFO_CHANNEL,
   STOP_RUN_CHANNEL,
 } from "./channels";
+import RunManager from "./components/run_management/RunManager";
+
 const { ipcRenderer } = window.require("electron");
 
 const useStyles = createUseStyles({
@@ -77,7 +82,8 @@ export default function App(): ReactElement {
   const classes = useStyles();
   const history = useHistory();
   const isMounted = useRef(false);
-  const [appInfo, setAppInfo] = useState<AppInfoInterface | null>(null);
+  const dispatch = useDispatch();
+  const appInfo = useSelector((state: RootState) => state.appInfo);
   const [selectedKeys, setSelectedKeys] = useState<string[]>(["models"]);
   const [selectedModel, setSelectedModel] = useState(null);
   const [navIsDisabled, setNavIsDisabled] = useState(false);
@@ -88,7 +94,7 @@ export default function App(): ReactElement {
     ipcRenderer
       .invoke(GET_APP_INFO_CHANNEL.IN)
       .then((appInfo: AppInfoInterface) => {
-        setAppInfo(appInfo);
+        dispatch(editAppInfo(appInfo));
       });
   };
 
@@ -157,7 +163,7 @@ export default function App(): ReactElement {
       case "trainingRun":
         ipcRenderer.send(CONTINUE_TRAINING_RUN_CHANNEL.IN, run.ID);
         break;
-      case "dSCleaningRun":
+      case "cleaningRun":
         ipcRenderer.send(CONTINUE_CLEANING_RUN_CHANNEL.IN, run.ID);
         break;
       case "textNormalizationRun":
@@ -251,6 +257,7 @@ export default function App(): ReactElement {
 
   return (
     <>
+      <RunManager />
       <Layout className={classes.leftLayout}>
         <Layout.Sider className={classes.sider}>
           <div className={classes.logoWrapper}>
@@ -384,10 +391,7 @@ export default function App(): ReactElement {
               ></Route>
               <Route
                 render={() => (
-                  <MainLoading
-                    appInfo={appInfo}
-                    onServerIsReady={onServerIsReady}
-                  ></MainLoading>
+                  <MainLoading onServerIsReady={onServerIsReady}></MainLoading>
                 )}
               ></Route>
             </Switch>

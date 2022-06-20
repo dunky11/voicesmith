@@ -4,7 +4,7 @@ import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import {
   RunInterface,
-  TextNormalizationInterface,
+  TextNormalizationRunInterface,
   TextNormalizationConfigInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
@@ -32,7 +32,7 @@ export default function Configuration({
   continueRun,
 }: {
   onStepChange: (current: number) => void;
-  run: TextNormalizationInterface;
+  run: TextNormalizationRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
 }): ReactElement {
@@ -86,6 +86,7 @@ export default function Configuration({
             continueRun({
               ID: run.ID,
               type: "textNormalizationRun",
+              name: run.name,
             });
           }
           onStepChange(1);
@@ -99,7 +100,7 @@ export default function Configuration({
   const fetchConfiguration = () => {
     ipcRenderer
       .invoke(FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN, run.ID)
-      .then((configuration: TextNormalizationInterface) => {
+      .then((configuration: TextNormalizationRunInterface) => {
         if (!isMounted.current) {
           return;
         }

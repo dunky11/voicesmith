@@ -10,7 +10,11 @@ import {
 } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
-import { ConfigurationInterface, RunInterface } from "../../interfaces";
+import {
+  RunInterface,
+  TrainingRunConfigInterface,
+  TrainingRunInterface,
+} from "../../interfaces";
 import { trainingRunInitialValues } from "../../config";
 import { notifySave } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
@@ -18,36 +22,24 @@ import DeviceInput from "../../components/inputs/DeviceInput";
 import DatasetInput from "../../components/inputs/DatasetInput";
 import NameInput from "../../components/inputs/NameInput";
 import {
-  CREATE_TRAINING_RUN_CHANNEL,
-  UPDATE_TRAINING_RUN_CONFIG_CHANNEL,
-  FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL,
+  UPDATE_TRAINING_RUN_CHANNEL,
   FETCH_TRAINING_RUN_NAMES_CHANNEL,
+  FETCH_TRAINING_RUNS_CHANNEL,
+  FETCH_TRAINING_RUNS_CHANNEL_TYPES,
 } from "../../channels";
 import { TRAINING_RUNS_ROUTE } from "../../routes";
 const { ipcRenderer } = window.require("electron");
 
 export default function Configuration({
   onStepChange,
-  setSelectedTrainingRunID,
-  selectedTrainingRunID,
+  trainingRun,
   running,
   continueRun,
-  stage,
 }: {
   onStepChange: (current: number) => void;
-  setSelectedTrainingRunID: (selectedTrainingRunID: number) => void;
-  selectedTrainingRunID: number;
+  trainingRun: TrainingRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "preprocessing"
-    | "acoustic_fine_tuning"
-    | "ground_truth_alignment"
-    | "vocoder_fine_tuning"
-    | "save_model"
-    | "finished"
-    | null;
 }): ReactElement {
   const isMounted = useRef(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
@@ -65,8 +57,9 @@ export default function Configuration({
     }
     if (navigateNextRef.current) {
       continueRun({
-        ID: selectedTrainingRunID,
+        ID: trainingRun.ID,
         type: "trainingRun",
+        name: trainingRun.name,
       });
       onStepChange(1);
     } else {
@@ -75,16 +68,14 @@ export default function Configuration({
   };
 
   const onFinish = () => {
-    const values: ConfigurationInterface = {
+    const values: TrainingRunConfigInterface = {
       ...trainingRunInitialValues,
       ...formRef.current?.getFieldsValue(),
     };
     ipcRenderer
-      .invoke(
-        UPDATE_TRAINING_RUN_CONFIG_CHANNEL.IN,
-        values,
-        selectedTrainingRunID
-      )
+      .invoke(UPDATE_TRAINING_RUN_CHANNEL.IN, {
+        ...{ ...trainingRun, configuration: values },
+      })
       .then(afterUpdate);
   };
 
@@ -107,30 +98,29 @@ export default function Configuration({
   };
 
   const fetchConfiguration = () => {
+    const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      withStatistics: false,
+      stage: null,
+      ID: trainingRun.ID,
+    };
     ipcRenderer
-      .invoke(
-        FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL.IN,
-        selectedTrainingRunID
-      )
-      .then((configuration: ConfigurationInterface) => {
+      .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN, args)
+      .then((runs: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
-        const config = {
-          ...configuration,
-        };
 
         if (!configIsLoaded) {
           setConfigIsLoaded(true);
         }
-        formRef.current?.setFieldsValue(config);
+        formRef.current?.setFieldsValue(runs[0].configuration);
       });
   };
 
   const fetchNames = async (): Promise<string[]> => {
     return new Promise((resolve) => {
       ipcRenderer
-        .invoke(FETCH_TRAINING_RUN_NAMES_CHANNEL.IN, selectedTrainingRunID)
+        .invoke(FETCH_TRAINING_RUN_NAMES_CHANNEL.IN, trainingRun.ID)
         .then((names: string[]) => {
           resolve(names);
         });
@@ -150,7 +140,8 @@ export default function Configuration({
 
   const disableNext = disableEdit;
   const disableDefaults =
-    !configIsLoaded || (stage != "not_started" && stage != null);
+    !configIsLoaded ||
+    (trainingRun.stage != "not_started" && trainingRun.stage != null);
 
   return (
     <RunCard
@@ -164,7 +155,7 @@ export default function Configuration({
         <Button type="primary" disabled={disableNext} onClick={onNextClick}>
           {running !== null &&
           running.type === "trainingRun" &&
-          running.ID === selectedTrainingRunID
+          running.ID === trainingRun.ID
             ? "Save and Next"
             : "Save and Start Training"}
         </Button>,

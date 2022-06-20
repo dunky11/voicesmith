@@ -10,11 +10,12 @@ import {
   Typography,
 } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
-import { RunInterface, TrainingRunBasicInterface } from "../../interfaces";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import { POLL_LOGFILE_INTERVALL, defaultPageOptions } from "../../config";
 import { useInterval, stringCompare } from "../../utils";
 import {
   FETCH_TRAINING_RUNS_CHANNEL,
+  FETCH_TRAINING_RUNS_CHANNEL_TYPES,
   CREATE_TRAINING_RUN_CHANNEL,
 } from "../../channels";
 const { ipcRenderer } = window.require("electron");
@@ -26,20 +27,19 @@ export default function RunSelection({
   stopRun,
   continueRun,
 }: {
-  removeTrainingRun: (ID: number) => void;
-  selectTrainingRun: (ID: number) => void;
+  removeTrainingRun: (run: TrainingRunInterface) => void;
+  selectTrainingRun: (run: TrainingRunInterface) => void;
   running: RunInterface | null;
   stopRun: () => void;
   continueRun: (run: RunInterface) => void;
 }): ReactElement {
   const isMounted = useRef(false);
-  const [trainingRuns, setTrainingRuns] = useState<TrainingRunBasicInterface[]>(
-    []
-  );
+  const [trainingRuns, setTrainingRuns] = useState<TrainingRunInterface[]>([]);
 
   const getFirstPossibleName = () => {
     const names = trainingRuns.map(
-      (preprocessingRun: TrainingRunBasicInterface) => preprocessingRun.name
+      (preprocessingRun: TrainingRunInterface) =>
+        preprocessingRun.configuration.name
     );
     let i = 1;
     let name = `Training Run ${i}`;
@@ -51,9 +51,14 @@ export default function RunSelection({
   };
 
   const pollTrainingRuns = () => {
+    const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      withStatistics: false,
+      ID: null,
+      stage: null,
+    };
     ipcRenderer
-      .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN)
-      .then((trainingRuns: TrainingRunBasicInterface[]) => {
+      .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN, args)
+      .then((trainingRuns: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
@@ -71,19 +76,21 @@ export default function RunSelection({
   const columns = [
     {
       title: "Name",
-      dataIndex: "name",
       key: "name",
       sorter: {
-        compare: (a: TrainingRunBasicInterface, b: TrainingRunBasicInterface) =>
-          stringCompare(a.name, b.name),
+        compare: (a: TrainingRunInterface, b: TrainingRunInterface) =>
+          stringCompare(a.configuration.name, b.configuration.name),
       },
+      render: (text: any, record: TrainingRunInterface) => (
+        <Typography.Text>{record.configuration.name}</Typography.Text>
+      ),
     },
     {
       title: "Stage",
       dataIndex: "stage",
       key: "stage",
       sorter: {
-        compare: (a: TrainingRunBasicInterface, b: TrainingRunBasicInterface) =>
+        compare: (a: TrainingRunInterface, b: TrainingRunInterface) =>
           stringCompare(a.stage, b.stage),
       },
     },
@@ -92,7 +99,7 @@ export default function RunSelection({
       title: "State",
       key: "action",
       sorter: {
-        compare: (a: TrainingRunBasicInterface, b: TrainingRunBasicInterface) =>
+        compare: (a: TrainingRunInterface, b: TrainingRunInterface) =>
           stringCompare(
             running !== null &&
               running.type === "trainingRun" &&
@@ -106,7 +113,7 @@ export default function RunSelection({
               : "not_running"
           ),
       },
-      render: (text: any, record: TrainingRunBasicInterface) =>
+      render: (text: any, record: TrainingRunInterface) =>
         running !== null &&
         running.type === "trainingRun" &&
         record.ID === running.ID ? (
@@ -119,17 +126,24 @@ export default function RunSelection({
     },
     {
       title: "Dataset",
-      dataIndex: "datasetName",
       key: "datasetName",
       sorter: {
-        compare: (a: TrainingRunBasicInterface, b: TrainingRunBasicInterface) =>
-          stringCompare(a.datasetName, b.datasetName),
+        compare: (a: TrainingRunInterface, b: TrainingRunInterface) =>
+          stringCompare(
+            a.configuration.datasetName,
+            b.configuration.datasetName
+          ),
+      },
+      render: (text: any, record: TrainingRunInterface) => {
+        return (
+          <Typography.Text>{record.configuration.datasetName}</Typography.Text>
+        );
       },
     },
     {
       title: "",
       key: "action",
-      render: (text: any, record: TrainingRunBasicInterface) => {
+      render: (text: any, record: TrainingRunInterface) => {
         const isRunning =
           running !== null &&
           running.type === "trainingRun" &&
@@ -145,7 +159,11 @@ export default function RunSelection({
               return (
                 <a
                   onClick={() => {
-                    continueRun({ ID: record.ID, type: "trainingRun" });
+                    continueRun({
+                      ID: record.ID,
+                      type: "trainingRun",
+                      name: record.configuration.name,
+                    });
                   }}
                 >
                   Start Training
@@ -159,7 +177,7 @@ export default function RunSelection({
           <Space size="middle">
             <a
               onClick={() => {
-                selectTrainingRun(record.ID);
+                selectTrainingRun(record);
               }}
             >
               Select
@@ -168,7 +186,7 @@ export default function RunSelection({
             <Popconfirm
               title="Are you sure you want to delete this training run?"
               onConfirm={() => {
-                removeTrainingRun(record.ID);
+                removeTrainingRun(record);
                 pollTrainingRuns();
               }}
               okText="Yes"
@@ -218,7 +236,7 @@ export default function RunSelection({
             columns={columns}
             pagination={defaultPageOptions}
             dataSource={trainingRuns.map(
-              (trainingRun: TrainingRunBasicInterface) => {
+              (trainingRun: TrainingRunInterface) => {
                 return {
                   ...trainingRun,
                   key: trainingRun.ID,

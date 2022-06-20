@@ -1,3 +1,5 @@
+import { TrainingRunInterface } from "./interfaces";
+
 export const INSTALL_BACKEND_CHANNEL = {
   IN: "install-backend",
   REPLY: "install-backend-reply",
@@ -63,30 +65,29 @@ export const CONTINUE_TRAINING_RUN_CHANNEL = {
 };
 
 export const FETCH_TRAINING_RUN_NAMES_CHANNEL = {
-  IN: "fetch-trainng-run-names",
-};
-
-export const FETCH_TRAINING_RUN_PROGRESS_CHANNEL = {
-  IN: "fetch-training-run-progress",
+  IN: "fetch-training-run-names",
 };
 
 export const FETCH_TRAINING_RUNS_CHANNEL = {
   IN: "fetch-training-runs",
 };
 
-export const FETCH_TRAINING_RUN_STATISTICS_CHANNEL = {
-  IN: "fetch-training-run-statistics",
-};
-
-export const FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL = {
-  IN: "fetch-training-run-configuration",
-};
+export interface FETCH_TRAINING_RUNS_CHANNEL_TYPES {
+  IN: {
+    ARGS: {
+      withStatistics: boolean;
+      stage: string | null;
+      ID: number | null;
+    };
+    OUT: TrainingRunInterface[];
+  };
+}
 
 export const CREATE_TRAINING_RUN_CHANNEL = {
   IN: "create-training-run",
 };
 
-export const UPDATE_TRAINING_RUN_CONFIG_CHANNEL = {
+export const UPDATE_TRAINING_RUN_CHANNEL = {
   IN: "update-training-run-config",
 };
 

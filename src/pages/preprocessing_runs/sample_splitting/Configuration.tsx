@@ -90,6 +90,7 @@ export default function Configuration({
             continueRun({
               ID: run.ID,
               type: "sampleSplittingRun",
+              name: run.name,
             });
           }
           onStepChange(1);

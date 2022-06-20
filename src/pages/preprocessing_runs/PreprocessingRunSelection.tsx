@@ -11,7 +11,7 @@ import {
   Tag,
 } from "antd";
 import { defaultPageOptions } from "../../config";
-import { PreprocessingRunInterface, RunInterface } from "../../interfaces";
+import { RunInterface, PreprocessingRunType } from "../../interfaces";
 import { stringCompare } from "../../utils";
 import {
   CREATE_PREPROCESSING_RUN_CHANNEL,
@@ -21,13 +21,11 @@ import {
 } from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
-const prettyType = (
-  type: "textNormalizationRun" | "dSCleaningRun" | "sampleSplittingRun"
-) => {
+const prettyType = (type: RunInterface["type"]) => {
   switch (type) {
     case "textNormalizationRun":
       return "Text Normalization";
-    case "dSCleaningRun":
+    case "cleaningRun":
       return "Dataset Cleaning";
     case "sampleSplittingRun":
       return "Sample Splitting";
@@ -45,7 +43,7 @@ export default function PreprocessingRunSelection({
   continueRun,
 }: {
   setSelectedPreprocessingRun: (
-    preprocessingRun: PreprocessingRunInterface | null
+    preprocessingRun: PreprocessingRunType | null
   ) => void;
   running: RunInterface | null;
   stopRun: () => void;
@@ -53,13 +51,13 @@ export default function PreprocessingRunSelection({
 }): ReactElement {
   const isMounted = useRef(false);
   const [preprocessingRuns, setPreprocessingRuns] = useState<
-    PreprocessingRunInterface[]
+    PreprocessingRunType[]
   >([]);
   const [isDisabled, setIsDisabled] = useState(false);
 
   const getFirstPossibleName = () => {
     const names = preprocessingRuns.map(
-      (preprocessingRun: PreprocessingRunInterface) => preprocessingRun.name
+      (preprocessingRun: PreprocessingRunType) => preprocessingRun.name
     );
     let i = 1;
     let name = `Preprocessing Run ${i}`;
@@ -72,13 +70,13 @@ export default function PreprocessingRunSelection({
 
   const nameIsValid = (name: string) => {
     const names = preprocessingRuns.map(
-      (preprocessingRun: PreprocessingRunInterface) => preprocessingRun.name
+      (preprocessingRun: PreprocessingRunType) => preprocessingRun.name
     );
     return !names.includes(name);
   };
 
   const onNameEdit = (
-    preprocessingRun: PreprocessingRunInterface,
+    preprocessingRun: PreprocessingRunType,
     newName: string
   ) => {
     if (!nameIsValid(newName)) {
@@ -92,7 +90,7 @@ export default function PreprocessingRunSelection({
   const fetchPreprocessingRuns = () => {
     ipcRenderer
       .invoke(FETCH_PREPROCESSING_RUNS_CHANNEL.IN)
-      .then((ds: PreprocessingRunInterface[]) => {
+      .then((ds: PreprocessingRunType[]) => {
         if (!isMounted.current) {
           return;
         }
@@ -100,9 +98,7 @@ export default function PreprocessingRunSelection({
       });
   };
 
-  const removePreprocessingRun = (
-    preprocessingRun: PreprocessingRunInterface
-  ) => {
+  const removePreprocessingRun = (preprocessingRun: PreprocessingRunType) => {
     ipcRenderer
       .invoke(REMOVE_PREPROCESSING_RUN_CHANNEL.IN, preprocessingRun)
       .then(fetchPreprocessingRuns);
@@ -117,7 +113,7 @@ export default function PreprocessingRunSelection({
       .then(fetchPreprocessingRuns);
   };
 
-  const getIsRunning = (record: PreprocessingRunInterface) => {
+  const getIsRunning = (record: PreprocessingRunType) => {
     return (
       running !== null &&
       running.type === record.type &&
@@ -129,7 +125,7 @@ export default function PreprocessingRunSelection({
     {
       title: "Name",
       key: "name",
-      render: (text: any, record: PreprocessingRunInterface) => (
+      render: (text: any, record: PreprocessingRunType) => (
         <Typography.Text
           editable={{
             tooltip: false,
@@ -143,18 +139,18 @@ export default function PreprocessingRunSelection({
         </Typography.Text>
       ),
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
           stringCompare(a.name, b.name),
       },
     },
     {
       title: "Type",
       key: "type",
-      render: (text: any, record: PreprocessingRunInterface) => (
+      render: (text: any, record: PreprocessingRunType) => (
         <Typography.Text>{prettyType(record.type)}</Typography.Text>
       ),
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
           stringCompare(prettyType(a.type), prettyType(b.type)),
       },
     },
@@ -163,7 +159,7 @@ export default function PreprocessingRunSelection({
       key: "stage",
       dataIndex: "stage",
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
           stringCompare(a.stage, b.stage),
       },
     },
@@ -171,7 +167,7 @@ export default function PreprocessingRunSelection({
       title: "State",
       key: "action",
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
           stringCompare(
             running !== null &&
               running.type === "trainingRun" &&
@@ -185,7 +181,7 @@ export default function PreprocessingRunSelection({
               : "not_running"
           ),
       },
-      render: (text: any, record: PreprocessingRunInterface) =>
+      render: (text: any, record: PreprocessingRunType) =>
         getIsRunning(record) ? (
           <Tag icon={<SyncOutlined spin />} color="green">
             Running
@@ -196,17 +192,22 @@ export default function PreprocessingRunSelection({
     },
     {
       title: "Dataset",
-      dataIndex: "datasetName",
       key: "datasetName",
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
-          stringCompare(a.datasetName, b.datasetName),
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
+          stringCompare(
+            a.configuration.datasetName,
+            b.configuration.datasetName
+          ),
       },
+      render: (text: any, record: PreprocessingRunType) => (
+        <Typography.Text>{record.configuration.datasetName}</Typography.Text>
+      ),
     },
     {
       title: "",
       key: "action",
-      render: (text: any, record: PreprocessingRunInterface) => {
+      render: (text: any, record: PreprocessingRunType) => {
         const isRunning = getIsRunning(record);
 
         const getRunningLink = () => {
@@ -216,17 +217,21 @@ export default function PreprocessingRunSelection({
             if (record.stage === "finished") {
               return <></>;
             } else {
+              // TODO find out why record.stage === "finished" not working
               if (
                 record.stage === "choose_samples" ||
-                record.stage === "finished" ||
-                record.stage == "not_started"
+                record.stage === "not_started"
               ) {
                 return <Typography.Text disabled>Continue Run</Typography.Text>;
               }
               return (
                 <a
                   onClick={() => {
-                    continueRun({ ID: record.ID, type: record.type });
+                    continueRun({
+                      ID: record.ID,
+                      type: record.type,
+                      name: record.name,
+                    });
                   }}
                 >
                   Continue Run
@@ -311,12 +316,10 @@ export default function PreprocessingRunSelection({
             style={{ width: "100%" }}
             columns={columns}
             pagination={defaultPageOptions}
-            dataSource={preprocessingRuns.map(
-              (ds: PreprocessingRunInterface) => ({
-                ...ds,
-                key: `${ds.type}-${ds.ID}`,
-              })
-            )}
+            dataSource={preprocessingRuns.map((ds: PreprocessingRunType) => ({
+              ...ds,
+              key: `${ds.type}-${ds.ID}`,
+            }))}
           ></Table>
         </div>
       </Card>

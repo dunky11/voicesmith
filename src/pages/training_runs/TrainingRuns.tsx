@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, ReactElement } from "react";
 import { Route, Switch, useHistory } from "react-router-dom";
 import { TRAINING_RUNS_ROUTE } from "../../routes";
 import { REMOVE_TRAINING_RUN_CHANNEL } from "../../channels";
-import { RunInterface } from "../../interfaces";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import CreateModel from "./CreateModel";
 import RunSelection from "./RunSelection";
 const { ipcRenderer } = window.require("electron");
@@ -17,44 +17,42 @@ export default function TrainingRuns({
   stopRun: () => void;
 }): ReactElement {
   const history = useHistory();
-  const removeTrainingRunID = useRef<number | null>();
-  const [selectedTrainingRunID, setSelectedTrainingRunID] = useState<
-    number | null
-  >(null);
+  const trainingRunToRm = useRef<TrainingRunInterface | null>(null);
+  const [selectedTrainingRun, setSelectedTrainingRun] =
+    useState<TrainingRunInterface | null>(null);
 
-  const selectTrainingRun = (ID: number) => {
-    removeTrainingRunID.current = null;
-    setSelectedTrainingRunID(ID);
+  const selectTrainingRun = (run: TrainingRunInterface) => {
+    trainingRunToRm.current = null;
+    setSelectedTrainingRun(run);
     history.push(TRAINING_RUNS_ROUTE.CREATE_MODEL.ROUTE);
   };
 
-  const removeTrainingRun = (ID: number) => {
-    if (ID === selectedTrainingRunID) {
-      removeTrainingRunID.current = ID;
-      setSelectedTrainingRunID(null);
+  const removeTrainingRun = (run: TrainingRunInterface) => {
+    if (selectTrainingRun !== null && run.ID === selectedTrainingRun.ID) {
+      trainingRunToRm.current = run;
+      setSelectedTrainingRun(null);
     } else {
-      ipcRenderer.invoke(REMOVE_TRAINING_RUN_CHANNEL.IN, ID);
+      ipcRenderer.invoke(REMOVE_TRAINING_RUN_CHANNEL.IN, run.ID);
     }
   };
 
   useEffect(() => {
-    if (removeTrainingRunID.current !== null) {
+    if (trainingRunToRm.current !== null) {
       ipcRenderer.invoke(
         REMOVE_TRAINING_RUN_CHANNEL.IN,
-        removeTrainingRunID.current
+        trainingRunToRm.current.ID
       );
-      removeTrainingRunID.current = null;
+      trainingRunToRm.current = null;
     }
-  }, [selectedTrainingRunID]);
+  }, [selectedTrainingRun]);
 
   return (
     <Switch>
       <Route
         render={() =>
-          selectedTrainingRunID && (
+          selectedTrainingRun && (
             <CreateModel
-              selectedTrainingRunID={selectedTrainingRunID}
-              setSelectedTrainingRunID={setSelectedTrainingRunID}
+              selectedTrainingRun={selectedTrainingRun}
               running={running}
               continueRun={continueRun}
               stopRun={stopRun}
