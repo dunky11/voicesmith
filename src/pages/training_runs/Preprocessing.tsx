@@ -1,33 +1,34 @@
 import React, { ReactElement } from "react";
 import { Tabs, Card, Steps, Button } from "antd";
+import { useSelector, useDispatch } from "react-redux";
+import { LoadingOutlined } from "@ant-design/icons";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../components/log_printer/LogPrinter";
-import {
-  RunInterface,
-  TrainingRunInterface,
-  UsageStatsInterface,
-} from "../../interfaces";
-import { LoadingOutlined } from "@ant-design/icons";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
+import { RootState } from "../../app/store";
 import {
   getProgressTitle,
   getStageIsRunning,
   getWouldContinueRun,
 } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
+import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
 
 export default function Preprocessing({
   onStepChange,
   trainingRun,
-  running,
-  continueRun,
-  stopRun,
 }: {
   onStepChange: (step: number) => void;
   trainingRun: TrainingRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
 }): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
+  const runManager = useSelector((state: RootState) => state.runManager);
+  const dispatch = useDispatch();
   const stageIsRunning = getStageIsRunning(
     ["preprocessing"],
     trainingRun.stage,
@@ -71,13 +72,18 @@ export default function Preprocessing({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({
-        ID: trainingRun.ID,
-        type: "trainingRun",
-        name: trainingRun.name,
-      });
+      dispatch(
+        addToQueue({
+          ID: trainingRun.ID,
+          type: "trainingRun",
+          name: trainingRun.name,
+        })
+      );
+      if (!runManager.isRunning) {
+        dispatch(setIsRunning(true));
+      }
     } else if (trainingRun.stage === "finished") {
       onStepChange(3);
     }

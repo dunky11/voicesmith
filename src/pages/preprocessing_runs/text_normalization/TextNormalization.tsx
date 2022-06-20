@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../app/store";
 import {
   RunInterface,
   TextNormalizationRunInterface,
@@ -36,15 +38,15 @@ const stepToTitle: {
 
 export default function TextNormalization({
   preprocessingRun,
-  running,
-  continueRun,
-  stopRun,
 }: {
   preprocessingRun: RunInterface | null;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
 }): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
@@ -131,12 +133,7 @@ export default function TextNormalization({
             <Route
               render={() =>
                 run !== null && (
-                  <Configuration
-                    onStepChange={onStepChange}
-                    run={run}
-                    running={running}
-                    continueRun={continueRun}
-                  />
+                  <Configuration onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[0]}
@@ -144,13 +141,7 @@ export default function TextNormalization({
             <Route
               render={() =>
                 run !== null && (
-                  <Preprocessing
-                    onStepChange={onStepChange}
-                    run={run}
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
-                  />
+                  <Preprocessing onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[1]}
@@ -158,13 +149,7 @@ export default function TextNormalization({
             <Route
               render={() =>
                 run !== null && (
-                  <ChooseSamples
-                    onStepChange={onStepChange}
-                    run={run}
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
-                  />
+                  <ChooseSamples onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[2]}

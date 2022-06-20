@@ -10,6 +10,8 @@ import {
 } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 import {
   RunInterface,
   TrainingRunConfigInterface,
@@ -28,19 +30,24 @@ import {
   FETCH_TRAINING_RUNS_CHANNEL_TYPES,
 } from "../../channels";
 import { TRAINING_RUNS_ROUTE } from "../../routes";
+import { addToQueue, setIsRunning } from "../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
 export default function Configuration({
   onStepChange,
   trainingRun,
-  running,
-  continueRun,
 }: {
   onStepChange: (current: number) => void;
   trainingRun: TrainingRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
 }): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
+  const runManager = useSelector((state: RootState) => state.runManager);
+  const dispatch = useDispatch();
   const isMounted = useRef(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
   const history = useHistory();
@@ -56,11 +63,16 @@ export default function Configuration({
       return;
     }
     if (navigateNextRef.current) {
-      continueRun({
-        ID: trainingRun.ID,
-        type: "trainingRun",
-        name: trainingRun.name,
-      });
+      dispatch(
+        addToQueue({
+          ID: trainingRun.ID,
+          type: "trainingRun",
+          name: trainingRun.name,
+        })
+      );
+      if (!runManager.isRunning) {
+        dispatch(setIsRunning(true));
+      }
       onStepChange(1);
     } else {
       notifySave();

@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect, ReactElement } from "react";
 import { Button, Form, Select } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../../app/store";
 import {
   RunInterface,
   SampleSplittingConfigInterface,
@@ -19,6 +21,7 @@ import DatasetInput from "../../../components/inputs/DatasetInput";
 import NameInput from "../../../components/inputs/NameInput";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 import { fetchNames } from "../PreprocessingRuns";
+import { addToQueue, setIsRunning } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
 const initialValues: {
@@ -35,15 +38,13 @@ const initialValues: {
 
 export default function Configuration({
   onStepChange,
-  running,
-  continueRun,
   run,
 }: {
   onStepChange: (current: number) => void;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
   run: SampleSplittingRunInterface;
 }): ReactElement {
+  const dispatch = useDispatch();
+
   const isMounted = useRef(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
   const history = useHistory();
@@ -94,11 +95,14 @@ export default function Configuration({
         }
         if (navigateNextRef.current) {
           if (run.stage === "not_started") {
-            continueRun({
-              ID: run.ID,
-              type: "sampleSplittingRun",
-              name: run.name,
-            });
+            dispatch(setIsRunning(true));
+            dispatch(
+              addToQueue({
+                ID: run.ID,
+                type: "sampleSplittingRun",
+                name: run.name,
+              })
+            );
           }
           onStepChange(1);
           navigateNextRef.current = false;

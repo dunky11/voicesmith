@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import { useSelector } from "react-redux";
 import AcousticModelFinetuning from "./AcousticModelFinetuning";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
@@ -16,6 +17,7 @@ import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import { getProgressTitle, useInterval } from "../../utils";
 import { POLL_LOGFILE_INTERVALL } from "../../config";
 import { TRAINING_RUNS_ROUTE } from "../../routes";
+import { RootState } from "../../app/store";
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
@@ -42,20 +44,19 @@ const stepToTitle: {
 
 export default function CreateModel({
   selectedTrainingRun,
-  running,
-  continueRun,
-  stopRun,
 }: {
   selectedTrainingRun: TrainingRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
 }): ReactElement {
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
   const [trainingRun, setTrainingRun] = useState<TrainingRunInterface>(null);
-
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const selectedIsRunning = running?.ID === selectedTrainingRun.ID;
 
   const pollTrainingRun = () => {
@@ -229,9 +230,7 @@ export default function CreateModel({
                 trainingRun && (
                   <Configuration
                     onStepChange={onStepChange}
-                    trainingRun={trainingRun}
-                    running={running}
-                    continueRun={continueRun}
+                    run={trainingRun}
                   ></Configuration>
                 )
               }
@@ -242,10 +241,7 @@ export default function CreateModel({
                 trainingRun && (
                   <Preprocessing
                     onStepChange={onStepChange}
-                    trainingRun={trainingRun}
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
+                    run={trainingRun}
                   />
                 )
               }
@@ -256,10 +252,7 @@ export default function CreateModel({
                 trainingRun && (
                   <AcousticModelFinetuning
                     onStepChange={onStepChange}
-                    trainingRun={trainingRun}
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
+                    run={trainingRun}
                   />
                 )
               }
@@ -270,10 +263,7 @@ export default function CreateModel({
                 trainingRun && (
                   <GroundTruthAlignment
                     onStepChange={onStepChange}
-                    trainingRun={trainingRun}
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
+                    run={trainingRun}
                   />
                 )
               }
@@ -284,10 +274,7 @@ export default function CreateModel({
                 trainingRun && (
                   <VocoderFineTuning
                     onStepChange={onStepChange}
-                    trainingRun={trainingRun}
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
+                    run={trainingRun}
                   />
                 )
               }
@@ -296,13 +283,7 @@ export default function CreateModel({
             <Route
               render={(props) =>
                 trainingRun && (
-                  <SaveModel
-                    onStepChange={onStepChange}
-                    trainingRun={trainingRun}
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
-                  />
+                  <SaveModel onStepChange={onStepChange} run={trainingRun} />
                 )
               }
               path={stepToPath[5]}

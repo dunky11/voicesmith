@@ -9,9 +9,12 @@ import {
   notification,
 } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
 import type { FilterConfirmProps } from "antd/lib/table/interface";
 import type { ColumnType } from "antd/lib/table";
 import type { InputRef } from "antd";
+import { getWouldContinueRun } from "../../../utils";
+import { RootState } from "../../../app/store";
 import {
   FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
@@ -20,7 +23,6 @@ import {
   GET_AUDIO_DATA_URL_CHANNEL,
   UPDATE_SAMPLE_SPLITTING_RUN_STAGE_CHANNEL,
 } from "../../../channels";
-import { useHistory } from "react-router-dom";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { defaultPageOptions } from "../../../config";
 import {
@@ -30,24 +32,24 @@ import {
   SampleSplittingSplitInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
-import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
-import { getStageIsRunning, getWouldContinueRun } from "../../../utils";
-import { IpcMainEvent } from "electron";
+import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
+
 const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
   onStepChange,
-  running,
-  continueRun,
   run,
-  stopRun,
 }: {
   onStepChange: (current: number) => void;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
   run: SampleSplittingRunInterface;
-  stopRun: () => void;
 }): ReactElement {
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const isMounted = useRef(false);
   const [samples, setSamples] = useState<SampleSplittingSampleInterface[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
@@ -192,7 +194,10 @@ export default function ChooseSamples({
   const onNext = () => {
     const navigateNext = () => {
       if (wouldContinueRun) {
-        continueRun({ ID: run.ID, type: "sampleSplittingRun", name: run.name });
+        dispatch(setIsRunning(true));
+        dispatch(
+          addToQueue({ ID: run.ID, type: "sampleSplittingRun", name: run.name })
+        );
       }
       onStepChange(3);
     };

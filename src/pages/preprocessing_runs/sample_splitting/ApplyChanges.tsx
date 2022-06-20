@@ -1,29 +1,33 @@
 import React, { ReactElement } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../../app/store";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
 import { RunInterface, SampleSplittingRunInterface } from "../../../interfaces";
-import { LoadingOutlined } from "@ant-design/icons";
 import {
   getProgressTitle,
   getStageIsRunning,
   getWouldContinueRun,
 } from "../../../utils";
 import RunCard from "../../../components/cards/RunCard";
+import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
 
 export default function ApplyChanges({
   onStepChange,
-  running,
-  continueRun,
   run,
-  stopRun,
 }: {
   onStepChange: (current: number) => void;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
   run: SampleSplittingRunInterface | null;
-  stopRun: () => void;
 }): ReactElement {
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const stageIsRunning = getStageIsRunning(
     ["apply_changes"],
     run.stage,
@@ -42,9 +46,12 @@ export default function ApplyChanges({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (run.stage !== "finished") {
-      continueRun({ ID: run.ID, type: "sampleSplittingRun", name: run.name });
+      dispatch(setIsRunning(true));
+      dispatch(
+        addToQueue({ ID: run.ID, type: "sampleSplittingRun", name: run.name })
+      );
     }
   };
 

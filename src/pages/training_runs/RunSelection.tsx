@@ -10,6 +10,7 @@ import {
   Typography,
 } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
+import { useSelector, useDispatch } from "react-redux";
 import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import { POLL_LOGFILE_INTERVALL, defaultPageOptions } from "../../config";
 import { useInterval, stringCompare } from "../../utils";
@@ -18,21 +19,25 @@ import {
   FETCH_TRAINING_RUNS_CHANNEL_TYPES,
   CREATE_TRAINING_RUN_CHANNEL,
 } from "../../channels";
+import { RootState } from "../../app/store";
+import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
 export default function RunSelection({
   removeTrainingRun,
   selectTrainingRun,
-  running,
-  stopRun,
-  continueRun,
 }: {
   removeTrainingRun: (run: TrainingRunInterface) => void;
   selectTrainingRun: (run: TrainingRunInterface) => void;
-  running: RunInterface | null;
-  stopRun: () => void;
-  continueRun: (run: RunInterface) => void;
 }): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
+  const runManager = useSelector((state: RootState) => state.runManager);
+  const dispatch = useDispatch();
   const isMounted = useRef(false);
   const [trainingRuns, setTrainingRuns] = useState<TrainingRunInterface[]>([]);
 
@@ -150,7 +155,15 @@ export default function RunSelection({
 
         const getRunningLink = () => {
           if (isRunning) {
-            return <a onClick={stopRun}>Pause Training</a>;
+            return (
+              <a
+                onClick={() => {
+                  dispatch(setIsRunning(false));
+                }}
+              >
+                Pause Training
+              </a>
+            );
           } else {
             if (record.stage === "finished") {
               return <></>;
@@ -158,11 +171,14 @@ export default function RunSelection({
               return (
                 <a
                   onClick={() => {
-                    continueRun({
-                      ID: record.ID,
-                      type: "trainingRun",
-                      name: record.configuration.name,
-                    });
+                    dispatch(setIsRunning(true));
+                    dispatch(
+                      addToQueue({
+                        ID: record.ID,
+                        type: "trainingRun",
+                        name: record.configuration.name,
+                      })
+                    );
                   }}
                 >
                   Start Training

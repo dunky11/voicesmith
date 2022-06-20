@@ -2,13 +2,14 @@ import React, { useState, useRef, useEffect, ReactElement } from "react";
 import { Button, Form } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
+import { useDispatch } from "react-redux";
+import { addToQueue, setIsRunning } from "../../../features/runManagerSlice";
 import {
   UPDATE_CLEANING_RUN_CONFIG_CHANNEL,
   FETCH_CLEANING_RUN_CONFIG_CHANNEL,
 } from "../../../channels";
 import { fetchNames } from "../PreprocessingRuns";
 import {
-  RunInterface,
   CleaningRunConfigInterface,
   CleaningRunInterface,
 } from "../../../interfaces";
@@ -27,14 +28,11 @@ const initialValues: CleaningRunConfigInterface = {
 export default function Configuration({
   onStepChange,
   run,
-  running,
-  continueRun,
 }: {
   onStepChange: (current: number) => void;
   run: CleaningRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
 }): ReactElement {
+  const dispatch = useDispatch();
   const isMounted = useRef(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
   const history = useHistory();
@@ -83,11 +81,14 @@ export default function Configuration({
         }
         if (navigateNextRef.current) {
           if (run.stage === "not_started") {
-            continueRun({
-              ID: run.ID,
-              type: "cleaningRun",
-              name: run.name,
-            });
+            dispatch(setIsRunning(true));
+            dispatch(
+              addToQueue({
+                ID: run.ID,
+                type: "cleaningRun",
+                name: run.name,
+              })
+            );
           }
           onStepChange(1);
           navigateNextRef.current = false;

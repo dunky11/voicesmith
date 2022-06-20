@@ -1,5 +1,8 @@
 import React, { ReactElement, useState } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../../app/store";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
 import {
@@ -7,25 +10,24 @@ import {
   RunInterface,
   UsageStatsInterface,
 } from "../../../interfaces";
-import { LoadingOutlined } from "@ant-design/icons";
 import { getStageIsRunning, getWouldContinueRun } from "../../../utils";
 import RunCard from "../../../components/cards/RunCard";
+import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
 
 export default function Configuration({
   onStepChange,
   run,
-  running,
-  continueRun,
-  stopRun,
 }: {
   onStepChange: (current: number) => void;
   run: CleaningRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
 }): ReactElement {
-  const [selectedTab, setSelectedTab] = useState<string>("Overview");
-
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const stageIsRunning = getStageIsRunning(
     ["not_started", "gen_file_embeddings", "detect_outliers"],
     run.stage,
@@ -48,9 +50,10 @@ export default function Configuration({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({ ID: run.ID, type: "cleaningRun", name: run.name });
+      dispatch(setIsRunning(true));
+      dispatch(addToQueue({ ID: run.ID, type: "cleaningRun", name: run.name }));
     } else if (
       ["choose_samples", "apply_changes", "finished"].includes(run.stage)
     ) {
@@ -98,7 +101,7 @@ export default function Configuration({
         </Button>,
       ]}
     >
-      <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
+      <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
           <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <Card title="Progress">

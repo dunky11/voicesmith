@@ -1,11 +1,12 @@
 import React, { ReactElement } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../../app/store";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
 import {
   RunInterface,
   TextNormalizationRunInterface,
-  UsageStatsInterface,
 } from "../../../interfaces";
 import { LoadingOutlined } from "@ant-design/icons";
 import {
@@ -14,20 +15,22 @@ import {
   getWouldContinueRun,
 } from "../../../utils";
 import RunCard from "../../../components/cards/RunCard";
+import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
 
 export default function Preprocessing({
   onStepChange,
   run,
-  running,
-  continueRun,
-  stopRun,
 }: {
   onStepChange: (current: number) => void;
   run: TextNormalizationRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
 }): ReactElement {
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const stageIsRunning = getStageIsRunning(
     ["not_started", "text_normalization"],
     run.stage,
@@ -50,9 +53,11 @@ export default function Preprocessing({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({ ID: run.ID, type: "textNormalizationRun", name: run.name });
+      dispatch(
+        addToQueue({ ID: run.ID, type: "textNormalizationRun", name: run.name })
+      );
     } else if (["choose_samples", "finished"].includes(run.stage)) {
       onStepChange(2);
     }

@@ -21,12 +21,8 @@ export const fetchNames = (runID: number): Promise<string[]> => {
 
 export default function PreprcocessingRuns({
   running,
-  continueRun,
-  stopRun,
 }: {
   running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
 }): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
@@ -76,9 +72,6 @@ export default function PreprcocessingRuns({
           ) : (
             <TextNormalization
               preprocessingRun={selectedPreprocessingRun}
-              running={running}
-              stopRun={stopRun}
-              continueRun={continueRun}
             ></TextNormalization>
           )
         }
@@ -92,9 +85,6 @@ export default function PreprcocessingRuns({
           ) : (
             <DatasetCleaning
               preprocessingRun={selectedPreprocessingRun}
-              continueRun={continueRun}
-              running={running}
-              stopRun={stopRun}
             ></DatasetCleaning>
           )
         }
@@ -106,9 +96,6 @@ export default function PreprcocessingRuns({
           ) : (
             <SampleSplitting
               preprocessingRun={selectedPreprocessingRun}
-              continueRun={continueRun}
-              running={running}
-              stopRun={stopRun}
             ></SampleSplitting>
           )
         }
@@ -118,9 +105,6 @@ export default function PreprcocessingRuns({
         render={() => (
           <PreprocessingRunSelection
             setSelectedPreprocessingRun={setSelectedPreprocessingRun}
-            running={running}
-            continueRun={continueRun}
-            stopRun={stopRun}
           ></PreprocessingRunSelection>
         )}
         path={PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE}

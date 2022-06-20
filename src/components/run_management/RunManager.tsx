@@ -7,7 +7,7 @@ import {
   CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL,
   CONTINUE_TRAINING_RUN_CHANNEL,
 } from "../../channels";
-import { editRunManager } from "../../features/runManagerSlice";
+import { setIsRunning, popFromQueue } from "../../features/runManagerSlice";
 import { RunInterface } from "../../interfaces";
 import { RootState } from "../../app/store";
 
@@ -22,18 +22,12 @@ export default function RunManager(): React.ReactElement {
     if (runManager.queue.length === 0) {
       return;
     }
-    const newQueue = [...runManager.queue];
-    newQueue.shift();
-    dispatch(
-      editRunManager({
-        ...runManager,
-        isRunning: newQueue.length > 0,
-        queue: newQueue,
-      })
-    );
-    if (newQueue.length > 0) {
-      continueRun(runManager.queue[0]);
+    if (runManager.queue.length > 1) {
+      continueRun(runManager.queue[1]);
+    } else {
+      dispatch(setIsRunning(false));
     }
+    dispatch(popFromQueue);
   };
 
   const continueRun = (run: RunInterface) => {

@@ -7,15 +7,7 @@ import CreateModel from "./CreateModel";
 import RunSelection from "./RunSelection";
 const { ipcRenderer } = window.require("electron");
 
-export default function TrainingRuns({
-  running,
-  continueRun,
-  stopRun,
-}: {
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
-}): ReactElement {
+export default function TrainingRuns(): ReactElement {
   const history = useHistory();
   const trainingRunToRm = useRef<TrainingRunInterface | null>(null);
   const [selectedTrainingRun, setSelectedTrainingRun] =
@@ -51,12 +43,7 @@ export default function TrainingRuns({
       <Route
         render={() =>
           selectedTrainingRun && (
-            <CreateModel
-              selectedTrainingRun={selectedTrainingRun}
-              running={running}
-              continueRun={continueRun}
-              stopRun={stopRun}
-            />
+            <CreateModel selectedTrainingRun={selectedTrainingRun} />
           )
         }
         path={TRAINING_RUNS_ROUTE.CREATE_MODEL.ROUTE}
@@ -66,9 +53,6 @@ export default function TrainingRuns({
           <RunSelection
             selectTrainingRun={selectTrainingRun}
             removeTrainingRun={removeTrainingRun}
-            running={running}
-            stopRun={stopRun}
-            continueRun={continueRun}
           />
         )}
         path={TRAINING_RUNS_ROUTE.RUN_SELECTION.ROUTE}

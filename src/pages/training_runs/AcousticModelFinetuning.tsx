@@ -1,40 +1,44 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Tabs, Card, Button } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 import AcousticStatistics from "./AcousticStatistics";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../components/log_printer/LogPrinter";
 import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
+import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
 
 export default function AcousticModelFinetuning({
   onStepChange,
-  running,
-  continueRun,
-  stopRun,
-  trainingRun,
+  run,
 }: {
   onStepChange: (step: number) => void;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
-  trainingRun: TrainingRunInterface;
+  run: TrainingRunInterface;
 }): ReactElement {
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const isMounted = useRef(false);
 
   const stageIsRunning = getStageIsRunning(
     ["acoustic_fine_tuning"],
-    trainingRun.stage,
+    run.stage,
     running,
     "trainingRun",
-    trainingRun.ID
+    run.ID
   );
   const wouldContinueRun = getWouldContinueRun(
     ["acoustic_fine_tuning"],
-    trainingRun.stage,
+    run.stage,
     running,
     "trainingRun",
-    trainingRun.ID
+    run.ID
   );
 
   const onBackClick = () => {
@@ -43,13 +47,15 @@ export default function AcousticModelFinetuning({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({
-        ID: trainingRun.ID,
-        type: "trainingRun",
-        name: trainingRun.name,
-      });
+      dispatch(
+        addToQueue({
+          ID: run.ID,
+          type: "trainingRun",
+          name: run.name,
+        })
+      );
     } else {
       onStepChange(4);
     }
@@ -79,8 +85,7 @@ export default function AcousticModelFinetuning({
         <Button
           type="primary"
           disabled={
-            trainingRun.stage === "not_started" ||
-            trainingRun.stage === "preprocessing"
+            run.stage === "not_started" || run.stage === "preprocessing"
           }
           onClick={onNextClick}
         >
@@ -92,14 +97,14 @@ export default function AcousticModelFinetuning({
         <Tabs.TabPane tab="Overview" key="overview">
           <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <AcousticStatistics
-            audioStatistics={trainingRun.audioStatistics}
-            imageStatistics={trainingRun.imageStatistics}
-            graphStatistics={trainingRun.graphStatistics}
+            audioStatistics={run.audioStatistics}
+            imageStatistics={run.imageStatistics}
+            graphStatistics={run.graphStatistics}
           ></AcousticStatistics>
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(trainingRun.ID)}
+            name={String(run.ID)}
             logFileName="acoustic_fine_tuning.txt"
             type="trainingRun"
           />

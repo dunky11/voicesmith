@@ -4,7 +4,10 @@ import { useHistory } from "react-router-dom";
 import { defaultPageOptions } from "../../../config";
 import { numberCompare, stringCompare } from "../../../utils";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
-import { NoisySampleInterface, RunInterface } from "../../../interfaces";
+import {
+  CleaningRunInterface,
+  NoisySampleInterface,
+} from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 import { REMOVE_PREPROCESSING_RUN_CHANNEL } from "../../../channels";
@@ -12,25 +15,10 @@ const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
   onStepChange,
-  selectedID,
-  running,
-  continueRun,
-  stage,
-  stopRun,
+  run,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "gen_file_embeddings"
-    | "detect_outliers"
-    | "choose_samples"
-    | "apply_changes"
-    | "finished"
-    | null;
-  stopRun: () => void;
+  run: CleaningRunInterface;
 }): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
@@ -40,17 +28,10 @@ export default function ChooseSamples({
   const [audioDataURL, setAudioDataURL] = useState<string | null>(null);
 
   const removeSamples = (sampleIDs: number[]) => {
-    if (selectedID === null) {
-      return;
-    }
-
     ipcRenderer.invoke("remove-noisy-samples", sampleIDs).then(fetchSamples);
   };
 
   const onSamplesRemove = () => {
-    if (selectedID === null) {
-      return;
-    }
     removeSamples(
       selectedRowKeys.map((selectedRowKey: string) => parseInt(selectedRowKey))
     );
@@ -61,11 +42,8 @@ export default function ChooseSamples({
   };
 
   const fetchSamples = () => {
-    if (selectedID === null) {
-      return;
-    }
     ipcRenderer
-      .invoke("fetch-noisy-samples", selectedID)
+      .invoke("fetch-noisy-samples", run.ID)
       .then((noisySamples: NoisySampleInterface[]) => {
         setNoisySamples(noisySamples);
       });
@@ -83,9 +61,6 @@ export default function ChooseSamples({
   };
 
   const onFinish = () => {
-    if (selectedID === null) {
-      return;
-    }
     ipcRenderer.removeAllListeners("finish-cleaning-run-reply");
     ipcRenderer.on(
       "finish-cleaning-run-reply",
@@ -103,7 +78,7 @@ export default function ChooseSamples({
           case "finished": {
             ipcRenderer
               .invoke(REMOVE_PREPROCESSING_RUN_CHANNEL.IN, {
-                ID: selectedID,
+                ID: run.ID,
                 type: "dSCleaning",
               })
               .then(() => {
@@ -119,7 +94,7 @@ export default function ChooseSamples({
         }
       }
     );
-    ipcRenderer.send("finish-cleaning-run", selectedID);
+    ipcRenderer.send("finish-cleaning-run", run.ID);
   };
 
   useEffect(() => {
@@ -131,11 +106,8 @@ export default function ChooseSamples({
   });
 
   useEffect(() => {
-    if (selectedID === null) {
-      return;
-    }
     fetchSamples();
-  }, [selectedID]);
+  }, []);
 
   const columns = [
     {

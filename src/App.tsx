@@ -87,7 +87,6 @@ export default function App(): ReactElement {
   const [selectedKeys, setSelectedKeys] = useState<string[]>(["models"]);
   const [selectedModel, setSelectedModel] = useState(null);
   const [navIsDisabled, setNavIsDisabled] = useState(false);
-  const [running, setRunning] = useState<RunInterface | null>(null);
   const [serverIsReady, setServerIsReady] = useState(false);
 
   const fetchAppInfo = () => {
@@ -96,96 +95,6 @@ export default function App(): ReactElement {
       .then((appInfo: AppInfoInterface) => {
         dispatch(editAppInfo(appInfo));
       });
-  };
-
-  const continueRun = (run: RunInterface) => {
-    if (running !== null) {
-      notification["warning"]({
-        message: `Another run is currently active, please stop it before starting this one.`,
-        placement: "top",
-      });
-      return;
-    }
-    ipcRenderer.removeAllListeners(CONTINUE_TRAINING_RUN_CHANNEL.REPLY);
-    ipcRenderer.on(
-      CONTINUE_TRAINING_RUN_CHANNEL.REPLY,
-      (
-        _: any,
-        message: {
-          type: string;
-          errorMessage?: string;
-        }
-      ) => {
-        if (!isMounted.current) {
-          return;
-        }
-
-        switch (message.type) {
-          case "notEnoughSpeakers": {
-            notification["error"]({
-              message: "Couldn't Start Run",
-              description:
-                "This runs dataset contains only one speaker, but it has to have at least two speakers in order to detect potentially noisy samples.",
-              placement: "top",
-            });
-            return;
-          }
-          case "notEnoughSamples":
-            notification["error"]({
-              message: "Couldn't Start Run",
-              description:
-                "This runs dataset contains no samples. Please attach samples to the speakers in your dataset and try again.",
-              placement: "top",
-            });
-            return;
-          case "startedRun":
-            setRunning(run);
-            return;
-          case "finishedRun":
-            setRunning(null);
-            return;
-          case "error":
-            setRunning(null);
-            notification["error"]({
-              message: "Oops, an error occured, check logs for more info ...",
-              description: message.errorMessage,
-              placement: "top",
-            });
-            return;
-          default:
-            throw new Error(
-              `No branch selected in switch-statement, '${message.type}' is not a valid case ...`
-            );
-        }
-      }
-    );
-    switch (run.type) {
-      case "trainingRun":
-        ipcRenderer.send(CONTINUE_TRAINING_RUN_CHANNEL.IN, run.ID);
-        break;
-      case "cleaningRun":
-        ipcRenderer.send(CONTINUE_CLEANING_RUN_CHANNEL.IN, run.ID);
-        break;
-      case "textNormalizationRun":
-        ipcRenderer.send(CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL.IN, run.ID);
-        break;
-      case "sampleSplittingRun":
-        ipcRenderer.send(CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL.IN, run.ID);
-        break;
-      default:
-        throw new Error(
-          `No branch selected in switch-statement, '${run.type}' is not a valid case ...`
-        );
-    }
-  };
-
-  const stopRun = () => {
-    ipcRenderer.invoke(STOP_RUN_CHANNEL.IN).then(() => {
-      if (!isMounted.current) {
-        return;
-      }
-      setRunning(null);
-    });
   };
 
   const onModelSelect = (model: any) => {
@@ -357,13 +266,7 @@ export default function App(): ReactElement {
                 path={MODELS_ROUTE.ROUTE}
               ></Route>
               <Route
-                render={() => (
-                  <TrainingRuns
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
-                  ></TrainingRuns>
-                )}
+                render={() => <TrainingRuns></TrainingRuns>}
                 path={TRAINING_RUNS_ROUTE.ROUTE}
               ></Route>
               <Route
@@ -371,21 +274,12 @@ export default function App(): ReactElement {
                 path={DATASETS_ROUTE.ROUTE}
               ></Route>
               <Route
-                render={() => (
-                  <PreprocessingRuns
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
-                  ></PreprocessingRuns>
-                )}
+                render={() => <PreprocessingRuns></PreprocessingRuns>}
                 path={PREPROCESSING_RUNS_ROUTE.ROUTE}
               ></Route>
               <Route
                 render={() => (
-                  <Settings
-                    running={running}
-                    setNavIsDisabled={setNavIsDisabled}
-                  ></Settings>
+                  <Settings setNavIsDisabled={setNavIsDisabled}></Settings>
                 )}
                 path={SETTINGS_ROUTE.ROUTE}
               ></Route>

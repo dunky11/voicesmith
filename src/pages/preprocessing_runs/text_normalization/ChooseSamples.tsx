@@ -16,7 +16,6 @@ import { useHistory } from "react-router-dom";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { defaultPageOptions } from "../../../config";
 import {
-  RunInterface,
   TextNormalizationRunInterface,
   TextNormalizationSampleInterface,
 } from "../../../interfaces";
@@ -27,15 +26,9 @@ const { ipcRenderer } = window.require("electron");
 export default function ChooseSamples({
   onStepChange,
   run,
-  running,
-  continueRun,
-  stopRun,
 }: {
   onStepChange: (current: number) => void;
   run: TextNormalizationRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
 }): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();

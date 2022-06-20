@@ -17,6 +17,8 @@ import {
   FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
 } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
+import { useDispatch } from "react-redux";
+import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
 const initialValues: TextNormalizationConfigInterface = {
@@ -28,14 +30,11 @@ const initialValues: TextNormalizationConfigInterface = {
 export default function Configuration({
   onStepChange,
   run,
-  running,
-  continueRun,
 }: {
   onStepChange: (current: number) => void;
   run: TextNormalizationRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
 }): ReactElement {
+  const dispatch = useDispatch();
   const isMounted = useRef(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
   const history = useHistory();
@@ -83,11 +82,14 @@ export default function Configuration({
         }
         if (navigateNextRef.current) {
           if (run.stage === "not_started") {
-            continueRun({
-              ID: run.ID,
-              type: "textNormalizationRun",
-              name: run.name,
-            });
+            dispatch(setIsRunning(true));
+            dispatch(
+              addToQueue({
+                ID: run.ID,
+                type: "textNormalizationRun",
+                name: run.name,
+              })
+            );
           }
           onStepChange(1);
           navigateNextRef.current = false;

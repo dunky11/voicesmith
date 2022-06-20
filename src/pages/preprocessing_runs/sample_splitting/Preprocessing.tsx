@@ -1,5 +1,7 @@
 import React, { ReactElement, useState } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../../app/store";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
 import { RunInterface, SampleSplittingRunInterface } from "../../../interfaces";
@@ -10,20 +12,22 @@ import {
   getWouldContinueRun,
 } from "../../../utils";
 import RunCard from "../../../components/cards/RunCard";
+import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
 
 export default function Preprocessing({
   onStepChange,
-  running,
-  continueRun,
   run,
-  stopRun,
 }: {
   onStepChange: (current: number) => void;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
   run: SampleSplittingRunInterface;
-  stopRun: () => void;
 }): ReactElement {
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const stageIsRunning = getStageIsRunning(
     [
       "not_started",
@@ -58,9 +62,11 @@ export default function Preprocessing({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({ ID: run.ID, type: "sampleSplittingRun", name: run.name });
+      dispatch(
+        addToQueue({ ID: run.ID, type: "sampleSplittingRun", name: run.name })
+      );
     } else if (["choose_samples", "finished"].includes(run.stage)) {
       onStepChange(2);
     }
