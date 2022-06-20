@@ -21,14 +21,12 @@ export default function Preprocessing({
   running,
   continueRun,
   stopRun,
-  usageStats,
 }: {
   onStepChange: (step: number) => void;
   trainingRun: TrainingRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-  usageStats: UsageStatsInterface[];
 }): ReactElement {
   const stageIsRunning = getStageIsRunning(
     ["preprocessing"],
@@ -108,10 +106,7 @@ export default function Preprocessing({
     >
       <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step

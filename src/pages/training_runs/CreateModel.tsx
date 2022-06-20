@@ -12,13 +12,9 @@ import {
   FETCH_TRAINING_RUNS_CHANNEL,
   FETCH_TRAINING_RUNS_CHANNEL_TYPES,
 } from "../../channels";
-import {
-  RunInterface,
-  TrainingRunInterface,
-  UsageStatsInterface,
-} from "../../interfaces";
-import { useInterval, getProgressTitle } from "../../utils";
-import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../config";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
+import { getProgressTitle, useInterval } from "../../utils";
+import { POLL_LOGFILE_INTERVALL } from "../../config";
 import { TRAINING_RUNS_ROUTE } from "../../routes";
 const { ipcRenderer } = window.require("electron");
 
@@ -59,15 +55,13 @@ export default function CreateModel({
   const [current, setCurrent] = useState(0);
   const history = useHistory();
   const [trainingRun, setTrainingRun] = useState<TrainingRunInterface>(null);
-  const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
 
   const selectedIsRunning = running?.ID === selectedTrainingRun.ID;
 
   const pollTrainingRun = () => {
     const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
-      withStatistics: false,
+      withStatistics: true,
       ID: selectedTrainingRun.ID,
-      stage: null,
     };
     ipcRenderer
       .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN, args)
@@ -75,37 +69,8 @@ export default function CreateModel({
         if (!isMounted.current) {
           return;
         }
-        console.log(trainingRuns);
-        console.log(trainingRuns);
-        console.log(trainingRuns);
-
         setTrainingRun(trainingRuns[0]);
       });
-  };
-
-  const pollUsageInfo = () => {
-    const ajax = new XMLHttpRequest();
-    ajax.open("GET", `${SERVER_URL}/get-system-info`);
-    ajax.onload = () => {
-      if (!isMounted.current) {
-        return;
-      }
-      const response: UsageStatsInterface = JSON.parse(ajax.responseText);
-      if (usageStats.length >= 100) {
-        usageStats.shift();
-      }
-      setUsageStats([
-        ...usageStats,
-        {
-          cpuUsage: response["cpuUsage"],
-          diskUsed: parseFloat(response["diskUsed"].toFixed(2)),
-          totalDisk: parseFloat(response["totalDisk"].toFixed(2)),
-          ramUsed: parseFloat(response["ramUsed"].toFixed(2)),
-          totalRam: parseFloat(response["totalRam"].toFixed(2)),
-        },
-      ]);
-    };
-    ajax.send();
   };
 
   const onStepChange = (current: number) => {
@@ -127,8 +92,6 @@ export default function CreateModel({
   useInterval(() => {
     pollTrainingRun();
   }, POLL_LOGFILE_INTERVALL);
-
-  useInterval(pollUsageInfo, 1000);
 
   /**
    * TODO Display training run name in Breadcrumb like it is done in preprocessing runs
@@ -283,7 +246,6 @@ export default function CreateModel({
                     running={running}
                     continueRun={continueRun}
                     stopRun={stopRun}
-                    usageStats={usageStats}
                   />
                 )
               }
@@ -298,7 +260,6 @@ export default function CreateModel({
                     running={running}
                     continueRun={continueRun}
                     stopRun={stopRun}
-                    usageStats={usageStats}
                   />
                 )
               }
@@ -313,7 +274,6 @@ export default function CreateModel({
                     running={running}
                     continueRun={continueRun}
                     stopRun={stopRun}
-                    usageStats={usageStats}
                   />
                 )
               }
@@ -328,7 +288,6 @@ export default function CreateModel({
                     running={running}
                     continueRun={continueRun}
                     stopRun={stopRun}
-                    usageStats={usageStats}
                   />
                 )
               }
@@ -343,7 +302,6 @@ export default function CreateModel({
                     running={running}
                     continueRun={continueRun}
                     stopRun={stopRun}
-                    usageStats={usageStats}
                   />
                 )
               }

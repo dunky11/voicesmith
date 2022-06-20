@@ -16,14 +16,12 @@ export default function Configuration({
   run,
   running,
   continueRun,
-  usageStats,
   stopRun,
 }: {
   onStepChange: (current: number) => void;
   run: CleaningRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  usageStats: UsageStatsInterface[];
   stopRun: () => void;
 }): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
@@ -102,10 +100,7 @@ export default function Configuration({
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step

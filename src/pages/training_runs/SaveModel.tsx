@@ -4,27 +4,21 @@ import { LoadingOutlined } from "@ant-design/icons";
 import RunCard from "../../components/cards/RunCard";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
 import LogPrinter from "../../components/log_printer/LogPrinter";
-import {
-  RunInterface,
-  TrainingRunInterface,
-  UsageStatsInterface,
-} from "../../interfaces";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 
-export default function VocoderFineTuning({
+export default function SaveModel({
   onStepChange,
   trainingRun,
   running,
   continueRun,
   stopRun,
-  usageStats,
 }: {
   onStepChange: (step: number) => void;
   trainingRun: TrainingRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-  usageStats: UsageStatsInterface[];
 }): ReactElement {
   const stageIsRunning = getStageIsRunning(
     ["save_model"],
@@ -81,7 +75,7 @@ export default function VocoderFineTuning({
     >
       <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow usageStats={usageStats}></UsageStatsRow>
+          <UsageStatsRow></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={0}>
               <Steps.Step

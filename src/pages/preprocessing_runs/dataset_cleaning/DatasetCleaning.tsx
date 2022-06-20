@@ -2,13 +2,9 @@ import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import {
-  RunInterface,
-  CleaningRunInterface,
-  UsageStatsInterface,
-} from "../../../interfaces";
+import { RunInterface, CleaningRunInterface } from "../../../interfaces";
 import { useInterval } from "../../../utils";
-import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
+import { POLL_LOGFILE_INTERVALL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
@@ -47,7 +43,6 @@ export default function DatasetCleaning({
   const [current, setCurrent] = useState(0);
   const history = useHistory();
   const [run, setRun] = useState<CleaningRunInterface | null>(null);
-  const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
 
   const selectedIsRunning =
     running !== null &&
@@ -68,31 +63,6 @@ export default function DatasetCleaning({
       });
   };
 
-  const pollUsageInfo = () => {
-    const ajax = new XMLHttpRequest();
-    ajax.open("GET", `${SERVER_URL}/get-system-info`);
-    ajax.onload = () => {
-      if (!isMounted.current) {
-        return;
-      }
-      const response: UsageStatsInterface = JSON.parse(ajax.responseText);
-      if (usageStats.length >= 100) {
-        usageStats.shift();
-      }
-      setUsageStats([
-        ...usageStats,
-        {
-          cpuUsage: response["cpuUsage"],
-          diskUsed: parseFloat(response["diskUsed"].toFixed(2)),
-          totalDisk: parseFloat(response["totalDisk"].toFixed(2)),
-          ramUsed: parseFloat(response["ramUsed"].toFixed(2)),
-          totalRam: parseFloat(response["totalRam"].toFixed(2)),
-        },
-      ]);
-    };
-    ajax.send();
-  };
-
   const onStepChange = (current: number) => {
     history.push(stepToPath[current]);
     setCurrent(current);
@@ -110,7 +80,6 @@ export default function DatasetCleaning({
   }, []);
 
   useInterval(fetchCleaningRun, POLL_LOGFILE_INTERVALL);
-  useInterval(pollUsageInfo, 1000);
 
   return (
     <>
@@ -173,7 +142,6 @@ export default function DatasetCleaning({
                     run={run}
                     running={running}
                     continueRun={continueRun}
-                    usageStats={usageStats}
                     stopRun={stopRun}
                   />
                 )

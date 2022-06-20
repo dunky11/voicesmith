@@ -2,11 +2,7 @@ import React, { ReactElement, useState } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
-import {
-  RunInterface,
-  SampleSplittingRunInterface,
-  UsageStatsInterface,
-} from "../../../interfaces";
+import { RunInterface, SampleSplittingRunInterface } from "../../../interfaces";
 import { LoadingOutlined } from "@ant-design/icons";
 import {
   getProgressTitle,
@@ -20,14 +16,12 @@ export default function Preprocessing({
   running,
   continueRun,
   run,
-  usageStats,
   stopRun,
 }: {
   onStepChange: (current: number) => void;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   run: SampleSplittingRunInterface;
-  usageStats: UsageStatsInterface[];
   stopRun: () => void;
 }): ReactElement {
   const stageIsRunning = getStageIsRunning(
@@ -120,10 +114,7 @@ export default function Preprocessing({
     >
       <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step

@@ -5,11 +5,7 @@ import RunCard from "../../components/cards/RunCard";
 import LogPrinter from "../../components/log_printer/LogPrinter";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
-import {
-  RunInterface,
-  TrainingRunInterface,
-  UsageStatsInterface,
-} from "../../interfaces";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
 
 export default function GroundTruthAlignment({
   onStepChange,
@@ -17,15 +13,12 @@ export default function GroundTruthAlignment({
   running,
   continueRun,
   stopRun,
-  usageStats,
 }: {
   onStepChange: (step: number) => void;
   trainingRun: TrainingRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-
-  usageStats: UsageStatsInterface[];
 }): ReactElement {
   const [selectedTab, setSelectedTab] = useState<string>("Overview");
 
@@ -85,10 +78,7 @@ export default function GroundTruthAlignment({
     >
       <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={0}>
               <Steps.Step

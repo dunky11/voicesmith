@@ -1,23 +1,11 @@
-import React, { useEffect, useState, useRef, ReactElement } from "react";
-import { Tabs, Card, Button } from "antd";
+import React, { useEffect, useRef, ReactElement } from "react";
+import { Tabs, Button } from "antd";
 import VocoderStatistics from "./VocoderStatistics";
 import LogPrinter from "../../components/log_printer/LogPrinter";
-import {
-  GraphStatisticInterface,
-  ImageStatisticInterface,
-  AudioStatisticInterface,
-  UsageStatsInterface,
-  RunInterface,
-  TrainingRunInterface,
-} from "../../interfaces";
-import {
-  useInterval,
-  getStageIsRunning,
-  getWouldContinueRun,
-} from "../../utils";
-import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
+import { getStageIsRunning, getWouldContinueRun } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
-const { ipcRenderer } = window.require("electron");
+import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 
 export default function VocoderFineTuning({
   onStepChange,
@@ -25,26 +13,13 @@ export default function VocoderFineTuning({
   running,
   continueRun,
   stopRun,
-  usageStats,
 }: {
   onStepChange: (step: number) => void;
   trainingRun: TrainingRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
   stopRun: () => void;
-  usageStats: UsageStatsInterface[];
 }): ReactElement {
-  const [selectedTab, setSelectedTab] = useState<string>("Overview");
-
-  const [graphStatistics, setGraphStatistics] = useState<
-    GraphStatisticInterface[]
-  >([]);
-  const [imageStatistics, setImageStatistics] = useState<
-    ImageStatisticInterface[]
-  >([]);
-  const [audioStatistics, setAudioStatistics] = useState<
-    AudioStatisticInterface[]
-  >([]);
   const isMounted = useRef(false);
 
   const stageIsRunning = getStageIsRunning(
@@ -61,25 +36,6 @@ export default function VocoderFineTuning({
     "trainingRun",
     trainingRun.ID
   );
-
-  const pollStatistics = () => {
-    ipcRenderer
-      .invoke("fetch-training-run-statistics", trainingRun.ID, "vocoder")
-      .then(
-        (statistics: {
-          graphStatistics: GraphStatisticInterface[];
-          imageStatistics: ImageStatisticInterface[];
-          audioStatistics: AudioStatisticInterface[];
-        }) => {
-          if (!isMounted.current) {
-            return;
-          }
-          setGraphStatistics(statistics.graphStatistics);
-          setImageStatistics(statistics.imageStatistics);
-          setAudioStatistics(statistics.audioStatistics);
-        }
-      );
-  };
 
   const onBackClick = () => {
     onStepChange(4);
@@ -109,8 +65,6 @@ export default function VocoderFineTuning({
     return "Next";
   };
 
-  useInterval(pollStatistics, 5000);
-
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -127,16 +81,13 @@ export default function VocoderFineTuning({
         </Button>,
       ]}
     >
-      <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
+      <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <VocoderStatistics
-            audioStatistics={audioStatistics}
-            imageStatistics={imageStatistics}
-            graphStatistics={graphStatistics}
+            audioStatistics={trainingRun.audioStatistics}
+            imageStatistics={trainingRun.imageStatistics}
+            graphStatistics={trainingRun.graphStatistics}
           ></VocoderStatistics>
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">

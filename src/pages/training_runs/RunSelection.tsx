@@ -54,7 +54,6 @@ export default function RunSelection({
     const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
       withStatistics: false,
       ID: null,
-      stage: null,
     };
     ipcRenderer
       .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN, args)

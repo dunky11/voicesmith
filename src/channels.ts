@@ -76,7 +76,6 @@ export interface FETCH_TRAINING_RUNS_CHANNEL_TYPES {
   IN: {
     ARGS: {
       withStatistics: boolean;
-      stage: string | null;
       ID: number | null;
     };
     OUT: TrainingRunInterface[];

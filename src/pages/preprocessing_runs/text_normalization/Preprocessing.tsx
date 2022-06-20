@@ -20,14 +20,12 @@ export default function Preprocessing({
   run,
   running,
   continueRun,
-  usageStats,
   stopRun,
 }: {
   onStepChange: (current: number) => void;
   run: TextNormalizationRunInterface;
   running: RunInterface | null;
   continueRun: (run: RunInterface) => void;
-  usageStats: UsageStatsInterface[];
   stopRun: () => void;
 }): ReactElement {
   const stageIsRunning = getStageIsRunning(
@@ -83,10 +81,7 @@ export default function Preprocessing({
     >
       <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step
