@@ -11,7 +11,10 @@ import { POLL_LOGFILE_INTERVALL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
-import { FETCH_TEXT_NORMALIZATION_RUN_CHANNEL } from "../../../channels";
+import {
+  FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL,
+  FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES,
+} from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
 
@@ -56,13 +59,16 @@ export default function TextNormalization({
     if (preprocessingRun === null) {
       return;
     }
+    const args: FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ID: preprocessingRun.ID,
+    };
     ipcRenderer
-      .invoke(FETCH_TEXT_NORMALIZATION_RUN_CHANNEL.IN, preprocessingRun.ID)
-      .then((run: TextNormalizationRunInterface) => {
+      .invoke(FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL.IN, args)
+      .then((run: FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
-        setRun(run);
+        setRun(run[0]);
       });
   };
 

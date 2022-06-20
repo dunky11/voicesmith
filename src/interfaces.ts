@@ -224,6 +224,7 @@ export interface SampleSplittingRunInterface extends RunInterface {
 }
 
 export interface SampleSplittingConfigInterface {
+  name: string;
   device: "CPU" | "GPU";
   datasetID: number | null;
   datasetName: string | null;

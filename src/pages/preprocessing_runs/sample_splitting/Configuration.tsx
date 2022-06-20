@@ -2,12 +2,17 @@ import React, { useState, useRef, useEffect, ReactElement } from "react";
 import { Button, Form, Select } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
-import { RunInterface, SampleSplittingRunInterface } from "../../../interfaces";
+import {
+  RunInterface,
+  SampleSplittingConfigInterface,
+  SampleSplittingRunInterface,
+} from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
 import { notifySave } from "../../../utils";
 import {
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL,
   FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL,
+  UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES,
 } from "../../../channels";
 import DeviceInput from "../../../components/inputs/DeviceInput";
 import DatasetInput from "../../../components/inputs/DatasetInput";
@@ -43,7 +48,7 @@ export default function Configuration({
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
-  const formRef = useRef<FormInstance | null>();
+  const formRef = useRef<FormInstance<SampleSplittingConfigInterface> | null>();
 
   const onBackClick = () => {
     history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
@@ -73,14 +78,16 @@ export default function Configuration({
   };
 
   const onFinish = () => {
-    const values: SampleSplittingRunInterface = {
-      ...initialValues,
-      ...formRef.current?.getFieldsValue(),
-      ID: run.ID,
+    const args: UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ...run,
+      configuration: {
+        ...initialValues,
+        ...formRef.current?.getFieldsValue(),
+      },
     };
 
     ipcRenderer
-      .invoke(UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL.IN, values)
+      .invoke(UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL.IN, args)
       .then(() => {
         if (!isMounted.current) {
           return;
@@ -141,7 +148,7 @@ export default function Configuration({
 
   return (
     <RunCard
-      title="Configure the Text Normalization Run"
+      title="Configure the Sample Splitting Run"
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
         <Button disabled={disableDefaults} onClick={onDefaults}>

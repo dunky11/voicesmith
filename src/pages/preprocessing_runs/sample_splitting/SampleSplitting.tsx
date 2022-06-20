@@ -10,7 +10,10 @@ import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
 import ApplyChanges from "./ApplyChanges";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
-import { FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL } from "../../../channels";
+import {
+  FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL,
+  FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES,
+} from "../../../channels";
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
@@ -53,9 +56,12 @@ export default function SampleSplitting({
     running.ID === preprocessingRun.ID;
 
   const fetchRun = () => {
+    const args: FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ID: preprocessingRun.ID,
+    };
     ipcRenderer
-      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, preprocessingRun.ID)
-      .then((run: SampleSplittingRunInterface[]) => {
+      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, args)
+      .then((run: FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }

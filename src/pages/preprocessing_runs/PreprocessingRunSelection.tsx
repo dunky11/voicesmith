@@ -17,6 +17,7 @@ import {
   CREATE_PREPROCESSING_RUN_CHANNEL,
   EDIT_PREPROCESSING_RUN_NAME_CHANNEL,
   FETCH_PREPROCESSING_RUNS_CHANNEL,
+  FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES,
   REMOVE_PREPROCESSING_RUN_CHANNEL,
 } from "../../channels";
 const { ipcRenderer } = window.require("electron");
@@ -90,7 +91,7 @@ export default function PreprocessingRunSelection({
   const fetchPreprocessingRuns = () => {
     ipcRenderer
       .invoke(FETCH_PREPROCESSING_RUNS_CHANNEL.IN)
-      .then((ds: PreprocessingRunType[]) => {
+      .then((ds: FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
@@ -279,8 +280,6 @@ export default function PreprocessingRunSelection({
       isMounted.current = false;
     };
   }, []);
-
-  console.log(preprocessingRuns);
 
   return (
     <>

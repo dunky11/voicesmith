@@ -8,7 +8,10 @@ import { POLL_LOGFILE_INTERVALL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
-import { FETCH_CLEANING_RUN_CHANNEL } from "../../../channels";
+import {
+  FETCH_CLEANING_RUNS_CHANNEL,
+  FETCH_CLEANING_RUNS_CHANNEL_TYPES,
+} from "../../../channels";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -53,13 +56,16 @@ export default function DatasetCleaning({
     if (preprocessingRun === null) {
       return;
     }
+    const args: FETCH_CLEANING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ID: preprocessingRun.ID,
+    };
     ipcRenderer
-      .invoke(FETCH_CLEANING_RUN_CHANNEL.IN, preprocessingRun.ID)
-      .then((run: CleaningRunInterface) => {
+      .invoke(FETCH_CLEANING_RUNS_CHANNEL.IN, args)
+      .then((runs: FETCH_CLEANING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
-        setRun(run);
+        setRun(runs[0]);
       });
   };
 
