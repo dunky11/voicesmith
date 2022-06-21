@@ -32,7 +32,7 @@ import {
   SampleSplittingSplitInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
-import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
+import { addToQueue } from "../../../features/runManagerSlice";
 
 const { ipcRenderer } = window.require("electron");
 

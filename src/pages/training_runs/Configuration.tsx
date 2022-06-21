@@ -46,7 +46,6 @@ export default function Configuration({
     }
     return state.runManager.queue[0];
   });
-  const runManager = useSelector((state: RootState) => state.runManager);
   const dispatch = useDispatch();
   const isMounted = useRef(false);
   const [configIsLoaded, setConfigIsLoaded] = useState(false);

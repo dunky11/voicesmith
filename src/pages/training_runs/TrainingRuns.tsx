@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, ReactElement } from "react";
 import { Route, Switch, useHistory } from "react-router-dom";
 import { TRAINING_RUNS_ROUTE } from "../../routes";
 import { REMOVE_TRAINING_RUN_CHANNEL } from "../../channels";
-import { RunInterface, TrainingRunInterface } from "../../interfaces";
+import { TrainingRunInterface } from "../../interfaces";
 import CreateModel from "./CreateModel";
 import RunSelection from "./RunSelection";
 const { ipcRenderer } = window.require("electron");
@@ -20,6 +20,7 @@ export default function TrainingRuns(): ReactElement {
   };
 
   const removeTrainingRun = (run: TrainingRunInterface) => {
+    console.log(run.ID === selectedTrainingRun.ID);
     if (selectTrainingRun !== null && run.ID === selectedTrainingRun.ID) {
       trainingRunToRm.current = run;
       setSelectedTrainingRun(null);

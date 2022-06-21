@@ -240,7 +240,7 @@ def gen_alignments_stage(
         align(
             environment_name=environment_name,
             in_path=str(Path(data_path) / "raw_data" / lang),
-            lexicon_path=str(Path(data_path) / "data" / f"{lang}.txt"),
+            lexicon_path=str(Path(data_path) / "data" / "vocabs" / f"{lang}.txt"),
             out_path=(str(Path(data_path) / "data" / "textgrid")),
             n_workers=p_config.workers,
             lang=lang,

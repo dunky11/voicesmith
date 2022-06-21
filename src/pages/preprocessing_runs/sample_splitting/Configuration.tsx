@@ -2,10 +2,8 @@ import React, { useState, useRef, useEffect, ReactElement } from "react";
 import { Button, Form, Select } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../../app/store";
+import { useDispatch } from "react-redux";
 import {
-  RunInterface,
   SampleSplittingConfigInterface,
   SampleSplittingRunInterface,
 } from "../../../interfaces";
@@ -95,7 +93,6 @@ export default function Configuration({
         }
         if (navigateNextRef.current) {
           if (run.stage === "not_started") {
-            dispatch(setIsRunning(true));
             dispatch(
               addToQueue({
                 ID: run.ID,
