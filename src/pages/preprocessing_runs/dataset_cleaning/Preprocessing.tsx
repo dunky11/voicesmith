@@ -52,7 +52,6 @@ export default function Configuration({
     if (stageIsRunning) {
       dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      dispatch(setIsRunning(true));
       dispatch(addToQueue({ ID: run.ID, type: "cleaningRun", name: run.name }));
     } else if (
       ["choose_samples", "apply_changes", "finished"].includes(run.stage)

@@ -81,7 +81,6 @@ export default function Configuration({
         }
         if (navigateNextRef.current) {
           if (run.stage === "not_started") {
-            dispatch(setIsRunning(true));
             dispatch(
               addToQueue({
                 ID: run.ID,

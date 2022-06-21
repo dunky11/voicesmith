@@ -48,7 +48,6 @@ export default function ApplyChanges({
     if (stageIsRunning) {
       dispatch(setIsRunning(false));
     } else if (run.stage !== "finished") {
-      dispatch(setIsRunning(true));
       dispatch(
         addToQueue({ ID: run.ID, type: "sampleSplittingRun", name: run.name })
       );

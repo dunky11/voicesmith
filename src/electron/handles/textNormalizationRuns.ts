@@ -74,6 +74,7 @@ export const fetchTextNormalizationRuns = (
         datasetID: el.datasetID,
         datasetName: el.datasetName,
       },
+      canStart: el.datasetID !== null,
     };
     return run;
   });

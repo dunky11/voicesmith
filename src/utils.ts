@@ -162,3 +162,15 @@ export const pingServer = (
   };
   ajax.send();
 };
+
+export const isInQueue = (
+  run: RunInterface,
+  queue: RunInterface[]
+): boolean => {
+  for (let i = 0; i < queue.length; i++) {
+    if (run.type === queue[i].type && run.ID === queue[i].ID) {
+      return true;
+    }
+  }
+  return false;
+};

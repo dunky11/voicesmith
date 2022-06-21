@@ -14,7 +14,7 @@ import {
 } from "antd";
 import { defaultPageOptions } from "../../config";
 import { RunInterface, PreprocessingRunType } from "../../interfaces";
-import { stringCompare } from "../../utils";
+import { stringCompare, isInQueue } from "../../utils";
 import {
   CREATE_PREPROCESSING_RUN_CHANNEL,
   EDIT_PREPROCESSING_RUN_NAME_CHANNEL,
@@ -57,6 +57,9 @@ export default function PreprocessingRunSelection({
       return null;
     }
     return state.runManager.queue[0];
+  });
+  const queue = useSelector((state: RootState) => {
+    return state.runManager.queue;
   });
   const [isDisabled, setIsDisabled] = useState(false);
 
@@ -170,7 +173,7 @@ export default function PreprocessingRunSelection({
     },
     {
       title: "State",
-      key: "action",
+      key: "state",
       sorter: {
         compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
           stringCompare(
@@ -213,46 +216,32 @@ export default function PreprocessingRunSelection({
       title: "",
       key: "action",
       render: (text: any, record: PreprocessingRunType) => {
-        const isRunning = getIsRunning(record);
-
+        const isIn = isInQueue(record, queue);
         const getRunningLink = () => {
-          if (isRunning) {
+          if (record.stage === "finished") {
+            return <></>;
+          } else {
+            const text = isIn ? "Continue Run" : "Add To Queue";
+            const isDisabled =
+              isIn || record.stage === "choose_samples" || !record.canStart;
+            if (isDisabled) {
+              return <Typography.Text disabled>{text}</Typography.Text>;
+            }
             return (
               <a
                 onClick={() => {
-                  dispatch(setIsRunning(false));
+                  dispatch(
+                    addToQueue({
+                      ID: record.ID,
+                      type: record.type,
+                      name: record.name,
+                    })
+                  );
                 }}
               >
-                Pause Training
+                {text}
               </a>
             );
-          } else {
-            if (record.stage === "finished") {
-              return <></>;
-            } else {
-              // TODO find out why record.stage === "finished" not working
-              if (
-                record.stage === "choose_samples" ||
-                record.stage === "not_started"
-              ) {
-                return <Typography.Text disabled>Continue Run</Typography.Text>;
-              }
-              return (
-                <a
-                  onClick={() => {
-                    dispatch(
-                      addToQueue({
-                        ID: record.ID,
-                        type: record.type,
-                        name: record.name,
-                      })
-                    );
-                  }}
-                >
-                  Continue Run
-                </a>
-              );
-            }
           }
         };
 
@@ -277,7 +266,7 @@ export default function PreprocessingRunSelection({
               }}
               okText="Yes"
               cancelText="No"
-              disabled={isDisabled}
+              disabled={isDisabled || isIn}
             >
               <a href="#">Delete</a>
             </Popconfirm>

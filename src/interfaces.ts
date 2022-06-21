@@ -127,6 +127,7 @@ export interface TrainingRunInterface extends RunInterface {
   acousticFineTuningProgress: number;
   groundTruthAlignmentProgress: number;
   vocoderFineTuningProgress: number;
+  canStart: boolean;
 }
 
 export interface TrainingRunConfigInterface {
@@ -162,6 +163,7 @@ export interface CleaningRunInterface extends RunInterface {
     | "apply_changes"
     | "finished";
   configuration: CleaningRunConfigInterface;
+  canStart: boolean;
 }
 
 export interface CleaningRunConfigInterface {
@@ -195,6 +197,7 @@ export interface TextNormalizationRunInterface extends RunInterface {
   stage: "not_started" | "text_normalization" | "choose_samples" | "finished";
   textNormalizationProgress: number;
   configuration: TextNormalizationRunConfigInterface;
+  canStart: boolean;
 }
 
 export interface TextNormalizationRunConfigInterface {
@@ -221,6 +224,7 @@ export interface SampleSplittingRunInterface extends RunInterface {
   creatingSplitsProgress: number;
   applyingChangesProgress: number;
   configuration: SampleSplittingConfigInterface;
+  canStart: boolean;
 }
 
 export interface SampleSplittingConfigInterface {

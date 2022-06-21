@@ -36,7 +36,6 @@ export default function RunSelection({
     }
     return state.runManager.queue[0];
   });
-  const runManager = useSelector((state: RootState) => state.runManager);
   const dispatch = useDispatch();
   const isMounted = useRef(false);
   const [trainingRuns, setTrainingRuns] = useState<TrainingRunInterface[]>([]);
@@ -171,7 +170,6 @@ export default function RunSelection({
               return (
                 <a
                   onClick={() => {
-                    dispatch(setIsRunning(true));
                     dispatch(
                       addToQueue({
                         ID: record.ID,

@@ -69,6 +69,7 @@ export const fetchSampleSplittingRuns = (
         datasetName: el.datasetName,
         device: el.device,
       },
+      canStart: el.datasetID !== null,
     };
     return run;
   });

@@ -17,6 +17,7 @@ const { ipcRenderer } = window.require("electron");
 export default function RunManager(): React.ReactElement {
   const runManager = useSelector((state: RootState) => state.runManager);
   const dispatch = useDispatch();
+  const onRunFinishRef = useRef<() => void>(null);
 
   const onRunFinish = () => {
     if (runManager.queue.length === 0) {
@@ -27,8 +28,9 @@ export default function RunManager(): React.ReactElement {
     } else {
       dispatch(setIsRunning(false));
     }
-    dispatch(popFromQueue);
+    dispatch(popFromQueue());
   };
+  onRunFinishRef.current = onRunFinish;
 
   const continueRun = (run: RunInterface) => {
     ipcRenderer.removeAllListeners(CONTINUE_TRAINING_RUN_CHANNEL.REPLY);
@@ -62,10 +64,10 @@ export default function RunManager(): React.ReactElement {
           case "startedRun":
             return;
           case "finishedRun":
-            onRunFinish();
+            onRunFinishRef.current();
             return;
           case "error":
-            onRunFinish();
+            onRunFinishRef.current();
             notification["error"]({
               message: "Oops, an error occured, check logs for more info ...",
               description: message.errorMessage,
