@@ -83,3 +83,7 @@ export const PREPROCESSING_RUNS_ROUTE = {
 export const SETTINGS_ROUTE = {
   ROUTE: "/settings",
 };
+
+export const RUN_QUEUE_ROUTE = {
+  ROUTE: "/run-queue",
+};

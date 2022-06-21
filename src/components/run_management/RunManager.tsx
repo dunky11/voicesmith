@@ -6,6 +6,7 @@ import {
   CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL,
   CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL,
   CONTINUE_TRAINING_RUN_CHANNEL,
+  STOP_RUN_CHANNEL,
 } from "../../channels";
 import { setIsRunning, popFromQueue } from "../../features/runManagerSlice";
 import { RunInterface } from "../../interfaces";
@@ -16,7 +17,6 @@ const { ipcRenderer } = window.require("electron");
 export default function RunManager(): React.ReactElement {
   const runManager = useSelector((state: RootState) => state.runManager);
   const dispatch = useDispatch();
-  const wasRunning = useRef(false);
 
   const onRunFinish = () => {
     if (runManager.queue.length === 0) {
@@ -99,14 +99,19 @@ export default function RunManager(): React.ReactElement {
     }
   };
 
+  const stopRun = () => {
+    ipcRenderer.invoke(STOP_RUN_CHANNEL.IN);
+  };
+
   useEffect(() => {
-    if (runManager.isRunning && !wasRunning) {
+    if (runManager.isRunning) {
       if (runManager.queue.length === 0) {
         throw Error("Cant start run when queue is empty ...");
       }
       continueRun(runManager.queue[0]);
+    } else {
+      stopRun();
     }
-    wasRunning.current = runManager.isRunning;
   }, [runManager.isRunning]);
 
   return null;

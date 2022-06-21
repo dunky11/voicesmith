@@ -1,5 +1,7 @@
 import React, { ReactElement, useEffect, useRef, useState } from "react";
 import { SyncOutlined } from "@ant-design/icons";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../../app/store";
 import {
   Table,
   Button,
@@ -20,6 +22,7 @@ import {
   FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES,
   REMOVE_PREPROCESSING_RUN_CHANNEL,
 } from "../../channels";
+import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
 const prettyType = (type: RunInterface["type"]) => {
@@ -39,21 +42,22 @@ const prettyType = (type: RunInterface["type"]) => {
 
 export default function PreprocessingRunSelection({
   setSelectedPreprocessingRun,
-  running,
-  stopRun,
-  continueRun,
 }: {
   setSelectedPreprocessingRun: (
     preprocessingRun: PreprocessingRunType | null
   ) => void;
-  running: RunInterface | null;
-  stopRun: () => void;
-  continueRun: (run: RunInterface) => void;
 }): ReactElement {
   const isMounted = useRef(false);
   const [preprocessingRuns, setPreprocessingRuns] = useState<
     PreprocessingRunType[]
   >([]);
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const [isDisabled, setIsDisabled] = useState(false);
 
   const getFirstPossibleName = () => {
@@ -213,7 +217,15 @@ export default function PreprocessingRunSelection({
 
         const getRunningLink = () => {
           if (isRunning) {
-            return <a onClick={stopRun}>Pause Training</a>;
+            return (
+              <a
+                onClick={() => {
+                  dispatch(setIsRunning(false));
+                }}
+              >
+                Pause Training
+              </a>
+            );
           } else {
             if (record.stage === "finished") {
               return <></>;
@@ -228,11 +240,13 @@ export default function PreprocessingRunSelection({
               return (
                 <a
                   onClick={() => {
-                    continueRun({
-                      ID: record.ID,
-                      type: record.type,
-                      name: record.name,
-                    });
+                    dispatch(
+                      addToQueue({
+                        ID: record.ID,
+                        type: record.type,
+                        name: record.name,
+                      })
+                    );
                   }}
                 >
                   Continue Run

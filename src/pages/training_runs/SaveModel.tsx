@@ -1,38 +1,42 @@
 import React, { ReactElement } from "react";
 import { Tabs, Card, Button, Steps } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 import RunCard from "../../components/cards/RunCard";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
 import LogPrinter from "../../components/log_printer/LogPrinter";
 import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
+import { addToQueue, setIsRunning } from "../../features/runManagerSlice";
 
 export default function SaveModel({
   onStepChange,
-  trainingRun,
-  running,
-  continueRun,
-  stopRun,
+  run,
 }: {
   onStepChange: (step: number) => void;
-  trainingRun: TrainingRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
+  run: TrainingRunInterface;
 }): ReactElement {
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const stageIsRunning = getStageIsRunning(
     ["save_model"],
-    trainingRun.stage,
+    run.stage,
     running,
     "trainingRun",
-    trainingRun.ID
+    run.ID
   );
   const wouldContinueRun = getWouldContinueRun(
     ["save_model"],
-    trainingRun.stage,
+    run.stage,
     running,
     "trainingRun",
-    trainingRun.ID
+    run.ID
   );
 
   const onBackClick = () => {
@@ -41,13 +45,15 @@ export default function SaveModel({
 
   const onNextClick = () => {
     if (wouldContinueRun) {
-      continueRun({
-        ID: trainingRun.ID,
-        type: "trainingRun",
-        name: trainingRun.name,
-      });
+      dispatch(
+        addToQueue({
+          ID: run.ID,
+          type: "trainingRun",
+          name: run.name,
+        })
+      );
     } else if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     }
   };
 
@@ -87,7 +93,7 @@ export default function SaveModel({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(trainingRun.ID)}
+            name={String(run.ID)}
             logFileName="save_model.txt"
             type="trainingRun"
           />

@@ -35,10 +35,10 @@ const { ipcRenderer } = window.require("electron");
 
 export default function Configuration({
   onStepChange,
-  trainingRun,
+  run,
 }: {
   onStepChange: (current: number) => void;
-  trainingRun: TrainingRunInterface;
+  run: TrainingRunInterface;
 }): ReactElement {
   const running: RunInterface = useSelector((state: RootState) => {
     if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
@@ -65,14 +65,11 @@ export default function Configuration({
     if (navigateNextRef.current) {
       dispatch(
         addToQueue({
-          ID: trainingRun.ID,
+          ID: run.ID,
           type: "trainingRun",
-          name: trainingRun.name,
+          name: run.name,
         })
       );
-      if (!runManager.isRunning) {
-        dispatch(setIsRunning(true));
-      }
       onStepChange(1);
     } else {
       notifySave();
@@ -86,7 +83,7 @@ export default function Configuration({
     };
     ipcRenderer
       .invoke(UPDATE_TRAINING_RUN_CHANNEL.IN, {
-        ...{ ...trainingRun, configuration: values },
+        ...{ ...run, configuration: values },
       })
       .then(afterUpdate);
   };
@@ -112,7 +109,7 @@ export default function Configuration({
   const fetchConfiguration = () => {
     const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
       withStatistics: false,
-      ID: trainingRun.ID,
+      ID: run.ID,
     };
     ipcRenderer
       .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN, args)
@@ -131,7 +128,7 @@ export default function Configuration({
   const fetchNames = async (): Promise<string[]> => {
     return new Promise((resolve) => {
       ipcRenderer
-        .invoke(FETCH_TRAINING_RUN_NAMES_CHANNEL.IN, trainingRun.ID)
+        .invoke(FETCH_TRAINING_RUN_NAMES_CHANNEL.IN, run.ID)
         .then((names: string[]) => {
           resolve(names);
         });
@@ -151,8 +148,7 @@ export default function Configuration({
 
   const disableNext = disableEdit;
   const disableDefaults =
-    !configIsLoaded ||
-    (trainingRun.stage != "not_started" && trainingRun.stage != null);
+    !configIsLoaded || (run.stage != "not_started" && run.stage != null);
 
   return (
     <RunCard
@@ -166,7 +162,7 @@ export default function Configuration({
         <Button type="primary" disabled={disableNext} onClick={onNextClick}>
           {running !== null &&
           running.type === "trainingRun" &&
-          running.ID === trainingRun.ID
+          running.ID === run.ID
             ? "Save and Next"
             : "Save and Start Training"}
         </Button>,

@@ -58,13 +58,9 @@ ipcMain.handle(
 ipcMain.handle(
   FETCH_PREPROCESSING_RUNS_CHANNEL.IN,
   (): FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES["IN"]["OUT"] => {
-    console.log("1");
     const cleaningRuns = fetchCleaningRuns();
-    console.log("2");
     const textNormalizationRuns = fetchTextNormalizationRuns();
-    console.log("3");
     const sampleSplittingRuns = fetchSampleSplittingRuns();
-    console.log("4");
     const ret: PreprocessingRunType[] = [
       ...cleaningRuns,
       ...textNormalizationRuns,

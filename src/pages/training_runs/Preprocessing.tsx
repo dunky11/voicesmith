@@ -16,10 +16,10 @@ import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
 
 export default function Preprocessing({
   onStepChange,
-  trainingRun,
+  run,
 }: {
   onStepChange: (step: number) => void;
-  trainingRun: TrainingRunInterface;
+  run: TrainingRunInterface;
 }): ReactElement {
   const running: RunInterface = useSelector((state: RootState) => {
     if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
@@ -31,22 +31,22 @@ export default function Preprocessing({
   const dispatch = useDispatch();
   const stageIsRunning = getStageIsRunning(
     ["preprocessing"],
-    trainingRun.stage,
+    run.stage,
     running,
     "trainingRun",
-    trainingRun.ID
+    run.ID
   );
 
   const wouldContinueRun = getWouldContinueRun(
     ["preprocessing"],
-    trainingRun.stage,
+    run.stage,
     running,
     "trainingRun",
-    trainingRun.ID
+    run.ID
   );
 
   const getCurrent = () => {
-    switch (trainingRun.preprocessingStage) {
+    switch (run.preprocessingStage) {
       case "not_started":
         return 0;
       case "copying_files":
@@ -61,7 +61,7 @@ export default function Preprocessing({
         return 4;
       default:
         throw new Error(
-          `No case selected in switch-statemen, '${trainingRun.preprocessingStage}' is not a valid case ...`
+          `No case selected in switch-statemen, '${run.preprocessingStage}' is not a valid case ...`
         );
     }
   };
@@ -76,15 +76,12 @@ export default function Preprocessing({
     } else if (wouldContinueRun) {
       dispatch(
         addToQueue({
-          ID: trainingRun.ID,
+          ID: run.ID,
           type: "trainingRun",
-          name: trainingRun.name,
+          name: run.name,
         })
       );
-      if (!runManager.isRunning) {
-        dispatch(setIsRunning(true));
-      }
-    } else if (trainingRun.stage === "finished") {
+    } else if (run.stage === "finished") {
       onStepChange(3);
     }
   };
@@ -118,7 +115,7 @@ export default function Preprocessing({
               <Steps.Step
                 title={getProgressTitle(
                   "Copy Files",
-                  trainingRun.preprocessingCopyingFilesProgress
+                  run.preprocessingCopyingFilesProgress
                 )}
                 description="Copy text and audio files into the training folder."
                 icon={
@@ -129,11 +126,11 @@ export default function Preprocessing({
               />
               <Steps.Step
                 title={
-                  trainingRun.preprocessingGenVocabProgress === 0
+                  run.preprocessingGenVocabProgress === 0
                     ? "Generate Vocabulary"
                     : getProgressTitle(
                         "Generate Vocabulary",
-                        trainingRun.preprocessingGenVocabProgress
+                        run.preprocessingGenVocabProgress
                       )
                 }
                 description="Generate phonemes for each word."
@@ -145,11 +142,11 @@ export default function Preprocessing({
               />
               <Steps.Step
                 title={
-                  trainingRun.preprocessingGenAlignProgress === 0
+                  run.preprocessingGenAlignProgress === 0
                     ? "Generate Alignments"
                     : getProgressTitle(
                         "Generate Alignments",
-                        trainingRun.preprocessingGenAlignProgress
+                        run.preprocessingGenAlignProgress
                       )
                 }
                 description="Generate timestamps for each phoneme."
@@ -162,7 +159,7 @@ export default function Preprocessing({
               <Steps.Step
                 title={getProgressTitle(
                   "Extract Data",
-                  trainingRun.preprocessingExtractDataProgress
+                  run.preprocessingExtractDataProgress
                 )}
                 description="Resample audio and extract pitch information and mel-spectrograms."
                 icon={
@@ -176,7 +173,7 @@ export default function Preprocessing({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(trainingRun.ID)}
+            name={String(run.ID)}
             logFileName="preprocessing.txt"
             type="trainingRun"
           />

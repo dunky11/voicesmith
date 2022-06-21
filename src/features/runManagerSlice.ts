@@ -15,6 +15,9 @@ export const runManagerSlice = createSlice({
     },
     addToQueue: (state, action: PayloadAction<RunInterface>) => {
       state.queue = [action.payload, ...state.queue];
+      if (state.queue.length === 1) {
+        state.isRunning = true;
+      }
     },
     popFromQueue: (state) => {
       state.queue.shift();

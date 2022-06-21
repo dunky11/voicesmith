@@ -1,40 +1,43 @@
 import React, { useEffect, useRef, ReactElement } from "react";
 import { Tabs, Button } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 import VocoderStatistics from "./VocoderStatistics";
 import LogPrinter from "../../components/log_printer/LogPrinter";
 import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
+import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
 
 export default function VocoderFineTuning({
   onStepChange,
-  trainingRun,
-  running,
-  continueRun,
-  stopRun,
+  run,
 }: {
   onStepChange: (step: number) => void;
-  trainingRun: TrainingRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
+  run: TrainingRunInterface;
 }): ReactElement {
   const isMounted = useRef(false);
-
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const stageIsRunning = getStageIsRunning(
     ["vocoder_fine_tuning"],
-    trainingRun.stage,
+    run.stage,
     running,
     "trainingRun",
-    trainingRun.ID
+    run.ID
   );
   const wouldContinueRun = getWouldContinueRun(
     ["vocoder_fine_tuning"],
-    trainingRun.stage,
+    run.stage,
     running,
     "trainingRun",
-    trainingRun.ID
+    run.ID
   );
 
   const onBackClick = () => {
@@ -43,13 +46,15 @@ export default function VocoderFineTuning({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({
-        ID: trainingRun.ID,
-        type: "trainingRun",
-        name: trainingRun.name,
-      });
+      dispatch(
+        addToQueue({
+          ID: run.ID,
+          type: "trainingRun",
+          name: run.name,
+        })
+      );
     } else {
       onStepChange(6);
     }
@@ -85,14 +90,14 @@ export default function VocoderFineTuning({
         <Tabs.TabPane tab="Overview" key="overview">
           <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <VocoderStatistics
-            audioStatistics={trainingRun.audioStatistics}
-            imageStatistics={trainingRun.imageStatistics}
-            graphStatistics={trainingRun.graphStatistics}
+            audioStatistics={run.audioStatistics}
+            imageStatistics={run.imageStatistics}
+            graphStatistics={run.graphStatistics}
           ></VocoderStatistics>
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(trainingRun.ID)}
+            name={String(run.ID)}
             logFileName="vocoder_fine_tuning.txt"
             type="trainingRun"
           />

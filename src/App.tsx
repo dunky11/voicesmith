@@ -18,7 +18,7 @@ import Synthesize from "./pages/models/Synthesize";
 import TrainingRuns from "./pages/training_runs/TrainingRuns";
 import Datasets from "./pages/datasets/Datasets";
 import PreprocessingRuns from "./pages/preprocessing_runs/PreprocessingRuns";
-import { AppInfoInterface, RunInterface } from "./interfaces";
+import { AppInfoInterface } from "./interfaces";
 import { pingServer } from "./utils";
 import {
   DATASETS_ROUTE,
@@ -26,15 +26,13 @@ import {
   PREPROCESSING_RUNS_ROUTE,
   SETTINGS_ROUTE,
   TRAINING_RUNS_ROUTE,
+  RUN_QUEUE_ROUTE,
 } from "./routes";
 import Settings from "./pages/settings/Settings";
+import RunQueue from "./pages/run_queue/RunQueue";
 import {
-  CONTINUE_CLEANING_RUN_CHANNEL,
-  CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL,
-  CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL,
   CONTINUE_TRAINING_RUN_CHANNEL,
   GET_APP_INFO_CHANNEL,
-  STOP_RUN_CHANNEL,
 } from "./channels";
 import RunManager from "./components/run_management/RunManager";
 
@@ -110,7 +108,8 @@ export default function App(): ReactElement {
       | "datasets"
       | "training-runs"
       | "preprocessing-runs"
-      | "settings";
+      | "settings"
+      | "run-queue";
   }) => {
     setSelectedKeys([key]);
     switch (key) {
@@ -128,6 +127,9 @@ export default function App(): ReactElement {
         break;
       case "settings":
         history.push(SETTINGS_ROUTE.ROUTE);
+        break;
+      case "run-queue":
+        history.push(RUN_QUEUE_ROUTE.ROUTE);
         break;
       default:
         throw new Error(
@@ -149,6 +151,10 @@ export default function App(): ReactElement {
       setSelectedKeys(["datasets"]);
     } else if (route.includes(PREPROCESSING_RUNS_ROUTE.ROUTE)) {
       setSelectedKeys(["preprocessing-runs"]);
+    } else if (route.includes(SETTINGS_ROUTE.ROUTE)) {
+      setSelectedKeys(["settings"]);
+    } else if (route.includes(RUN_QUEUE_ROUTE.ROUTE)) {
+      setSelectedKeys(["run-queue"]);
     } else {
       throw new Error(`Route '${route}' is not a valid route.`);
     }
@@ -228,6 +234,16 @@ export default function App(): ReactElement {
               </Menu.Item>
               <Menu.Item
                 onClick={() => {
+                  onNavigationSelect({ key: "run-queue" });
+                }}
+                key="run-queue"
+                icon={<ClearOutlined className={classes.navIcon} />}
+                className={classes.navItem}
+              >
+                Run Queue
+              </Menu.Item>
+              <Menu.Item
+                onClick={() => {
                   onNavigationSelect({ key: "settings" });
                 }}
                 key="settings"
@@ -276,6 +292,10 @@ export default function App(): ReactElement {
               <Route
                 render={() => <PreprocessingRuns></PreprocessingRuns>}
                 path={PREPROCESSING_RUNS_ROUTE.ROUTE}
+              ></Route>
+              <Route
+                render={() => <RunQueue></RunQueue>}
+                path={RUN_QUEUE_ROUTE.ROUTE}
               ></Route>
               <Route
                 render={() => (

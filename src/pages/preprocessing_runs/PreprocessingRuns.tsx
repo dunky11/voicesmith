@@ -19,11 +19,7 @@ export const fetchNames = (runID: number): Promise<string[]> => {
   });
 };
 
-export default function PreprcocessingRuns({
-  running,
-}: {
-  running: RunInterface | null;
-}): ReactElement {
+export default function PreprcocessingRuns(): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
   const [selectedPreprocessingRun, setSelectedPreprocessingRun] =

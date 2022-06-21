@@ -1,5 +1,7 @@
 import React, { ReactElement, useEffect, useRef, useState } from "react";
 import { Breadcrumb, Form, Input, FormInstance, Button, Row, Col } from "antd";
+import { useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 import RunCard from "../../components/cards/RunCard";
 import { RunInterface, SettingsInterface } from "../../interfaces";
 import { notifySave } from "../../utils";
@@ -9,7 +11,6 @@ import {
   FETCH_SETTINGS_CHANNEL,
   PICK_SINGLE_FOLDER_CHANNEL,
 } from "../../channels";
-import { IpcMainEvent, IpcRendererEvent } from "electron/renderer";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -18,12 +19,16 @@ const useStyles = createUseStyles({
 });
 
 export default function Settings({
-  running,
   setNavIsDisabled,
 }: {
-  running: RunInterface | null;
   setNavIsDisabled: (navIsDisabled: boolean) => void;
 }): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const classes = useStyles();
   const formRef = useRef<FormInstance | null>();
   const isMounted = useRef(false);
@@ -36,7 +41,7 @@ export default function Settings({
     ipcRenderer.on(
       SAVE_SETTINGS_CHANNEL.REPLY,
       (
-        _: IpcRendererEvent,
+        _: any,
         message: {
           type: string;
         }
