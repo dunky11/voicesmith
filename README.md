@@ -6,6 +6,11 @@ If you want to play around with a model trained on a highly emotional emotional 
 
 <img src="/.media/hero.png">
 
+| Language | Training + Inference |  Sample Splitting | Text Normalization | # Files Pretrained | # Speakers Pretrained |
+| --- | --- | --- | --- | --- | --- |
+| English | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 978283 | 5415 |
+| German  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 380175 | 1034 |
+
 ## Requirements
 
 #### Hardware
