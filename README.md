@@ -10,6 +10,10 @@ If you want to play around with a model trained on a highly emotional emotional 
 | --- | --- | --- | --- | --- | --- |
 | English | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 978283 | 5415 |
 | German  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 380175 | 1034 |
+| French  | :heavy_check_mark: | :heavy_check_mark: |  | 382797 | 1013 |
+| Spanish  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 327944 | 960 |
+| Russian  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 72527 | 132 |
+| Polish  | :heavy_check_mark: | :heavy_check_mark: | | 72536 | 132 |
 
 ## Requirements
 
