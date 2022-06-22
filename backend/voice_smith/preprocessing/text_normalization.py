@@ -249,8 +249,8 @@ class DetShouldNormalizeES(DetShouldNormalizeBase):
             + self.fetch_word_list("spanish_initialisms.txt", assets_path=assets_path)
             + SPANISH_INITIALISMS
         )
-        self.abbreviations = set(abbr, es_punctuation)
-        self.initialisms = set(initialisms, es_punctuation)
+        self.abbreviations = set(abbr)
+        self.initialisms = set(initialisms)
 
     def should_normalize(
         self, text: str, tokenizer: WordTokenizer
@@ -314,8 +314,8 @@ class DetShouldNormalizeRU(DetShouldNormalizeBase):
             self.fetch_word_list("russian_initialisms.txt", assets_path=assets_path)
             + RUSSIAN_INITIALISMS
         )
-        self.abbreviations = set(abbr, ru_punctuation)
-        self.initialisms = set(initialisms, ru_punctuation)
+        self.abbreviations = set(abbr)
+        self.initialisms = set(initialisms)
 
     def should_normalize(
         self, text: str, tokenizer: WordTokenizer

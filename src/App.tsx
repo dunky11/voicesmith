@@ -35,6 +35,7 @@ import {
   GET_APP_INFO_CHANNEL,
 } from "./channels";
 import RunManager from "./components/run_management/RunManager";
+import { app } from "electron";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -86,6 +87,8 @@ export default function App(): ReactElement {
   const [selectedModel, setSelectedModel] = useState(null);
   const [navIsDisabled, setNavIsDisabled] = useState(false);
   const [serverIsReady, setServerIsReady] = useState(false);
+
+  console.log(appInfo);
 
   const fetchAppInfo = () => {
     ipcRenderer
