@@ -205,6 +205,10 @@ def preprocessing_stage(
         elif preprocessing_stage == "copying_files":
             set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
             txt_paths, texts, audio_paths, names, langs = [], [], [], [], []
+            row = cur.execute(
+                "SELECT skip_on_error FROM training_run WHERE ID=?", (run_id,),
+            ).fetchone()
+            skip_on_error = bool(row[0])
             for (
                 txt_path,
                 text,
@@ -252,6 +256,7 @@ def preprocessing_stage(
                 names=names,
                 workers=p_config.workers,
                 progress_cb=progress_cb,
+                skip_on_error=skip_on_error
             )
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",

@@ -286,7 +286,9 @@ export default function App(): ReactElement {
                 path={TRAINING_RUNS_ROUTE.ROUTE}
               ></Route>
               <Route
-                render={() => <Datasets></Datasets>}
+                render={() => (
+                  <Datasets setNavIsDisabled={setNavIsDisabled}></Datasets>
+                )}
                 path={DATASETS_ROUTE.ROUTE}
               ></Route>
               <Route

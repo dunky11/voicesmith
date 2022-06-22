@@ -203,7 +203,6 @@ export interface TextNormalizationRunInterface extends RunInterface {
 
 export interface TextNormalizationRunConfigInterface {
   name: string;
-  language: "en" | "es" | "de" | "ru";
   datasetID: number | null;
   datasetName: string | null;
 }
@@ -248,12 +247,6 @@ export interface NoisySampleInterface {
   text: string;
   audioPath: string;
   labelQuality: number;
-}
-
-export interface TextNormalizationConfigInterface {
-  name: string;
-  language: "en" | "de" | "es";
-  datasetID: number | null;
 }
 
 export interface TextNormalizationSampleInterface {
@@ -328,6 +321,10 @@ export interface InstallerOptionsInterface {
 export interface RunManagerInterface {
   isRunning: boolean;
   queue: RunInterface[];
+}
+
+export interface ImportSettingsInterface {
+  language: SpeakerInterface["language"];
 }
 
 export type PreprocessingRunType =

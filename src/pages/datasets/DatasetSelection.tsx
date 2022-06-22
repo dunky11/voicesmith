@@ -25,8 +25,10 @@ const { ipcRenderer } = window.require("electron");
 
 export default function DatasetSelection({
   setSelectedDatasetID,
+  setNavIsDisabled,
 }: {
   setSelectedDatasetID: (ID: number | null) => void;
+  setNavIsDisabled: (isDisabled: boolean) => void;
 }): ReactElement {
   const isMounted = useRef(false);
   const [datasets, setDatasets] = useState<DatasetInterface[]>([]);
@@ -100,9 +102,11 @@ export default function DatasetSelection({
         return;
       }
       setIsDisabled(false);
+      setNavIsDisabled(false);
       setDirProgress(null);
     });
     setIsDisabled(true);
+    setNavIsDisabled(true);
     ipcRenderer.send(EXPORT_DATASET_CHANNEL.IN, exportedDatasets);
   };
 
@@ -152,17 +156,17 @@ export default function DatasetSelection({
       render: (text: any, record: DatasetInterface) => (
         // TODO find way to diable visually
         <Space size="middle">
-          <a
-            onClick={
-              isDisabled
-                ? undefined
-                : () => {
-                    setSelectedDatasetID(record.ID);
-                  }
-            }
-          >
-            Select
-          </a>
+          {isDisabled ? (
+            <Typography.Text disabled>Select</Typography.Text>
+          ) : (
+            <a
+              onClick={() => {
+                setSelectedDatasetID(record.ID);
+              }}
+            >
+              Select
+            </a>
+          )}
           <Popconfirm
             title="Are you sure you want to delete this dataset?"
             onConfirm={() => {

@@ -5,7 +5,7 @@ import { FormInstance } from "rc-field-form";
 import {
   RunInterface,
   TextNormalizationRunInterface,
-  TextNormalizationConfigInterface,
+  TextNormalizationRunConfigInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
 import DatasetInput from "../../../components/inputs/DatasetInput";
@@ -21,10 +21,10 @@ import { useDispatch } from "react-redux";
 import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
-const initialValues: TextNormalizationConfigInterface = {
+const initialValues: TextNormalizationRunConfigInterface = {
   name: "",
   datasetID: null,
-  language: "en",
+  datasetName: null,
 };
 
 export default function Configuration({
@@ -69,7 +69,7 @@ export default function Configuration({
   };
 
   const onFinish = () => {
-    const values: TextNormalizationConfigInterface = {
+    const values: TextNormalizationRunConfigInterface = {
       ...initialValues,
       ...formRef.current?.getFieldsValue(),
     };
@@ -165,35 +165,6 @@ export default function Configuration({
           }}
         />
         <DatasetInput disabled={disableElseEdit} />
-        <Form.Item
-          label="Language"
-          name="language"
-          rules={[
-            () => ({
-              validator(_, value: string) {
-                if (value === null) {
-                  return Promise.reject(new Error("Please select a language"));
-                }
-                return Promise.resolve();
-              },
-            }),
-          ]}
-        >
-          <Select disabled={disableElseEdit}>
-            <Select.Option value="en" key="en">
-              English
-            </Select.Option>
-            <Select.Option value="es" key="es">
-              Spanish
-            </Select.Option>
-            <Select.Option value="de" key="de">
-              German
-            </Select.Option>
-            <Select.Option value="ru" key="ru">
-              Russian
-            </Select.Option>
-          </Select>
-        </Form.Item>
       </Form>
     </RunCard>
   );

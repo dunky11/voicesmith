@@ -4,7 +4,11 @@ import Dataset from "./Dataset";
 import DatasetSelection from "./DatasetSelection";
 import { DATASETS_ROUTE } from "../../routes";
 
-export default function Datasets(): ReactElement {
+export default function Datasets({
+  setNavIsDisabled,
+}: {
+  setNavIsDisabled: (isDisabled: boolean) => void;
+}): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
   const [selectedDatasetID, setSelectedDatasetID] = useState<number | null>(
@@ -39,6 +43,7 @@ export default function Datasets(): ReactElement {
         render={() => (
           <DatasetSelection
             setSelectedDatasetID={passSelectedSpeakerID}
+            setNavIsDisabled={setNavIsDisabled}
           ></DatasetSelection>
         )}
         path={DATASETS_ROUTE.SELECTION.ROUTE}

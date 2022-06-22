@@ -22,7 +22,7 @@ class DualLogger(object):
 
 def set_stream_location(location: str) -> None:
     sys.stdout = DualLogger(location, "w")
-    sys.stderr = sys.stdout
+    sys.stderr = sys.stdout 
 
 
 class Logger:

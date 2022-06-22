@@ -213,7 +213,6 @@ const createTables = (db: any) => {
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         stage TEXT DEFAULT "not_started",
-        language TEXT DEFAULT "en",
         text_normalization_progress FLOAT DEFAULT 0.0,
         dataset_id INTEGER DEFAULT NULL,  
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)

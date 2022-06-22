@@ -40,6 +40,7 @@ import {
   FileInterface,
   DatasetInterface,
   SpeakerInterface,
+  ImportSettingsInterface,
 } from "../../interfaces";
 
 ipcMain.handle(FETCH_DATASETS_CHANNEL.IN, async () => {
@@ -324,7 +325,11 @@ const copySpeakerFiles = async (
 
 ipcMain.on(
   PICK_SPEAKERS_CHANNEL.IN,
-  async (event: IpcMainEvent, datasetID: number) => {
+  async (
+    event: IpcMainEvent,
+    datasetID: number,
+    importSettings: ImportSettingsInterface
+  ) => {
     const options: OpenDialogOptions = {
       properties: ["openDirectory", "multiSelections"],
     };
@@ -349,7 +354,7 @@ ipcMain.on(
       );
 
       const stmtInsertSpeaker = DB.getInstance().prepare(
-        "INSERT INTO speaker (name, dataset_id) VALUES (@name, @datasetID)"
+        "INSERT INTO speaker (name, dataset_id, language) VALUES (@name, @datasetID, @language)"
       );
 
       const insertManySamples = DB.getInstance().transaction((els: any[]) => {
@@ -410,6 +415,7 @@ ipcMain.on(
           const info = stmtInsertSpeaker.run({
             name: speakerName,
             datasetID,
+            language: importSettings.language,
           });
           const speakerID = info.lastInsertRowid;
           copySpeakerFiles(datasetID, speakerID, samples);

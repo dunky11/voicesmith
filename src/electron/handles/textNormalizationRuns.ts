@@ -49,7 +49,7 @@ export const fetchTextNormalizationRuns = (
   const fetchStmt = DB.getInstance().prepare(
     `SELECT 
       text_normalization_run.ID AS ID, text_normalization_run.name AS name, 
-      stage, language, text_normalization_progress AS textNormalizationProgress,
+      stage, text_normalization_progress AS textNormalizationProgress,
       dataset.ID AS datasetID, dataset.name AS datasetName
     FROM text_normalization_run
     LEFT JOIN dataset ON text_normalization_run.dataset_id=dataset.ID
@@ -70,7 +70,6 @@ export const fetchTextNormalizationRuns = (
       name: el.name,
       configuration: {
         name: el.name,
-        language: el.language,
         datasetID: el.datasetID,
         datasetName: el.datasetName,
       },
@@ -99,7 +98,7 @@ ipcMain.handle(
   ) => {
     return DB.getInstance()
       .prepare(
-        "UPDATE text_normalization_run SET name=@name, language=@language, dataset_id=@datasetID WHERE ID=@ID"
+        "UPDATE text_normalization_run SET name=@name, dataset_id=@datasetID WHERE ID=@ID"
       )
       .run({
         ID,
@@ -113,7 +112,7 @@ ipcMain.handle(
   (event: IpcMainInvokeEvent, ID: number) => {
     return DB.getInstance()
       .prepare(
-        "SELECT name, dataset_id AS datasetID, language FROM text_normalization_run WHERE ID=@ID"
+        "SELECT name, dataset_id AS datasetID FROM text_normalization_run WHERE ID=@ID"
       )
       .get({ ID });
   }

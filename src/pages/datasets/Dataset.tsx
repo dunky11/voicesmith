@@ -31,6 +31,8 @@ import {
 } from "../../channels";
 import { DATASETS_ROUTE } from "../../routes";
 import LanguageSelect from "../../components/inputs/LanguageSelect";
+import { useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -46,6 +48,7 @@ export default function Dataset({
   const classes = useStyles();
   const isMounted = useRef(false);
   const history = useHistory();
+  const importSettings = useSelector((root: RootState) => root.importSettings);
   const [importSettingsDialogIsOpen, setImportSettingsDialogIsOpen] =
     useState(false);
   const [isDisabled, setIsDisabled] = useState(false);
@@ -213,7 +216,7 @@ export default function Dataset({
       fetchDataset();
     });
     setIsDisabled(true);
-    ipcRenderer.send(PICK_SPEAKERS_CHANNEL.IN, datasetID);
+    ipcRenderer.send(PICK_SPEAKERS_CHANNEL.IN, datasetID, importSettings);
   };
 
   const columns = [
@@ -350,7 +353,10 @@ export default function Dataset({
         <>
           <ImportSettingsDialog
             open={importSettingsDialogIsOpen}
-            onOk={onAddSpeakers}
+            onOk={() => {
+              setImportSettingsDialogIsOpen(false);
+              onAddSpeakers();
+            }}
             onClose={() => {
               setImportSettingsDialogIsOpen(false);
             }}
