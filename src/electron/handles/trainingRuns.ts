@@ -50,7 +50,8 @@ ipcMain.handle(
         vocoder_validate_every,
         only_train_speaker_emb_until,
         dataset_id,
-        device
+        device,
+        skip_on_error
       ) VALUES(
         @name,
         @maximumWorkers,
@@ -70,7 +71,8 @@ ipcMain.handle(
         @vocoderValidateEvery,
         @onlyTrainSpeakerEmbUntil,
         @datasetID,
-        @device
+        @device,
+        @skipOnError
       )`
       )
       .run(bool2int({ ...trainingRunInitialValues, name }));
@@ -108,7 +110,8 @@ ipcMain.handle(
       vocoder_validate_every=@vocoderValidateEvery,
       only_train_speaker_emb_until=@onlyTrainSpeakerEmbUntil,
       dataset_id=@datasetID,
-      device=@device
+      device=@device,
+      skip_on_error=@skipOnError,
       WHERE ID=@ID`
       )
       .run(bool2int(flattened));
@@ -152,7 +155,8 @@ ipcMain.handle(
       vocoder_fine_tuning_progress AS vocoderFineTuningProgress,
       dataset_id AS datasetID,
       dataset.name AS datasetName,
-      device
+      device,
+      skip_on_error AS skipOnError
     FROM training_run
     LEFT JOIN dataset ON training_run.dataset_id = dataset.ID 
     ${ID === null ? "" : "WHERE training_run.ID=@ID"}`);
@@ -249,6 +253,7 @@ ipcMain.handle(
             device: el.device,
             datasetID: el.datasetID,
             datasetName: el.datasetName,
+            skipOnError: el.skipOnError === 1,
           },
           canStart: el.datasetID !== null,
         };

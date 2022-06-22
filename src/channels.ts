@@ -64,10 +64,6 @@ export const FINISH_CLEANING_RUN_CHANNEL = {
   REPLY: "finish-cleaning-run-reply",
 };
 
-export const FETCH_DATASET_CANDIATES_CHANNEL = {
-  IN: "fetch-dataset-candidates",
-};
-
 export const REMOVE_TRAINING_RUN_CHANNEL = {
   IN: "remove-training-run",
 };

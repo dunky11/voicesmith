@@ -519,11 +519,13 @@ ipcMain.handle(FETCH_DATASET_CANDIDATES_CHANNEL.IN, () => {
           dataset.name AS name,
           training_run.name AS trainingRunName,
           cleaning_run.name AS cleaningRunName,
-          text_normalization_run.name AS textNormalizationName
+          text_normalization_run.name AS textNormalizationName,
+          sample_splitting_run.name AS sampleSplittingRunName
         FROM dataset 
         LEFT JOIN training_run ON training_run.dataset_id = dataset.ID
         LEFT JOIN cleaning_run ON cleaning_run.dataset_id = dataset.ID
         LEFT JOIN text_normalization_run ON text_normalization_run.dataset_id = dataset.ID
+        LEFT JOIN sample_splitting_run ON sample_splitting_run.dataset_id = dataset.ID
         WHERE EXISTS (
           SELECT 1 FROM speaker WHERE speaker.dataset_id = dataset.ID AND EXISTS(
               SELECT 1 FROM sample WHERE sample.speaker_id = speaker.ID
@@ -540,6 +542,8 @@ ipcMain.handle(FETCH_DATASET_CANDIDATES_CHANNEL.IN, () => {
         referencedBy = dataset.cleaningRunName;
       } else if (dataset.textNormalizationName !== null) {
         referencedBy = dataset.textNormalizationName;
+      } else if (dataset.sampleSplittingRunName) {
+        referencedBy = dataset.sampleSplittingRunName;
       }
       return {
         ID: dataset.ID,

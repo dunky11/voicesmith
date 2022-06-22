@@ -58,6 +58,7 @@ export const spawnCondaCmd = (
   onError: ((data: string) => void) | null,
   onExit: ((code: number) => void) | null
 ): ChildProcessWithoutNullStreams => {
+  console.log(["conda", "run", "-n", CONDA_ENV_NAME, ...args].join(" "));
   const proc = childProcess.spawn("docker", [
     "exec",
     DOCKER_CONTAINER_NAME,

@@ -151,6 +151,7 @@ export interface TrainingRunConfigInterface {
   onlyTrainSpeakerEmbUntil: number;
   datasetID: number | null;
   datasetName: string | null;
+  skipOnError: boolean;
 }
 
 export interface CleaningRunInterface extends RunInterface {
@@ -208,7 +209,6 @@ export interface TextNormalizationRunConfigInterface {
 }
 
 export interface SampleSplittingRunInterface extends RunInterface {
-  maximumWorkers: number;
   stage:
     | "not_started"
     | "copying_files"
@@ -223,15 +223,17 @@ export interface SampleSplittingRunInterface extends RunInterface {
   genAlignProgress: number;
   creatingSplitsProgress: number;
   applyingChangesProgress: number;
-  configuration: SampleSplittingConfigInterface;
+  configuration: SampleSplittingRunConfigInterface;
   canStart: boolean;
 }
 
-export interface SampleSplittingConfigInterface {
+export interface SampleSplittingRunConfigInterface {
   name: string;
   device: "CPU" | "GPU";
   datasetID: number | null;
   datasetName: string | null;
+  skipOnError: boolean;
+  maximumWorkers: number;
 }
 
 export interface FileInterface {

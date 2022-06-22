@@ -8,7 +8,7 @@ const initialState: RunManagerInterface = {
 };
 
 export const runManagerSlice = createSlice({
-  name: "appInfo",
+  name: "runManager",
   initialState,
   reducers: {
     setIsRunning: (state, action: PayloadAction<boolean>) => {

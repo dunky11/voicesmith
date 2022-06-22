@@ -40,15 +40,20 @@ def resample(wav: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
 def safe_load(
     path: str, sr: Union[int, None], verbose: bool = True
 ) -> Tuple[np.ndarray, int]:
-    audio, sr_actual = torchaudio.load(
-        filepath=path,
-    )
-    audio = audio.numpy()
-    if audio.shape[0] > 1:
-        audio = stereo_to_mono(audio)
-    if sr != None and sr != sr_actual:
-        audio = resample(wav=audio, orig_sr=sr_actual, target_sr=sr)
-        sr_actual = sr
+    try:
+        audio, sr_actual = torchaudio.load(
+            filepath=path,
+        )
+    
+        audio = audio.numpy()
+        if audio.shape[0] > 1:
+            audio = stereo_to_mono(audio)
+        if sr != None and sr != sr_actual:
+            audio = resample(wav=audio, orig_sr=sr_actual, target_sr=sr)
+            sr_actual = sr
+    except Exception as e:
+        import sys
+        raise type(e)(f"The following error happened loading the file {path} ... \n" + str(e)).with_traceback(sys.exc_info()[2])
 
     audio = audio.squeeze(0)
     return audio, sr_actual

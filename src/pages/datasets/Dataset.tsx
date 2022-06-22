@@ -7,14 +7,20 @@ import {
   Typography,
   Progress,
   Breadcrumb,
+  Input,
+  InputRef,
 } from "antd";
 import { Link, useHistory } from "react-router-dom";
 import { IpcRendererEvent } from "electron";
 import { createUseStyles } from "react-jss";
+import { SearchOutlined } from "@ant-design/icons";
+import type { ColumnType } from "antd/lib/table";
+import type { FilterConfirmProps } from "antd/lib/table/interface";
 import Speaker from "./Speaker";
 import InfoButton from "./InfoButton";
+import ImportSettingsDialog from "./ImportSettingsDialog";
 import { defaultPageOptions } from "../../config";
-import { stringCompare, numberCompare } from "../../utils";
+import { stringCompare, numberCompare, ISO6391_TO_NAME } from "../../utils";
 import { DatasetInterface, SpeakerInterface } from "../../interfaces";
 import {
   ADD_SPEAKER_CHANNEL,
@@ -40,6 +46,8 @@ export default function Dataset({
   const classes = useStyles();
   const isMounted = useRef(false);
   const history = useHistory();
+  const [importSettingsDialogIsOpen, setImportSettingsDialogIsOpen] =
+    useState(false);
   const [isDisabled, setIsDisabled] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [dirProgress, setDirProgress] = useState<{
@@ -51,6 +59,79 @@ export default function Dataset({
   );
   const [dataset, setDataset] = useState<DatasetInterface | null>(null);
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
+  const searchInput = useRef<InputRef>(null);
+
+  const handleSearch = (
+    selectedKeys: string[],
+    confirm: (param?: FilterConfirmProps) => void,
+    dataIndex: any
+  ) => {
+    confirm();
+  };
+
+  const handleReset = (clearFilters: () => void) => {
+    clearFilters();
+  };
+
+  const getColumnSearchProps = (dataIndex: any): ColumnType<any> => ({
+    filterDropdown: ({
+      setSelectedKeys,
+      selectedKeys,
+      confirm,
+      clearFilters,
+    }) => (
+      <div style={{ padding: 8 }}>
+        <Input
+          ref={searchInput}
+          placeholder={`Search ${dataIndex}`}
+          value={selectedKeys[0]}
+          onChange={(e) =>
+            setSelectedKeys(e.target.value ? [e.target.value] : [])
+          }
+          onPressEnter={() =>
+            handleSearch(selectedKeys as string[], confirm, dataIndex)
+          }
+          style={{ marginBottom: 8, display: "block" }}
+        />
+        <Space>
+          <Button
+            type="primary"
+            onClick={() =>
+              handleSearch(selectedKeys as string[], confirm, dataIndex)
+            }
+            icon={<SearchOutlined />}
+            size="small"
+            style={{ width: 90 }}
+          >
+            Search
+          </Button>
+          <Button
+            onClick={() => {
+              setSelectedKeys([]);
+              handleReset(clearFilters);
+              handleSearch([], confirm, dataIndex);
+            }}
+            size="small"
+          >
+            Reset
+          </Button>
+        </Space>
+      </div>
+    ),
+    filterIcon: (filtered: boolean) => (
+      <SearchOutlined style={{ color: filtered ? "#1890ff" : undefined }} />
+    ),
+    onFilter: (value, record) =>
+      record[dataIndex]
+        .toString()
+        .toLowerCase()
+        .includes((value as string).toLowerCase()),
+    onFilterDropdownVisibleChange: (visible) => {
+      if (visible) {
+        setTimeout(() => searchInput.current?.select(), 100);
+      }
+    },
+  });
 
   let totalSampleCount = 0;
   dataset?.speakers.forEach((speaker) => {
@@ -159,6 +240,7 @@ export default function Dataset({
         compare: (a: SpeakerInterface, b: SpeakerInterface) =>
           stringCompare(a.name, b.name),
       },
+      ...getColumnSearchProps("name"),
     },
     {
       title: `Language`,
@@ -180,6 +262,7 @@ export default function Dataset({
           }}
         />
       ),
+      ...getColumnSearchProps("languageLong"),
     },
     {
       title:
@@ -265,6 +348,13 @@ export default function Dataset({
     <>
       {selectedSpeakerID === null ? (
         <>
+          <ImportSettingsDialog
+            open={importSettingsDialogIsOpen}
+            onOk={onAddSpeakers}
+            onClose={() => {
+              setImportSettingsDialogIsOpen(false);
+            }}
+          ></ImportSettingsDialog>
           <Breadcrumb style={{ marginBottom: 8 }}>
             <Breadcrumb.Item>
               <Link to={DATASETS_ROUTE.SELECTION.ROUTE}>Datasets</Link>
@@ -298,7 +388,9 @@ export default function Dataset({
                   Add Empty Speaker
                 </Button>
                 <Button
-                  onClick={onAddSpeakers}
+                  onClick={() => {
+                    setImportSettingsDialogIsOpen(true);
+                  }}
                   style={{ marginRight: 8 }}
                   disabled={
                     isDisabled || !hasLoaded || dataset?.referencedBy !== null
@@ -337,6 +429,7 @@ export default function Dataset({
                 dataSource={dataset?.speakers.map(
                   (speaker: SpeakerInterface) => ({
                     ...speaker,
+                    languageLong: ISO6391_TO_NAME[speaker.language],
                     key: speaker.ID,
                   })
                 )}

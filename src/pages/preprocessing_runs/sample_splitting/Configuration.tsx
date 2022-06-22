@@ -4,7 +4,7 @@ import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import { useDispatch } from "react-redux";
 import {
-  SampleSplittingConfigInterface,
+  SampleSplittingRunConfigInterface,
   SampleSplittingRunInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
@@ -12,6 +12,7 @@ import { notifySave } from "../../../utils";
 import {
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL,
   FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL,
+  FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES,
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES,
 } from "../../../channels";
 import DeviceInput from "../../../components/inputs/DeviceInput";
@@ -22,16 +23,13 @@ import { fetchNames } from "../PreprocessingRuns";
 import { addToQueue, setIsRunning } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
-const initialValues: {
-  name: string;
-  maximumWorkers: number;
-  datasetID: number | null;
-  device: "CPU" | "GPU";
-} = {
+const initialValues: SampleSplittingRunConfigInterface = {
   name: "",
   maximumWorkers: -1,
   datasetID: null,
+  datasetName: null,
   device: "CPU",
+  skipOnError: false,
 };
 
 export default function Configuration({
@@ -47,7 +45,8 @@ export default function Configuration({
   const [configIsLoaded, setConfigIsLoaded] = useState(false);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
-  const formRef = useRef<FormInstance<SampleSplittingConfigInterface> | null>();
+  const formRef =
+    useRef<FormInstance<SampleSplittingRunConfigInterface> | null>();
 
   const onBackClick = () => {
     history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
@@ -85,6 +84,8 @@ export default function Configuration({
       },
     };
 
+    console.log(args);
+
     ipcRenderer
       .invoke(UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL.IN, args)
       .then(() => {
@@ -110,16 +111,20 @@ export default function Configuration({
   };
 
   const fetchConfiguration = () => {
+    const args: FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ID: run.ID,
+    };
     ipcRenderer
-      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, run.ID)
-      .then((runs: SampleSplittingRunInterface[]) => {
+      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, args)
+      .then((runs: FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
         if (!configIsLoaded) {
           setConfigIsLoaded(true);
         }
-        formRef.current?.setFieldsValue(runs[0]);
+        console.log(runs);
+        formRef.current?.setFieldsValue(runs[0].configuration);
       });
   };
 
@@ -185,6 +190,12 @@ export default function Configuration({
                   {el}
                 </Select.Option>
               ))}
+          </Select>
+        </Form.Item>
+        <Form.Item label="On Error Ignore Sample" name="skipOnError">
+          <Select style={{ width: 200 }}>
+            <Select.Option value={true}>Yes</Select.Option>
+            <Select.Option value={false}>No</Select.Option>
           </Select>
         </Form.Item>
         <DatasetInput disabled={disableElseEdit} />

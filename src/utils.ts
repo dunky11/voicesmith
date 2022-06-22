@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { notification } from "antd";
 import { GraphStatisticInterface, RunInterface } from "./interfaces";
-import { SERVER_URL } from "./config";
+import { SERVER_URL, LANGUAGES } from "./config";
 
 export function useInterval(
   callback: any,
@@ -174,3 +174,9 @@ export const isInQueue = (
   }
   return false;
 };
+
+const ISO6391_TO_NAME: { [key: string]: string } = {};
+LANGUAGES.forEach((lang) => {
+  ISO6391_TO_NAME[lang.iso6391] = lang.name;
+});
+export { ISO6391_TO_NAME };
