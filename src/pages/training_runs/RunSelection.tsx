@@ -4,16 +4,14 @@ import {
   Button,
   Card,
   Space,
-  Tag,
   Breadcrumb,
   Popconfirm,
   Typography,
 } from "antd";
-import { SyncOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import { POLL_LOGFILE_INTERVALL, defaultPageOptions } from "../../config";
-import { useInterval, stringCompare } from "../../utils";
+import { useInterval, stringCompare, getStateTag } from "../../utils";
 import {
   FETCH_TRAINING_RUNS_CHANNEL,
   FETCH_TRAINING_RUNS_CHANNEL_TYPES,
@@ -35,6 +33,9 @@ export default function RunSelection({
       return null;
     }
     return state.runManager.queue[0];
+  });
+  const runManager = useSelector((state: RootState) => {
+    return state.runManager;
   });
   const dispatch = useDispatch();
   const isMounted = useRef(false);
@@ -97,35 +98,11 @@ export default function RunSelection({
           stringCompare(a.stage, b.stage),
       },
     },
-
     {
       title: "State",
       key: "action",
-      sorter: {
-        compare: (a: TrainingRunInterface, b: TrainingRunInterface) =>
-          stringCompare(
-            running !== null &&
-              running.type === "trainingRun" &&
-              a.ID === running.ID
-              ? "running"
-              : "not_running",
-            running !== null &&
-              running.type === "trainingRun" &&
-              b.ID === running.ID
-              ? "running"
-              : "not_running"
-          ),
-      },
-      render: (text: any, record: TrainingRunInterface) =>
-        running !== null &&
-        running.type === "trainingRun" &&
-        record.ID === running.ID ? (
-          <Tag icon={<SyncOutlined spin />} color="green">
-            Running
-          </Tag>
-        ) : (
-          <Tag color="orange">Not Running</Tag>
-        ),
+      render: (text: any, record: any) =>
+        getStateTag(record, runManager.isRunning, runManager.queue),
     },
     {
       title: "Dataset",

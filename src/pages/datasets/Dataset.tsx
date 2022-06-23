@@ -7,20 +7,21 @@ import {
   Typography,
   Progress,
   Breadcrumb,
-  Input,
   InputRef,
 } from "antd";
 import { Link, useHistory } from "react-router-dom";
 import { IpcRendererEvent } from "electron";
 import { createUseStyles } from "react-jss";
-import { SearchOutlined } from "@ant-design/icons";
-import type { ColumnType } from "antd/lib/table";
-import type { FilterConfirmProps } from "antd/lib/table/interface";
 import Speaker from "./Speaker";
 import InfoButton from "./InfoButton";
 import ImportSettingsDialog from "./ImportSettingsDialog";
 import { defaultPageOptions } from "../../config";
-import { stringCompare, numberCompare, ISO6391_TO_NAME } from "../../utils";
+import {
+  stringCompare,
+  numberCompare,
+  ISO6391_TO_NAME,
+  getSearchableColumn,
+} from "../../utils";
 import { DatasetInterface, SpeakerInterface } from "../../interfaces";
 import {
   ADD_SPEAKER_CHANNEL,
@@ -63,78 +64,6 @@ export default function Dataset({
   const [dataset, setDataset] = useState<DatasetInterface | null>(null);
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
   const searchInput = useRef<InputRef>(null);
-
-  const handleSearch = (
-    selectedKeys: string[],
-    confirm: (param?: FilterConfirmProps) => void,
-    dataIndex: any
-  ) => {
-    confirm();
-  };
-
-  const handleReset = (clearFilters: () => void) => {
-    clearFilters();
-  };
-
-  const getColumnSearchProps = (dataIndex: any): ColumnType<any> => ({
-    filterDropdown: ({
-      setSelectedKeys,
-      selectedKeys,
-      confirm,
-      clearFilters,
-    }) => (
-      <div style={{ padding: 8 }}>
-        <Input
-          ref={searchInput}
-          placeholder={`Search ${dataIndex}`}
-          value={selectedKeys[0]}
-          onChange={(e) =>
-            setSelectedKeys(e.target.value ? [e.target.value] : [])
-          }
-          onPressEnter={() =>
-            handleSearch(selectedKeys as string[], confirm, dataIndex)
-          }
-          style={{ marginBottom: 8, display: "block" }}
-        />
-        <Space>
-          <Button
-            type="primary"
-            onClick={() =>
-              handleSearch(selectedKeys as string[], confirm, dataIndex)
-            }
-            icon={<SearchOutlined />}
-            size="small"
-            style={{ width: 90 }}
-          >
-            Search
-          </Button>
-          <Button
-            onClick={() => {
-              setSelectedKeys([]);
-              handleReset(clearFilters);
-              handleSearch([], confirm, dataIndex);
-            }}
-            size="small"
-          >
-            Reset
-          </Button>
-        </Space>
-      </div>
-    ),
-    filterIcon: (filtered: boolean) => (
-      <SearchOutlined style={{ color: filtered ? "#1890ff" : undefined }} />
-    ),
-    onFilter: (value, record) =>
-      record[dataIndex]
-        .toString()
-        .toLowerCase()
-        .includes((value as string).toLowerCase()),
-    onFilterDropdownVisibleChange: (visible) => {
-      if (visible) {
-        setTimeout(() => searchInput.current?.select(), 100);
-      }
-    },
-  });
 
   let totalSampleCount = 0;
   dataset?.speakers.forEach((speaker) => {
@@ -220,53 +149,59 @@ export default function Dataset({
   };
 
   const columns = [
-    {
-      title:
-        "Name" +
-        (dataset === null || dataset?.speakers.length === 0
-          ? ""
-          : ` (${dataset.speakers.length} Speakers Total)`),
-      key: "name",
-      render: (text: any, record: SpeakerInterface) => (
-        <Typography.Text
-          editable={{
-            tooltip: false,
-            onChange: (newName: string) => {
-              onSpeakerNameEdit(record, newName);
-            },
-          }}
-        >
-          {record.name}
-        </Typography.Text>
-      ),
-      sorter: {
-        compare: (a: SpeakerInterface, b: SpeakerInterface) =>
-          stringCompare(a.name, b.name),
-      },
-      ...getColumnSearchProps("name"),
-    },
-    {
-      title: `Language`,
-      key: "language",
-      sorter: {
-        compare: (a: SpeakerInterface, b: SpeakerInterface) => {
-          return stringCompare(a.language, b.language);
+    getSearchableColumn(
+      {
+        title:
+          "Name" +
+          (dataset === null || dataset?.speakers.length === 0
+            ? ""
+            : ` (${dataset.speakers.length} Speakers Total)`),
+        key: "name",
+        render: (text: any, record: SpeakerInterface) => (
+          <Typography.Text
+            editable={{
+              tooltip: false,
+              onChange: (newName: string) => {
+                onSpeakerNameEdit(record, newName);
+              },
+            }}
+          >
+            {record.name}
+          </Typography.Text>
+        ),
+        sorter: {
+          compare: (a: SpeakerInterface, b: SpeakerInterface) =>
+            stringCompare(a.name, b.name),
         },
       },
-      render: (text: any, record: SpeakerInterface) => (
-        <LanguageSelect
-          className={classes.languageSelect}
-          value={record.language}
-          onChange={(lang: SpeakerInterface["language"]) => {
-            onSpeakerChange({
-              ...record,
-              language: lang,
-            });
-          }}
-        />
-      ),
-      ...getColumnSearchProps("languageLong"),
-    },
+      "name",
+      searchInput
+    ),
+    getSearchableColumn(
+      {
+        title: `Language`,
+        key: "language",
+        sorter: {
+          compare: (a: SpeakerInterface, b: SpeakerInterface) => {
+            return stringCompare(a.language, b.language);
+          },
+        },
+        render: (text: any, record: SpeakerInterface) => (
+          <LanguageSelect
+            className={classes.languageSelect}
+            value={record.language}
+            onChange={(lang: SpeakerInterface["language"]) => {
+              onSpeakerChange({
+                ...record,
+                language: lang,
+              });
+            }}
+          />
+        ),
+      },
+      "languageLong",
+      searchInput
+    ),
     {
       title:
         "Number of Samples" +

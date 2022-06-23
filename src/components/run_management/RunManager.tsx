@@ -64,9 +64,11 @@ export default function RunManager(): React.ReactElement {
           case "startedRun":
             return;
           case "finishedRun":
+            console.log("FINISHED RUN");
             onRunFinishRef.current();
             return;
           case "error":
+            console.log("ERROR");
             onRunFinishRef.current();
             notification["error"]({
               message: "Oops, an error occured, check logs for more info ...",

@@ -1,19 +1,11 @@
 import React, { ReactElement } from "react";
-import {
-  Breadcrumb,
-  Row,
-  Col,
-  Table,
-  Space,
-  Typography,
-  Button,
-  Tag,
-} from "antd";
+import { Breadcrumb, Table, Space, Typography, Button, Tag } from "antd";
+import { createUseStyles } from "react-jss";
 import { SyncOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
+import { getStateTag, getTypeTag } from "../../utils";
 import { RootState } from "../../app/store";
 import RunCard from "../../components/cards/RunCard";
-import { createUseStyles } from "react-jss";
 import { defaultPageOptions } from "../../config";
 import { editQueue, setIsRunning } from "../../features/runManagerSlice";
 
@@ -59,22 +51,8 @@ export default function RunQueue(): ReactElement {
     {
       title: "State",
       key: "state",
-      render: (text: any, record: any) => {
-        if (record.position === 0) {
-          if (runManager.isRunning) {
-            return (
-              <Tag icon={<SyncOutlined spin />} color="green">
-                Running
-              </Tag>
-            );
-          } else {
-            return <Tag color="orange">Not Running</Tag>;
-          }
-        }
-        return (
-          <Tag color="orange">{`Position ${record.position + 1} in Queue`}</Tag>
-        );
-      },
+      render: (text: any, record: any) =>
+        getStateTag(record, runManager.isRunning, runManager.queue),
     },
     {
       title: "Name",
@@ -83,8 +61,8 @@ export default function RunQueue(): ReactElement {
     },
     {
       title: "Type",
-      dataIndex: "type",
       key: "type",
+      render: (text: any, record: any) => getTypeTag(record.type),
     },
     {
       title: "",

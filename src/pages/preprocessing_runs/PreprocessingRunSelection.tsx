@@ -14,7 +14,13 @@ import {
 } from "antd";
 import { defaultPageOptions } from "../../config";
 import { RunInterface, PreprocessingRunType } from "../../interfaces";
-import { stringCompare, isInQueue } from "../../utils";
+import {
+  stringCompare,
+  isInQueue,
+  getStateTag,
+  getTypeTag,
+  getTypeFullName,
+} from "../../utils";
 import {
   CREATE_PREPROCESSING_RUN_CHANNEL,
   EDIT_PREPROCESSING_RUN_NAME_CHANNEL,
@@ -22,23 +28,8 @@ import {
   FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES,
   REMOVE_PREPROCESSING_RUN_CHANNEL,
 } from "../../channels";
-import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
+import { addToQueue } from "../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
-
-const prettyType = (type: RunInterface["type"]) => {
-  switch (type) {
-    case "textNormalizationRun":
-      return "Text Normalization";
-    case "cleaningRun":
-      return "Dataset Cleaning";
-    case "sampleSplittingRun":
-      return "Sample Splitting";
-    default:
-      throw new Error(
-        `No case selected in switch-statement, '${type}' is not a valid case ...`
-      );
-  }
-};
 
 export default function PreprocessingRunSelection({
   setSelectedPreprocessingRun,
@@ -57,6 +48,9 @@ export default function PreprocessingRunSelection({
       return null;
     }
     return state.runManager.queue[0];
+  });
+  const isRunning = useSelector((state: RootState) => {
+    return state.runManager.isRunning;
   });
   const queue = useSelector((state: RootState) => {
     return state.runManager.queue;
@@ -121,14 +115,6 @@ export default function PreprocessingRunSelection({
       .then(fetchPreprocessingRuns);
   };
 
-  const getIsRunning = (record: PreprocessingRunType) => {
-    return (
-      running !== null &&
-      running.type === record.type &&
-      record.ID === running.ID
-    );
-  };
-
   const columns = [
     {
       title: "Name",
@@ -154,12 +140,11 @@ export default function PreprocessingRunSelection({
     {
       title: "Type",
       key: "type",
-      render: (text: any, record: PreprocessingRunType) => (
-        <Typography.Text>{prettyType(record.type)}</Typography.Text>
-      ),
+      render: (text: any, record: PreprocessingRunType) =>
+        getTypeTag(record.type),
       sorter: {
         compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
-          stringCompare(prettyType(a.type), prettyType(b.type)),
+          stringCompare(getTypeFullName(a.type), getTypeFullName(b.type)),
       },
     },
     {
@@ -190,13 +175,7 @@ export default function PreprocessingRunSelection({
           ),
       },
       render: (text: any, record: PreprocessingRunType) =>
-        getIsRunning(record) ? (
-          <Tag icon={<SyncOutlined spin />} color="green">
-            Running
-          </Tag>
-        ) : (
-          <Tag color="orange">Not Running</Tag>
-        ),
+        getStateTag(record, isRunning, queue),
     },
     {
       title: "Dataset",

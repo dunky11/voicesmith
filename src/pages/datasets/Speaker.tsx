@@ -7,15 +7,11 @@ import {
   Space,
   Typography,
   InputRef,
-  Input,
 } from "antd";
 import { Link } from "react-router-dom";
-import { SearchOutlined } from "@ant-design/icons";
-import type { ColumnType } from "antd/lib/table";
-import type { FilterConfirmProps } from "antd/lib/table/interface";
 import { defaultPageOptions } from "../../config";
 import AudioBottomBar from "../../components/audio_player/AudioBottomBar";
-import { stringCompare } from "../../utils";
+import { stringCompare, getSearchableColumn } from "../../utils";
 import {
   SpeakerInterface,
   SpeakerSampleInterface,
@@ -54,78 +50,6 @@ export default function Speaker({
   const playFuncRef = useRef<null | (() => void)>(null);
   const [audioDataURL, setAudioDataURL] = useState<string | null>(null);
   const searchInput = useRef<InputRef>(null);
-
-  const handleSearch = (
-    selectedKeys: string[],
-    confirm: (param?: FilterConfirmProps) => void,
-    dataIndex: any
-  ) => {
-    confirm();
-  };
-
-  const handleReset = (clearFilters: () => void) => {
-    clearFilters();
-  };
-
-  const getColumnSearchProps = (dataIndex: any): ColumnType<any> => ({
-    filterDropdown: ({
-      setSelectedKeys,
-      selectedKeys,
-      confirm,
-      clearFilters,
-    }) => (
-      <div style={{ padding: 8 }}>
-        <Input
-          ref={searchInput}
-          placeholder={`Search ${dataIndex}`}
-          value={selectedKeys[0]}
-          onChange={(e) =>
-            setSelectedKeys(e.target.value ? [e.target.value] : [])
-          }
-          onPressEnter={() =>
-            handleSearch(selectedKeys as string[], confirm, dataIndex)
-          }
-          style={{ marginBottom: 8, display: "block" }}
-        />
-        <Space>
-          <Button
-            type="primary"
-            onClick={() =>
-              handleSearch(selectedKeys as string[], confirm, dataIndex)
-            }
-            icon={<SearchOutlined />}
-            size="small"
-            style={{ width: 90 }}
-          >
-            Search
-          </Button>
-          <Button
-            onClick={() => {
-              setSelectedKeys([]);
-              handleReset(clearFilters);
-              handleSearch([], confirm, dataIndex);
-            }}
-            size="small"
-          >
-            Reset
-          </Button>
-        </Space>
-      </div>
-    ),
-    filterIcon: (filtered: boolean) => (
-      <SearchOutlined style={{ color: filtered ? "#1890ff" : undefined }} />
-    ),
-    onFilter: (value, record) =>
-      record[dataIndex]
-        .toString()
-        .toLowerCase()
-        .includes((value as string).toLowerCase()),
-    onFilterDropdownVisibleChange: (visible) => {
-      if (visible) {
-        setTimeout(() => searchInput.current?.select(), 100);
-      }
-    },
-  });
 
   const removeSamples = (sampleIDs: number[]) => {
     if (datasetID === null || speaker === null) {
@@ -194,47 +118,56 @@ export default function Speaker({
   };
 
   const columns = [
-    {
-      title: "Text Path",
-      dataIndex: "txtPath",
-      key: "txtPath",
-      sorter: {
-        compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
-          stringCompare(a.txtPath, b.txtPath),
+    getSearchableColumn(
+      {
+        title: "Text Path",
+        dataIndex: "txtPath",
+        key: "txtPath",
+        sorter: {
+          compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
+            stringCompare(a.txtPath, b.txtPath),
+        },
       },
-      ...getColumnSearchProps("txtPath"),
-    },
-    {
-      title: "Audio Path",
-      dataIndex: "audioPath",
-      key: "audioPath",
-      sorter: {
-        compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
-          stringCompare(a.audioPath, b.audioPath),
+      "txtPath",
+      searchInput
+    ),
+    getSearchableColumn(
+      {
+        title: "Audio Path",
+        dataIndex: "audioPath",
+        key: "audioPath",
+        sorter: {
+          compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
+            stringCompare(a.audioPath, b.audioPath),
+        },
       },
-      ...getColumnSearchProps("audioPath"),
-    },
-    {
-      title: "Text",
-      dataIndex: "text",
-      key: "text",
-      sorter: {
-        compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
-          stringCompare(a.text, b.text),
+      "audioPath",
+      searchInput
+    ),
+    getSearchableColumn(
+      {
+        title: "Text",
+        dataIndex: "text",
+        key: "text",
+        sorter: {
+          compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
+            stringCompare(a.text, b.text),
+        },
+        render: (text: any, record: SpeakerSampleInterface) => (
+          <Typography.Text
+            editable={{
+              onChange: (newText) => {
+                onTextChange(record.ID, newText);
+              },
+            }}
+          >
+            {record.text}
+          </Typography.Text>
+        ),
       },
-      render: (text: any, record: SpeakerSampleInterface) => (
-        <Typography.Text
-          editable={{
-            onChange: (newText) => {
-              onTextChange(record.ID, newText);
-            },
-          }}
-        >
-          {record.text}
-        </Typography.Text>
-      ),
-      ...getColumnSearchProps("text"),
-    },
+      "text",
+      searchInput
+    ),
     {
       title: "",
       key: "action",
