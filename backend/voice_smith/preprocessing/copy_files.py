@@ -19,7 +19,7 @@ def copy_sample(
     out_path.mkdir(exist_ok=True, parents=True)
     audio_out_path = out_path / (Path(audio_src).stem + ".flac")
     txt_out_path = out_path / Path(text_src).name
-    if txt_out_path.exists():
+    if txt_out_path.exists(): 
         return
     try:
         audio, sr = safe_load(audio_src, sr=None)
