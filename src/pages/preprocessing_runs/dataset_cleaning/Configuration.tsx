@@ -6,7 +6,7 @@ import { useDispatch } from "react-redux";
 import { addToQueue } from "../../../features/runManagerSlice";
 import {
   UPDATE_CLEANING_RUN_CONFIG_CHANNEL,
-  FETCH_CLEANING_RUN_CONFIG_CHANNEL,
+  FETCH_CLEANING_RUNS_CHANNEL,
 } from "../../../channels";
 import { fetchNames } from "../PreprocessingRuns";
 import {
@@ -15,10 +15,12 @@ import {
 } from "../../../interfaces";
 import DatasetInput from "../../../components/inputs/DatasetInput";
 import NameInput from "../../../components/inputs/NameInput";
+import DeviceInput from "../../../components/inputs/DeviceInput";
 import RunCard from "../../../components/cards/RunCard";
 import { notifySave } from "../../../utils";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 import SkipOnErrorInput from "../../../components/inputs/SkipOnErrorInput";
+import MaximumWorkersInput from "../../../components/inputs/MaximumWorkersInput";
 const { ipcRenderer } = window.require("electron");
 
 const initialValues: CleaningRunConfigInterface = {
@@ -26,6 +28,8 @@ const initialValues: CleaningRunConfigInterface = {
   datasetID: null,
   datasetName: null,
   skipOnError: true,
+  device: "CPU",
+  maximumWorkers: -1,
 };
 
 export default function Configuration({
@@ -103,15 +107,15 @@ export default function Configuration({
 
   const fetchConfiguration = () => {
     ipcRenderer
-      .invoke(FETCH_CLEANING_RUN_CONFIG_CHANNEL.IN, run.ID)
-      .then((configuration: CleaningRunConfigInterface) => {
+      .invoke(FETCH_CLEANING_RUNS_CHANNEL.IN, run.ID)
+      .then((runs: CleaningRunInterface[]) => {
         if (!isMounted.current) {
           return;
         }
         if (initialIsLoading) {
           setInitialIsLoading(false);
         }
-        formRef.current?.setFieldsValue(configuration);
+        formRef.current?.setFieldsValue(runs[0].configuration);
       });
   };
 
@@ -163,13 +167,15 @@ export default function Configuration({
         initialValues={initialValues}
         onFinish={onFinish}
       >
-        <SkipOnErrorInput disabled={initialIsLoading} />
         <NameInput
           fetchNames={() => {
             return fetchNames(run.ID);
           }}
           disabled={initialIsLoading}
         ></NameInput>
+        <MaximumWorkersInput disabled={initialIsLoading} />
+        <DeviceInput disabled={initialIsLoading} />
+        <SkipOnErrorInput disabled={initialIsLoading} />
         <DatasetInput disabled={hasStarted || initialIsLoading} />
       </Form>
     </RunCard>

@@ -7,19 +7,19 @@ import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
 import { CleaningRunInterface, RunInterface } from "../../../interfaces";
 import {
+  getProgressTitle,
   getStageIsRunning,
   getWouldContinueRun,
-  getProgressTitle,
 } from "../../../utils";
 import RunCard from "../../../components/cards/RunCard";
 import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
 
-export default function Configuration({
+export default function ApplyChanges({
   onStepChange,
   run,
 }: {
   onStepChange: (current: number) => void;
-  run: CleaningRunInterface;
+  run: CleaningRunInterface | null;
 }): ReactElement {
   const dispatch = useDispatch();
   const running: RunInterface = useSelector((state: RootState) => {
@@ -29,7 +29,7 @@ export default function Configuration({
     return state.runManager.queue[0];
   });
   const stageIsRunning = getStageIsRunning(
-    ["not_started", "copying_files", "transcribe"],
+    ["apply_changes"],
     run.stage,
     running,
     "cleaningRun",
@@ -37,27 +37,23 @@ export default function Configuration({
   );
 
   const wouldContinueRun = getWouldContinueRun(
-    ["not_started", "copying_files", "transcribe"],
+    ["apply_changes"],
     run.stage,
     running,
     "cleaningRun",
     run.ID
   );
 
-  const onBackClick = () => {
-    onStepChange(0);
-  };
-
   const onNextClick = () => {
     if (stageIsRunning) {
       dispatch(setIsRunning(false));
-    } else if (wouldContinueRun) {
+    } else if (run.stage !== "finished") {
       dispatch(addToQueue({ ID: run.ID, type: "cleaningRun", name: run.name }));
-    } else if (
-      ["choose_samples", "apply_changes", "finished"].includes(run.stage)
-    ) {
-      onStepChange(2);
     }
+  };
+
+  const onBackClick = () => {
+    onStepChange(2);
   };
 
   const getNextButtonText = () => {
@@ -67,39 +63,21 @@ export default function Configuration({
     if (wouldContinueRun) {
       return "Continue Run";
     }
-    return "Next";
+    return "";
   };
 
-  const getCurrent = () => {
-    switch (run.stage) {
-      case "not_started":
-        return 0;
-      case "copying_files":
-        return 0;
-      case "transcribe":
-        return 1;
-      case "choose_samples":
-        return 1;
-      case "apply_changes":
-        return 1;
-      case "finished":
-        return 1;
-      default:
-        throw new Error(
-          `No case selected in switch-statement, '${run.stage}' is not a valid case ...`
-        );
-    }
-  };
+  const current = 0;
 
-  const current = getCurrent();
-
+  // TODO progress for apply changes
   return (
     <RunCard
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button type="primary" onClick={onNextClick}>
-          {getNextButtonText()}
-        </Button>,
+        run.stage !== "finished" && (
+          <Button type="primary" onClick={onNextClick}>
+            {getNextButtonText()}
+          </Button>
+        ),
       ]}
     >
       <Tabs defaultActiveKey="Overview">
@@ -109,24 +87,12 @@ export default function Configuration({
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step
                 title={getProgressTitle(
-                  "Copy Files",
-                  run ? run.copyingFilesProgress : 0
+                  "Apply Changes",
+                  run.applyingChangesProgress
                 )}
-                description="Copy audio files into the correct folder."
+                description="Removing selected samples from the dataset."
                 icon={
                   current === 0 && stageIsRunning ? (
-                    <LoadingOutlined />
-                  ) : undefined
-                }
-              />
-              <Steps.Step
-                title={getProgressTitle(
-                  "Transcribe",
-                  run ? run.transcriptionProgress : 0
-                )}
-                description="Transcribe audio to calculate sample quality score."
-                icon={
-                  current === 1 && stageIsRunning ? (
                     <LoadingOutlined />
                   ) : undefined
                 }
@@ -136,8 +102,8 @@ export default function Configuration({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(run.ID)}
-            logFileName="preprocessing.txt"
+            name={run === null ? null : String(run.ID)}
+            logFileName="apply_changes.txt"
             type="cleaningRun"
           />
         </Tabs.TabPane>

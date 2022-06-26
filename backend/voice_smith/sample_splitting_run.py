@@ -1,6 +1,6 @@
 from pathlib import Path
 import shutil
-from typing import Literal, Callable, List, Dict
+from typing import Callable, List, Dict
 import sys
 import torch
 import json

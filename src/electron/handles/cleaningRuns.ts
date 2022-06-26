@@ -4,15 +4,14 @@ import {
   CONTINUE_CLEANING_RUN_CHANNEL,
   FETCH_CLEANING_RUNS_CHANNEL,
   FETCH_CLEANING_RUNS_CHANNEL_TYPES,
-  FETCH_CLEANING_RUN_CONFIG_CHANNEL,
   UPDATE_CLEANING_RUN_CONFIG_CHANNEL,
   FETCH_NOISY_SAMPLES_CHANNEL,
   REMOVE_NOISY_SAMPLES_CHANNEL,
   FINISH_CLEANING_RUN_CHANNEL,
 } from "../../channels";
 import { safeUnlink } from "../utils/files";
-import { getCleaningRunsDir, getDatasetsDir, DB_PATH } from "../utils/globals";
-import { DB, getSpeakersWithSamples } from "../utils/db";
+import { getDatasetsDir } from "../utils/globals";
+import { bool2int, DB, getSpeakersWithSamples } from "../utils/db";
 import {
   CleaningRunInterface,
   CleaningRunConfigInterface,
@@ -54,18 +53,9 @@ ipcMain.on(
     }
     startRun(
       event,
-      "cleaning_run.py",
-      [
-        "--cleaning_run_id",
-        String(runID),
-        "--db_path",
-        DB_PATH,
-        "--cleaning_runs_dir",
-        getCleaningRunsDir(),
-        "--datasets_path",
-        getDatasetsDir(),
-      ],
-      true
+      "/home/backend/voice_smith/cleaning_run.py",
+      ["--run_id", String(runID)],
+      false
     );
   }
 );
@@ -76,10 +66,15 @@ export const fetchCleaningRuns = (
   const fetchStmt = DB.getInstance().prepare(
     `SELECT cleaning_run.ID AS ID, cleaning_run.name AS name, stage,
       dataset.ID AS datasetID, dataset.name AS datasetName,
-      cleaning_run.skip_on_error AS skipOnError
+      cleaning_run.skip_on_error AS skipOnError,
+      copying_files_progress AS copyingFilesProgress,
+      transcription_progress AS transcriptionProgress,
+      applying_changes_progress AS applyingChangesProgress,
+      maximum_workers AS maximumWorkers,
+      device
     FROM cleaning_run
     LEFT JOIN dataset ON cleaning_run.dataset_id = dataset.ID
-    ${ID === null ? "" : "WHERE ID=@ID"}`
+    ${ID === null ? "" : "WHERE cleaning_run.ID=@ID"}`
   );
   let runsRaw;
   if (ID === null) {
@@ -97,8 +92,13 @@ export const fetchCleaningRuns = (
         name: el.name,
         datasetID: el.datasetID,
         datasetName: el.datasetName,
-        skipOnError: el.skipOnError,
+        skipOnError: el.skipOnError === 1,
+        device: el.device,
+        maximumWorkers: el.maximumWorkers,
       },
+      copyingFilesProgress: el.copyingFilesProgress,
+      transcriptionProgress: el.transcriptionProgress,
+      applyingChangesProgress: el.applyingChangesProgress,
       canStart: el.datasetID !== null,
     };
     return run;
@@ -116,17 +116,6 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  FETCH_CLEANING_RUN_CONFIG_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, ID: number) => {
-    return DB.getInstance()
-      .prepare(
-        "SELECT name, dataset_id AS datasetID FROM cleaning_run WHERE ID=@ID"
-      )
-      .get({ ID });
-  }
-);
-
-ipcMain.handle(
   UPDATE_CLEANING_RUN_CONFIG_CHANNEL.IN,
   (
     event: IpcMainInvokeEvent,
@@ -135,12 +124,22 @@ ipcMain.handle(
   ) => {
     return DB.getInstance()
       .prepare(
-        "UPDATE cleaning_run SET name=@name, dataset_id=@datasetID WHERE ID=@ID"
+        `
+        UPDATE cleaning_run 
+          SET name=@name, 
+          dataset_id=@datasetID,
+          skip_on_error=@skipOnError,
+          device=@device,
+          maximum_workers=@maximumWorkers
+        WHERE ID=@ID
+        `
       )
-      .run({
-        ID,
-        ...config,
-      });
+      .run(
+        bool2int({
+          ID,
+          ...config,
+        })
+      );
   }
 );
 

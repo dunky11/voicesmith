@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
-import { Switch, useHistory, Route, Link } from "react-router-dom";
+import { Switch, useHistory, Route } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
+import BreadcrumbItem from "../../../components/breadcrumb/BreadcrumbItem";
 import { RootState } from "../../../app/store";
 import { RunInterface, CleaningRunInterface } from "../../../interfaces";
 import { useInterval } from "../../../utils";
@@ -14,23 +15,27 @@ import {
   FETCH_CLEANING_RUNS_CHANNEL,
   FETCH_CLEANING_RUNS_CHANNEL_TYPES,
 } from "../../../channels";
+import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
+import ApplyChanges from "./ApplyChanges";
 
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
   [key: number]: string;
 } = {
-  0: "/preprocessing-runs/dataset-cleaning/configuration",
-  1: "/preprocessing-runs/dataset-cleaning/outlier-detection",
-  2: "/preprocessing-runs/dataset-cleaning/choose-samples",
+  0: PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.CONFIGURATION.ROUTE,
+  1: PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.RUNNING.ROUTE,
+  2: PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.CHOOSE_SAMPLES.ROUTE,
+  3: PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.APPLY_CHANGES.ROUTE,
 };
 
 const stepToTitle: {
   [key: number]: string;
 } = {
   0: "Configuration",
-  1: "Detecting Outliers",
+  1: "Calculating Sample Quality",
   2: "Pick Samples",
+  3: "Apply Changes",
 };
 
 export default function DatasetCleaning({
@@ -92,11 +97,11 @@ export default function DatasetCleaning({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>
-          <Link to="/preprocessing-runs/run-selection">Preprocessing Runs</Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{preprocessingRun.name}</Breadcrumb.Item>
-        <Breadcrumb.Item>{stepToTitle[current]}</Breadcrumb.Item>
+        <BreadcrumbItem to={PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE}>
+          Preprocessing Runs
+        </BreadcrumbItem>
+        <BreadcrumbItem>{preprocessingRun.name}</BreadcrumbItem>
+        <BreadcrumbItem>{stepToTitle[current]}</BreadcrumbItem>
       </Breadcrumb>
       <Row gutter={[0, 100]}>
         <Col className="gutter-row" span={4}>
@@ -116,13 +121,23 @@ export default function DatasetCleaning({
               <Steps.Step
                 disabled={
                   run === null ||
-                  [
-                    "not_started",
-                    "gen_file_embeddings",
-                    "detect_outliers",
-                  ].includes(run.stage)
+                  ["not_started", "copying_files", "transcribe"].includes(
+                    run.stage
+                  )
                 }
                 title={stepToTitle[2]}
+              />
+              <Steps.Step
+                disabled={
+                  run === null ||
+                  [
+                    "not_started",
+                    "copying_files",
+                    "transcribe",
+                    "choose_samples",
+                  ].includes(run.stage)
+                }
+                title={stepToTitle[3]}
               />
             </Steps>
           </Card>
@@ -150,6 +165,12 @@ export default function DatasetCleaning({
                 <ChooseSamples onStepChange={onStepChange} run={run} />
               )}
               path={stepToPath[2]}
+            ></Route>
+            <Route
+              render={() => (
+                <ApplyChanges onStepChange={onStepChange} run={run} />
+              )}
+              path={stepToPath[3]}
             ></Route>
           </Switch>
         </Col>

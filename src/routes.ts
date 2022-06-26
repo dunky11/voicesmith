@@ -61,6 +61,15 @@ export const PREPROCESSING_RUNS_ROUTE = {
     CONFIGURATION: {
       ROUTE: "/preprocessing-runs/dataset-cleaning/configuration",
     },
+    RUNNING: {
+      ROUTE: "/preprocessing-runs/dataset-cleaning/running",
+    },
+    CHOOSE_SAMPLES: {
+      ROUTE: "/preprocessing-runs/dataset-cleaning/choose-samples",
+    },
+    APPLY_CHANGES: {
+      ROUTE: "/preprocessing-runs/dataset-cleaning/apply-changes",
+    },
   },
   RUN_SELECTION: { ROUTE: "/preprocessing-runs/run-selection" },
   SAMPLE_SPLITTING: {

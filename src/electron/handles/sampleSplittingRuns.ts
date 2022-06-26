@@ -18,6 +18,7 @@ import {
   SampleSplittingSampleInterface,
 } from "../../interfaces";
 import { startRun } from "../utils/processes";
+import { ContinuousColorLegend } from "react-vis";
 
 ipcMain.on(
   CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL.IN,
@@ -95,7 +96,13 @@ ipcMain.handle(
   ): UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES["IN"]["OUT"] => {
     DB.getInstance()
       .prepare(
-        "UPDATE sample_splitting_run SET name=@name, dataset_id=@datasetID, maximum_workers=@maximumWorkers, device=@device, skip_on_error=@skipOnError WHERE ID=@ID"
+        `
+        UPDATE sample_splitting_run 
+          SET name=@name, dataset_id=@datasetID, 
+          maximum_workers=@maximumWorkers, 
+          device=@device, skip_on_error=@skipOnError 
+        WHERE ID=@ID
+        `
       )
       .run(
         bool2int({

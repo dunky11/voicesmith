@@ -11,11 +11,11 @@ from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
 from voice_smith.utils.sql_logger import SQLLogger
 from voice_smith.utils.runs import StageRunner
+from voice_smith.utils.tools import get_device, get_workers
 from voice_smith.preprocessing.transcribe import transcribe
 from voice_smith.config.globals import (
     DB_PATH,
     CLEANING_RUNS_PATH,
-    ENVIRONMENT_NAME,
     DATASETS_PATH,
     ASSETS_PATH,
 )
@@ -26,7 +26,7 @@ from voice_smith.config.configs import CleaningRunConfig
 def get_config(cur: sqlite3.Cursor, run_id: int) -> CleaningRunConfig:
     row = cur.execute(
         """
-        SELECT device, maximum_workers, skip_on_error FROM sample_splitting_run WHERE ID=?
+        SELECT device, maximum_workers, skip_on_error FROM cleaning_run WHERE ID=?
         """,
         (run_id,),
     ).fetchone()
@@ -165,7 +165,6 @@ def transcribe_stage(
     con: sqlite3.Connection,
     run_id: int,
     data_path: str,
-    assets_path: str,
     get_logger: Callable[[], SQLLogger],
     **kwargs,
 ) -> bool:
@@ -196,7 +195,7 @@ def transcribe_stage(
                     / "raw_data"
                     / lang
                     / speaker_name
-                    / f"{audio_path.stem}.wav"
+                    / f"{Path(audio_path).stem}.flac"
                 )
             )
 
@@ -213,8 +212,6 @@ def transcribe_stage(
                 audio_files=audio_paths,
                 lang=lang,
                 device=config.device,
-                workers=config.workers,
-                assets_path=assets_path,
                 progress_cb=progress_cb,
             )
         )
@@ -296,6 +293,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", type=int, required=True)
     args = parser.parse_args()
-
     continue_cleaning_run(run_id=args.run_id,)
 

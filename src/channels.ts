@@ -43,10 +43,6 @@ export interface FETCH_CLEANING_RUNS_CHANNEL_TYPES {
   };
 }
 
-export const FETCH_CLEANING_RUN_CONFIG_CHANNEL = {
-  IN: "fetch-cleaning-run-config",
-};
-
 export const UPDATE_CLEANING_RUN_CONFIG_CHANNEL = {
   IN: "update-cleaning-run-config",
 };

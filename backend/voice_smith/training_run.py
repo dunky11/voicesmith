@@ -3,7 +3,7 @@ import shutil
 import torch
 import json
 import sqlite3
-from typing import Union, Literal, Tuple, Callable
+from typing import Tuple, Callable
 import dataclasses
 import argparse
 from voice_smith.acoustic_training import train_acoustic
@@ -23,9 +23,8 @@ from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchsc
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
 from voice_smith.config.symbols import symbol2id
-from voice_smith.utils.tools import warnings_to_stdout, get_workers
+from voice_smith.utils.tools import warnings_to_stdout, get_workers, get_device
 from voice_smith.preprocessing.generate_vocab import generate_vocab
-from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
 from voice_smith.utils.punctuation import get_punct
 from voice_smith.utils.runs import StageRunner
@@ -148,19 +147,6 @@ def get_vocoder_configs(
     t_config.learning_rate = vocoder_learning_rate
     t_config.validation_interval = vocoder_validate_every
     return p_config, m_config, t_config
-
-
-def get_device(device: Union[Literal["CPU"], Literal["GPU"]]) -> torch.device:
-    if device == "CPU":
-        return torch.device("cpu")
-    elif device == "GPU":
-        if not torch.cuda.is_available():
-            raise Exception(
-                f"Mode was set to 'GPU' but no available GPU could be found ..."
-            )
-        return torch.device("cuda")
-    else:
-        raise Exception(f"Device '{device}' is not a valid device type ...")
 
 
 def not_started_stage(

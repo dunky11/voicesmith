@@ -15,7 +15,7 @@ const createTables = (db: any) => {
         validation_size FLOAT NOT NULL,
         min_seconds FLOAT NOT NULL,
         max_seconds FLOAT NOT NULL, 
-        use_audio_normalization BOOLEAN NOT NULL,
+        use_audio_normalization BOOLEAN NOT NULL, 
         acoustic_learning_rate FLOAT NOT NULL,
         acoustic_training_iterations BIGINT NOT NULL,
         acoustic_batch_size INTEGER NOT NULL,
@@ -194,9 +194,11 @@ const createTables = (db: any) => {
         name TEXT NOT NULL,
         copying_files_progress FLOAT DEFAULT 0.0,
         transcription_progress FLOAT DEFAULT 0.0,
-        apply_changes_progress FLOAT DEFAULT 0.0,
+        applying_changes_progress FLOAT DEFAULT 0.0,
         skip_on_error BOOLEAN DEFAULT 1,
         stage TEXT DEFAULT "not_started",
+        device TEXT NOT NULL DEFAULT "CPU",
+        maximum_workers INTEGER NOT NULL, 
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
     );  

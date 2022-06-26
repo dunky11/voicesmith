@@ -26,7 +26,9 @@ ipcMain.handle(
     switch (type) {
       case "dSCleaningRun":
         DB.getInstance()
-          .prepare("INSERT INTO cleaning_run (name) VALUES (@name)")
+          .prepare(
+            "INSERT INTO cleaning_run (name, maximum_workers) VALUES (@name, -1)"
+          )
           .run({
             name,
           });

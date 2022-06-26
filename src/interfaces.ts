@@ -164,6 +164,9 @@ export interface CleaningRunInterface extends RunInterface {
     | "choose_samples"
     | "apply_changes"
     | "finished";
+  copyingFilesProgress: number;
+  transcriptionProgress: number;
+  applyingChangesProgress: number;
   configuration: CleaningRunConfigInterface;
   canStart: boolean;
 }
@@ -173,6 +176,8 @@ export interface CleaningRunConfigInterface {
   datasetID?: number;
   datasetName: string;
   skipOnError: boolean;
+  device: "CPU" | "GPU";
+  maximumWorkers: -1;
 }
 
 export interface UsageStatsInterface {
