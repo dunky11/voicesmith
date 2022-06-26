@@ -41,6 +41,8 @@ from voice_smith.config.globals import (
 
 warnings_to_stdout()
 
+# torch.backends.cudnn.benchmark = True
+
 
 def step_from_ckpt(ckpt: str):
     ckpt_path = Path(ckpt)
@@ -189,6 +191,7 @@ def preprocessing_stage(
     **kwargs,
 ) -> bool:
     preprocessing_stage = None
+    vocab_path = Path(data_path) / "data" / "vocabs"
     while preprocessing_stage != "finished":
         preprocessing_stage = cur.execute(
             "SELECT preprocessing_stage FROM training_run WHERE ID=?", (run_id,),
@@ -203,7 +206,11 @@ def preprocessing_stage(
 
         elif preprocessing_stage == "copying_files":
             set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
-            txt_paths, texts, audio_paths, names = [], [], [], []
+            txt_paths, texts, audio_paths, names, langs = [], [], [], [], []
+            row = cur.execute(
+                "SELECT skip_on_error FROM training_run WHERE ID=?", (run_id,),
+            ).fetchone()
+            skip_on_error = bool(row[0])
             for (
                 txt_path,
                 text,
@@ -211,9 +218,10 @@ def preprocessing_stage(
                 speaker_name,
                 dataset_id,
                 speaker_id,
+                lang,
             ) in cur.execute(
                 """
-                    SELECT sample.txt_path, sample.text, sample.audio_path, speaker.name AS speaker_name, dataset.ID AS dataset_id, speaker.ID as speaker_id FROM training_run INNER JOIN dataset ON training_run.dataset_id = dataset.ID 
+                    SELECT sample.txt_path, sample.text, sample.audio_path, speaker.name AS speaker_name, dataset.ID AS dataset_id, speaker.ID as speaker_id, speaker.language FROM training_run INNER JOIN dataset ON training_run.dataset_id = dataset.ID 
                     INNER JOIN speaker on speaker.dataset_id = dataset.ID
                     INNER JOIN sample on sample.speaker_id = speaker.ID
                     WHERE training_run.ID=?
@@ -231,6 +239,7 @@ def preprocessing_stage(
                 texts.append(text)
                 audio_paths.append(str(full_audio_path))
                 names.append(speaker_name)
+                langs.append(lang)
             p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
 
             def progress_cb(progress: float):
@@ -244,10 +253,12 @@ def preprocessing_stage(
                 data_path=data_path,
                 txt_paths=txt_paths,
                 texts=texts,
+                langs=langs,
                 audio_paths=audio_paths,
                 names=names,
                 workers=p_config.workers,
                 progress_cb=progress_cb,
+                skip_on_error=skip_on_error,
             )
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",
@@ -257,47 +268,49 @@ def preprocessing_stage(
 
         elif preprocessing_stage == "gen_vocab":
             set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
-            (Path(data_path) / "data").mkdir(exist_ok=True, parents=True)
+            vocab_path.mkdir(exist_ok=True, parents=True)
+            p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
+
             row = cur.execute(
                 "SELECT device FROM training_run WHERE ID=?", (run_id,),
             ).fetchone()
-            texts = []
-            for (text,) in cur.execute(
-                """
-                    SELECT sample.text AS text FROM training_run INNER JOIN dataset ON training_run.dataset_id = dataset.ID 
-                    INNER JOIN speaker on speaker.dataset_id = dataset.ID
-                    INNER JOIN sample on sample.speaker_id = speaker.ID
-                    WHERE training_run.ID=?
-                    """,
-                (run_id,),
-            ).fetchall():
-                texts.append(text)
-
             device = row[0]
             device = get_device(device)
 
-            p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
-            base_lexica_path = str(Path(data_path) / "data" / "lexicon_pre.txt")
-            predicted_phones = generate_vocab(
-                texts=texts, lang="en", assets_path=assets_path, device=device
-            )
-            punct_set = get_punct(lang="en")
-            with open(base_lexica_path, "w", encoding="utf-8") as f:
-                for word, phones in predicted_phones.items():
-                    word = word.lower().strip()
-                    phones = " ".join(phones).strip()
-                    if len(word) == 0 or len(phones) == 0:
-                        continue
-                    if word in punct_set:
-                        continue
-                    f.write(f"{word.lower()} {phones}\n")
+            langs = [el.name for el in (Path(data_path) / "raw_data").iterdir()]
+            for i, lang in enumerate(langs):
 
-            merge_lexica(
-                base_lexica_path=base_lexica_path,
-                lang="en",
-                assets_path=assets_path,
-                out_path=str(Path(data_path) / "data" / "lexicon_post.txt"),
-            )
+                texts = []
+                for (text,) in cur.execute(
+                    """
+                    SELECT sample.text AS text FROM training_run INNER JOIN dataset ON training_run.dataset_id = dataset.ID 
+                    INNER JOIN speaker on speaker.dataset_id = dataset.ID
+                    INNER JOIN sample on sample.speaker_id = speaker.ID
+                    WHERE training_run.ID=? AND speaker.language=?
+                    """,
+                    (run_id, lang),
+                ).fetchall():
+                    texts.append(text)
+
+                lexica_path = str(vocab_path / f"{lang}.txt")
+                predicted_phones = generate_vocab(
+                    texts=texts, lang=lang, assets_path=assets_path, device=device
+                )
+                punct_set = get_punct(lang=lang)
+                with open(lexica_path, "w", encoding="utf-8") as f:
+                    for word, phones in predicted_phones.items():
+                        word = word.lower().strip()
+                        phones = " ".join(phones).strip()
+                        if len(word) == 0 or len(phones) == 0:
+                            continue
+                        if word in punct_set:
+                            continue
+                        f.write(f"{word.lower()} {phones}\n")
+                cur.execute(
+                    "UPDATE training_run SET preprocessing_gen_vocab_progress=? WHERE ID=?",
+                    ((i + 1) / len(langs), run_id),
+                )
+                con.commit()
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='gen_alignments', preprocessing_gen_vocab_progress=1.0 WHERE ID=?",
                 (run_id,),
@@ -307,13 +320,22 @@ def preprocessing_stage(
         elif preprocessing_stage == "gen_alignments":
             set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
             p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
-            align(
-                environment_name=environment_name,
-                in_path=str(Path(data_path) / "raw_data"),
-                lexicon_path=str(Path(data_path / "data" / "lexicon_post.txt")),
-                out_path=(Path(data_path) / "data" / "textgrid"),
-                n_workers=p_config.workers,
-            )
+            vocab_paths = list(vocab_path.iterdir())
+            for i, vocab_path in enumerate(vocab_paths):
+                lang = vocab_path.name.split(".")[0]
+                align(
+                    environment_name=environment_name,
+                    in_path=str(Path(data_path) / "raw_data" / lang),
+                    lexicon_path=str(vocab_path),
+                    out_path=(Path(data_path) / "data" / "textgrid" / lang),
+                    lang=lang,
+                    n_workers=p_config.workers,
+                )
+                cur.execute(
+                    "UPDATE training_run SET preprocessing_gen_align_progress=? WHERE ID=?",
+                    ((i + 1) / len(vocab_paths), run_id),
+                )
+                con.commit()
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='extract_data', preprocessing_gen_align_progress=1.0 WHERE ID=?",
                 (run_id,),
@@ -382,13 +404,9 @@ def acoustic_fine_tuning_stage(
             checkpoint_acoustic, step = get_latest_checkpoint(
                 name="acoustic", ckpt_dir=str(data_path / "ckpt" / "acoustic")
             )
-            checkpoint_style, step = get_latest_checkpoint(
-                name="style", ckpt_dir=str(data_path / "ckpt" / "acoustic")
-            )
-            if checkpoint_acoustic is None or checkpoint_style is None:
+            if checkpoint_acoustic is None:
                 reset = True
                 checkpoint_acoustic = str(Path(assets_path) / "acoustic_pretrained.pt")
-                checkpoint_style = str(Path(assets_path) / "style_pretrained.pt")
             else:
                 reset = False
 
@@ -416,7 +434,6 @@ def acoustic_fine_tuning_stage(
                 device=device,
                 reset=reset,
                 checkpoint_acoustic=checkpoint_acoustic,
-                checkpoint_style=checkpoint_style,
                 fine_tuning=True,
                 overwrite_saves=True,
                 assets_path=assets_path,
@@ -487,9 +504,6 @@ def ground_truth_alignment_stage(
     checkpoint_acoustic, step = get_latest_checkpoint(
         name="acoustic", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic")
     )
-    checkpoint_style, step = get_latest_checkpoint(
-        name="style", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic")
-    )
     while True:
         try:
             ground_truth_alignment(
@@ -500,7 +514,6 @@ def ground_truth_alignment_stage(
                 group_size=3,
                 device=device,
                 checkpoint_acoustic=str(checkpoint_acoustic),
-                checkpoint_style=str(checkpoint_style),
                 logger=logger,
                 assets_path=assets_path,
                 training_runs_path=training_runs_path,
@@ -655,9 +668,6 @@ def save_model_stage(
     checkpoint_acoustic, acoustic_steps = get_latest_checkpoint(
         name="acoustic", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
     )
-    checkpoint_style, acoustic_steps = get_latest_checkpoint(
-        name="style", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
-    )
     checkpoint_vocoder, vocoder_steps = get_latest_checkpoint(
         name="vocoder", ckpt_dir=str(data_path / "ckpt" / "vocoder")
     )
@@ -665,9 +675,6 @@ def save_model_stage(
         raise ValueError(
             "Acoustic path is None in save_model, no model has been saved?"
         )
-
-    if checkpoint_style is None:
-        raise ValueError("Style path is None in save_model, no model has been saved?")
 
     if checkpoint_vocoder is None:
         raise ValueError("Vocoder path is None in save_model, no model has been saved?")
@@ -680,13 +687,12 @@ def save_model_stage(
         cur=cur, run_id=run_id
     )
 
-    acoustic_model, style_predictor = acoustic_to_torchscript(
+    acoustic_model = acoustic_to_torchscript(
         checkpoint_acoustic=str(checkpoint_acoustic),
         preprocess_config=p_config,
         model_config=m_config_acoustic,
         train_config=t_config_acoustic,
         assets_path=assets_path,
-        checkpoint_style=str(checkpoint_style),
         data_path=str(data_path / "data"),
     )
     vocoder = vocoder_to_torchscript(
@@ -724,7 +730,6 @@ def save_model_stage(
     models_dir = models_path / name / "torchscript"
     models_dir.mkdir(exist_ok=True)
     acoustic_model.save(str(models_dir / "acoustic_model.pt"))
-    style_predictor.save(models_dir / "style_predictor.pt")
     vocoder.save(models_dir / "vocoder.pt")
     with open(models_path / name / "config.json", "w", encoding="utf-8") as f:
         json.dump(config, f)

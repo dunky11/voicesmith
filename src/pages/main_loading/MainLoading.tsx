@@ -2,10 +2,11 @@ import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { IpcRendererEvent } from "electron";
 import { Spin } from "antd";
 import { createUseStyles } from "react-jss";
+import { useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 import {
   TerminalMessage,
   InstallBackendReplyInterface,
-  AppInfoInterface,
   InstallerOptionsInterface,
 } from "../../interfaces";
 import NoCloseModal from "../../components/modals/NoCloseModal";
@@ -32,10 +33,8 @@ const useClasses = createUseStyles({
 
 export default function MainLoading({
   onServerIsReady,
-  appInfo,
 }: {
   onServerIsReady: () => void;
-  appInfo: AppInfoInterface;
 }): ReactElement {
   const [initStep, setInitStep] = useState<
     | "fetchNeedsInstall"
@@ -49,6 +48,7 @@ export default function MainLoading({
   const [installerMessages, setInstallerMessages] = useState<TerminalMessage[]>(
     []
   );
+  const appInfo = useSelector((state: RootState) => state.appInfo);
   const classes = useClasses();
   const installerOptionsRef = useRef<InstallerOptionsInterface>(null);
 

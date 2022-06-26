@@ -31,11 +31,16 @@ def get_splits(sentences_word, sentences_full, words_tier):
     for i, (sentence_word, sentence_full) in enumerate(
         zip(sentences_word, sentences_full)
     ):
+        if word_idx > len(words_tier) - 1:
+            break
         if i == 0 or end_time is None:
             start_time = 0
         else:
             start_time = words_tier[word_idx].start_time
         for word_sent in sentence_word:
+            if word_idx >= len(words_tier):
+                break
+
             word, end_time = words_tier[word_idx].text, words_tier[word_idx].end_time
             if word_sent.lower() != word.lower():
                 continue_search = False

@@ -1,0 +1,10 @@
+bg: https://huggingface.co/anuragshas/wav2vec2-large-xls-r-300m-bg
+dataset: Common Voice Bulgarian 8
+Test WER: 21.195
+
+cs: https://huggingface.co/comodoro/wav2vec2-xls-r-300m-cs-250
+dataset: Common Voice Czech 8
+Test WER: 0.1475
+
+de:
+dataset: 

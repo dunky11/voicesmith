@@ -1,53 +1,49 @@
 import React, { useState, useRef, useEffect, ReactElement } from "react";
-import { Button, Form, Input, Select, notification } from "antd";
+import { Button, Form, Select } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
+import { useDispatch } from "react-redux";
+import { addToQueue } from "../../../features/runManagerSlice";
 import {
   UPDATE_CLEANING_RUN_CONFIG_CHANNEL,
   FETCH_CLEANING_RUN_CONFIG_CHANNEL,
 } from "../../../channels";
 import { fetchNames } from "../PreprocessingRuns";
-import { RunInterface, CleaningRunConfigInterface } from "../../../interfaces";
+import {
+  CleaningRunConfigInterface,
+  CleaningRunInterface,
+} from "../../../interfaces";
 import DatasetInput from "../../../components/inputs/DatasetInput";
 import NameInput from "../../../components/inputs/NameInput";
 import RunCard from "../../../components/cards/RunCard";
 import { notifySave } from "../../../utils";
+import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
+import SkipOnErrorInput from "../../../components/inputs/SkipOnErrorInput";
 const { ipcRenderer } = window.require("electron");
 
 const initialValues: CleaningRunConfigInterface = {
   name: "",
   datasetID: null,
+  datasetName: null,
+  skipOnError: true,
 };
 
 export default function Configuration({
   onStepChange,
-  selectedID,
-  running,
-  continueRun,
-  stage,
+  run,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "preparing"
-    | "gen_file_embeddings"
-    | "detect_outliers"
-    | "choose_samples"
-    | "apply_changes"
-    | "finished"
-    | null;
+  run: CleaningRunInterface;
 }): ReactElement {
+  const dispatch = useDispatch();
   const isMounted = useRef(false);
-  const [configIsLoaded, setConfigIsLoaded] = useState(false);
+  const [initialIsLoading, setInitialIsLoading] = useState(true);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
   const formRef = useRef<FormInstance | null>();
 
   const onBackClick = () => {
-    history.push("/preprocessing-runs/run-selection");
+    history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
   };
 
   const onNextClick = () => {
@@ -59,11 +55,12 @@ export default function Configuration({
   };
 
   const onDefaults = () => {
-    if (formRef.current === null) {
-      return;
-    }
-    navigateNextRef.current = false;
-    formRef.current.submit();
+    formRef.current?.setFieldsValue({
+      ...initialValues,
+      datasetID: formRef.current.getFieldValue("datasetID"),
+      datasetName: formRef.current.getFieldValue("datasetName"),
+      name: formRef.current.getFieldValue("name"),
+    });
   };
 
   const onSave = () => {
@@ -81,17 +78,20 @@ export default function Configuration({
     };
 
     ipcRenderer
-      .invoke(UPDATE_CLEANING_RUN_CONFIG_CHANNEL.IN, selectedID, values)
+      .invoke(UPDATE_CLEANING_RUN_CONFIG_CHANNEL.IN, run.ID, values)
       .then(() => {
         if (!isMounted.current) {
           return;
         }
         if (navigateNextRef.current) {
-          if (stage === "not_started") {
-            continueRun({
-              ID: selectedID,
-              type: "dSCleaningRun",
-            });
+          if (run.stage === "not_started") {
+            dispatch(
+              addToQueue({
+                ID: run.ID,
+                type: "cleaningRun",
+                name: run.name,
+              })
+            );
           }
           onStepChange(1);
           navigateNextRef.current = false;
@@ -102,24 +102,21 @@ export default function Configuration({
   };
 
   const fetchConfiguration = () => {
-    if (selectedID === null) {
-      return;
-    }
     ipcRenderer
-      .invoke(FETCH_CLEANING_RUN_CONFIG_CHANNEL.IN, selectedID)
+      .invoke(FETCH_CLEANING_RUN_CONFIG_CHANNEL.IN, run.ID)
       .then((configuration: CleaningRunConfigInterface) => {
         if (!isMounted.current) {
           return;
         }
-        if (!configIsLoaded) {
-          setConfigIsLoaded(true);
+        if (initialIsLoading) {
+          setInitialIsLoading(false);
         }
         formRef.current?.setFieldsValue(configuration);
       });
   };
 
   const getNextButtonText = () => {
-    if (selectedID === null || stage == "not_started") {
+    if (run.stage == "not_started") {
       return "Save and Start Run";
     }
     return "Save and Next";
@@ -133,28 +130,27 @@ export default function Configuration({
   }, []);
 
   useEffect(() => {
-    if (selectedID === null) {
-      return;
-    }
     fetchConfiguration();
-  }, [selectedID]);
+  }, []);
 
-  const disableNameEdit = !configIsLoaded;
-  const disableElseEdit = disableNameEdit || stage !== "not_started";
-
-  const disableNext = !configIsLoaded;
-  const disableDefaults = disableNext || stage != "not_started";
+  const hasStarted = run.stage !== "not_started";
 
   return (
     <RunCard
       title="Configure the Cleaning Run"
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button disabled={disableDefaults} onClick={onDefaults}>
+        <Button disabled={initialIsLoading} onClick={onDefaults}>
           Reset to Default
         </Button>,
-        <Button onClick={onSave}>Save</Button>,
-        <Button type="primary" disabled={disableNext} onClick={onNextClick}>
+        <Button disabled={initialIsLoading} onClick={onSave}>
+          Save
+        </Button>,
+        <Button
+          type="primary"
+          disabled={initialIsLoading}
+          onClick={onNextClick}
+        >
           {getNextButtonText()}
         </Button>,
       ]}
@@ -167,13 +163,14 @@ export default function Configuration({
         initialValues={initialValues}
         onFinish={onFinish}
       >
+        <SkipOnErrorInput disabled={initialIsLoading} />
         <NameInput
           fetchNames={() => {
-            return fetchNames(selectedID);
+            return fetchNames(run.ID);
           }}
-          disabled={disableNameEdit}
+          disabled={initialIsLoading}
         ></NameInput>
-        <DatasetInput disabled={disableElseEdit} />
+        <DatasetInput disabled={hasStarted || initialIsLoading} />
       </Form>
     </RunCard>
   );

@@ -26,7 +26,7 @@ import {
   EDIT_DATASET_NAME_CHANNEL,
   ADD_SAMPLES_CHANNEL,
   REMOVE_SAMPLES_CHANNEL,
-  EDIT_SPEAKER_NAME_CHANNEL,
+  EDIT_SPEAKER_CHANNEL,
   PICK_SPEAKERS_CHANNEL,
   REMOVE_SPEAKERS_CHANNEL,
   PICK_SPEAKER_FILES_CHANNEL,
@@ -40,6 +40,7 @@ import {
   FileInterface,
   DatasetInterface,
   SpeakerInterface,
+  ImportSettingsInterface,
 } from "../../interfaces";
 
 ipcMain.handle(FETCH_DATASETS_CHANNEL.IN, async () => {
@@ -324,7 +325,11 @@ const copySpeakerFiles = async (
 
 ipcMain.on(
   PICK_SPEAKERS_CHANNEL.IN,
-  async (event: IpcMainEvent, datasetID: number) => {
+  async (
+    event: IpcMainEvent,
+    datasetID: number,
+    importSettings: ImportSettingsInterface
+  ) => {
     const options: OpenDialogOptions = {
       properties: ["openDirectory", "multiSelections"],
     };
@@ -349,7 +354,7 @@ ipcMain.on(
       );
 
       const stmtInsertSpeaker = DB.getInstance().prepare(
-        "INSERT INTO speaker (name, dataset_id) VALUES (@name, @datasetID)"
+        "INSERT INTO speaker (name, dataset_id, language) VALUES (@name, @datasetID, @language)"
       );
 
       const insertManySamples = DB.getInstance().transaction((els: any[]) => {
@@ -410,6 +415,7 @@ ipcMain.on(
           const info = stmtInsertSpeaker.run({
             name: speakerName,
             datasetID,
+            language: importSettings.language,
           });
           const speakerID = info.lastInsertRowid;
           copySpeakerFiles(datasetID, speakerID, samples);
@@ -434,12 +440,11 @@ ipcMain.on(
 );
 
 ipcMain.handle(
-  EDIT_SPEAKER_NAME_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, speakerID: number, newName: string) => {
-    DB.getInstance().prepare("UPDATE speaker SET name=@name WHERE ID=@ID").run({
-      name: newName,
-      ID: speakerID,
-    });
+  EDIT_SPEAKER_CHANNEL.IN,
+  (event: IpcMainInvokeEvent, speaker: SpeakerInterface) => {
+    DB.getInstance()
+      .prepare("UPDATE speaker SET name=@name, language=@language WHERE ID=@ID")
+      .run(speaker);
   }
 );
 
@@ -520,11 +525,13 @@ ipcMain.handle(FETCH_DATASET_CANDIDATES_CHANNEL.IN, () => {
           dataset.name AS name,
           training_run.name AS trainingRunName,
           cleaning_run.name AS cleaningRunName,
-          text_normalization_run.name AS textNormalizationName
+          text_normalization_run.name AS textNormalizationName,
+          sample_splitting_run.name AS sampleSplittingRunName
         FROM dataset 
         LEFT JOIN training_run ON training_run.dataset_id = dataset.ID
         LEFT JOIN cleaning_run ON cleaning_run.dataset_id = dataset.ID
         LEFT JOIN text_normalization_run ON text_normalization_run.dataset_id = dataset.ID
+        LEFT JOIN sample_splitting_run ON sample_splitting_run.dataset_id = dataset.ID
         WHERE EXISTS (
           SELECT 1 FROM speaker WHERE speaker.dataset_id = dataset.ID AND EXISTS(
               SELECT 1 FROM sample WHERE sample.speaker_id = speaker.ID
@@ -541,6 +548,8 @@ ipcMain.handle(FETCH_DATASET_CANDIDATES_CHANNEL.IN, () => {
         referencedBy = dataset.cleaningRunName;
       } else if (dataset.textNormalizationName !== null) {
         referencedBy = dataset.textNormalizationName;
+      } else if (dataset.sampleSplittingRunName !== null) {
+        referencedBy = dataset.sampleSplittingRunName;
       }
       return {
         ID: dataset.ID,

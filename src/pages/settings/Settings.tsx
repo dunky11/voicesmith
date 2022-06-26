@@ -1,15 +1,17 @@
 import React, { ReactElement, useEffect, useRef, useState } from "react";
 import { Breadcrumb, Form, Input, FormInstance, Button, Row, Col } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 import RunCard from "../../components/cards/RunCard";
 import { RunInterface, SettingsInterface } from "../../interfaces";
 import { notifySave } from "../../utils";
+import { setNavIsDisabled } from "../../features/navigationSettingsSlice";
 import { createUseStyles } from "react-jss";
 import {
   SAVE_SETTINGS_CHANNEL,
   FETCH_SETTINGS_CHANNEL,
   PICK_SINGLE_FOLDER_CHANNEL,
 } from "../../channels";
-import { IpcMainEvent, IpcRendererEvent } from "electron/renderer";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -17,13 +19,14 @@ const useStyles = createUseStyles({
   breadcrumb: { marginBottom: 8 },
 });
 
-export default function Settings({
-  running,
-  setNavIsDisabled,
-}: {
-  running: RunInterface | null;
-  setNavIsDisabled: (navIsDisabled: boolean) => void;
-}): ReactElement {
+export default function Settings(): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
+  const dispatch = useDispatch();
   const classes = useStyles();
   const formRef = useRef<FormInstance | null>();
   const isMounted = useRef(false);
@@ -31,12 +34,12 @@ export default function Settings({
 
   const onFinish = () => {
     setIsLoading(true);
-    setNavIsDisabled(true);
+    dispatch(setNavIsDisabled(true));
     ipcRenderer.removeAllListeners(SAVE_SETTINGS_CHANNEL.REPLY);
     ipcRenderer.on(
       SAVE_SETTINGS_CHANNEL.REPLY,
       (
-        _: IpcRendererEvent,
+        _: any,
         message: {
           type: string;
         }
@@ -45,7 +48,7 @@ export default function Settings({
           case "finished": {
             setIsLoading(false);
             notifySave();
-            setNavIsDisabled(false);
+            dispatch(setNavIsDisabled(false));
             break;
           }
           default: {

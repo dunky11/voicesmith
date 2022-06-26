@@ -106,16 +106,16 @@ class ReferenceEncoder(nn.Module):
 
 
 class UtteranceLevelProsodyEncoder(nn.Module):
-    def __init__(self, preprocess_config: Dict[str, Any], model_config: Dict[str, Any]):
+    def __init__(
+        self, preprocess_config: PreprocessingConfig, model_config: AcousticModelConfig,
+    ):
         super().__init__()
 
-        self.E = model_config["encoder"]["n_hidden"]
-        self.d_q = self.d_k = model_config["encoder"]["n_hidden"]
-        ref_enc_gru_size = model_config["reference_encoder"]["ref_enc_gru_size"]
-        ref_attention_dropout = model_config["reference_encoder"][
-            "ref_attention_dropout"
-        ]
-        bottleneck_size = model_config["reference_encoder"]["bottleneck_size_u"]
+        self.E = model_config.encoder.n_hidden
+        self.d_q = self.d_k = model_config.encoder.n_hidden
+        ref_enc_gru_size = model_config.reference_encoder.ref_enc_gru_size
+        ref_attention_dropout = model_config.reference_encoder.ref_attention_dropout
+        bottleneck_size = model_config.reference_encoder.bottleneck_size_u
 
         self.encoder = ReferenceEncoder(preprocess_config, model_config)
         self.encoder_prj = nn.Linear(ref_enc_gru_size, self.E // 2)
@@ -144,12 +144,14 @@ class UtteranceLevelProsodyEncoder(nn.Module):
 class STL(nn.Module):
     """Style Token Layer"""
 
-    def __init__(self, preprocess_config: Dict[str, Any], model_config: Dict[str, Any]):
+    def __init__(
+        self, preprocess_config: PreprocessingConfig, model_config: AcousticModelConfig
+    ):
         super(STL, self).__init__()
 
         num_heads = 1
-        E = model_config["encoder"]["n_hidden"]
-        self.token_num = model_config["reference_encoder"]["token_num"]
+        E = model_config.encoder.n_hidden
+        self.token_num = model_config.reference_encoder.token_num
         self.embed = nn.Parameter(torch.FloatTensor(self.token_num, E // num_heads))
         d_q = E // 2
         d_k = E // num_heads

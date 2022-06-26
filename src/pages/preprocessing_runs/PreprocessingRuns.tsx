@@ -1,36 +1,29 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, Route, useHistory } from "react-router-dom";
 import { PREPROCESSING_RUNS_ROUTE } from "../../routes";
-import { PreprocessingRunInterface, RunInterface } from "../../interfaces";
+import { RunInterface } from "../../interfaces";
 import PreprocessingRunSelection from "./PreprocessingRunSelection";
 import TextNormalization from "./text_normalization/TextNormalization";
 import DatasetCleaning from "./dataset_cleaning/DatasetCleaning";
 import SampleSplitting from "./sample_splitting/SampleSplitting";
+import { FETCH_PREPROCESSING_NAMES_USED_CHANNEL } from "../../channels";
 const { ipcRenderer } = window.require("electron");
 
 export const fetchNames = (runID: number): Promise<string[]> => {
   return new Promise((resolve) => {
     ipcRenderer
-      .invoke("fetch-preprocessing-names-used", runID)
+      .invoke(FETCH_PREPROCESSING_NAMES_USED_CHANNEL.IN, runID)
       .then((names: string[]) => {
         resolve(names);
       });
   });
 };
 
-export default function PreprcocessingRuns({
-  running,
-  continueRun,
-  stopRun,
-}: {
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
-}): ReactElement {
+export default function PreprcocessingRuns(): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
   const [selectedPreprocessingRun, setSelectedPreprocessingRun] =
-    useState<PreprocessingRunInterface | null>(null);
+    useState<RunInterface | null>(null);
 
   useEffect(() => {
     if (selectedPreprocessingRun === null) {
@@ -42,7 +35,7 @@ export default function PreprcocessingRuns({
           PREPROCESSING_RUNS_ROUTE.TEXT_NORMALIZATION.CONFIGURATION.ROUTE
         );
         break;
-      case "dSCleaningRun":
+      case "cleaningRun":
         history.push(
           PREPROCESSING_RUNS_ROUTE.DATASET_CLEANING.CONFIGURATION.ROUTE
         );
@@ -75,9 +68,6 @@ export default function PreprcocessingRuns({
           ) : (
             <TextNormalization
               preprocessingRun={selectedPreprocessingRun}
-              running={running}
-              stopRun={stopRun}
-              continueRun={continueRun}
             ></TextNormalization>
           )
         }
@@ -91,9 +81,6 @@ export default function PreprcocessingRuns({
           ) : (
             <DatasetCleaning
               preprocessingRun={selectedPreprocessingRun}
-              continueRun={continueRun}
-              running={running}
-              stopRun={stopRun}
             ></DatasetCleaning>
           )
         }
@@ -105,9 +92,6 @@ export default function PreprcocessingRuns({
           ) : (
             <SampleSplitting
               preprocessingRun={selectedPreprocessingRun}
-              continueRun={continueRun}
-              running={running}
-              stopRun={stopRun}
             ></SampleSplitting>
           )
         }
@@ -117,9 +101,6 @@ export default function PreprcocessingRuns({
         render={() => (
           <PreprocessingRunSelection
             setSelectedPreprocessingRun={setSelectedPreprocessingRun}
-            running={running}
-            continueRun={continueRun}
-            stopRun={stopRun}
           ></PreprocessingRunSelection>
         )}
         path={PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE}

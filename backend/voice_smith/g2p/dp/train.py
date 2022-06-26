@@ -4,6 +4,7 @@ from voice_smith.g2p.dp.model.model import load_checkpoint, ModelType, create_mo
 from voice_smith.g2p.dp.preprocessing.text import Preprocessor
 from voice_smith.g2p.dp.training.trainer import Trainer
 from voice_smith.g2p.dp.utils.logging import get_logger
+from voice_smith.utils.model import get_param_num
 
 logger = get_logger(__name__)
 
@@ -48,6 +49,8 @@ def train(
         checkpoint = {
             'config': config,
         }
+
+    print(f"Total number of parameters: {get_param_num(model)}")
 
     if "preprocessor" in checkpoint.keys():
         del checkpoint["preprocessor"]

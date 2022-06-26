@@ -24,7 +24,6 @@ from voice_smith.config.configs import (
 
 def get_acoustic_models(
     checkpoint_acoustic: Union[str, None],
-    checkpoint_style: Union[str, None],
     data_path: str,
     train_config: Union[AcousticPretrainingConfig, AcousticFinetuningConfig],
     preprocess_config: PreprocessingConfig,
@@ -35,7 +34,6 @@ def get_acoustic_models(
     assets_path: str,
 ) -> Tuple[
     acoustic_model.AcousticModel,
-    ScriptModule,
     Union[ScheduledOptimFinetuning, ScheduledOptimPretraining],
     int,
 ]:
@@ -58,35 +56,25 @@ def get_acoustic_models(
             step = 0
         else:
             step = ckpt["steps"] + 1
-        gen.load_state_dict(ckpt["gen"], strict=False)
+        # gen.load_state_dict(ckpt["gen"], strict=False)
     else:
         step = 0
 
-    if checkpoint_style is None:
-        checkpoint_style = str(Path(assets_path) / "tiny_bert.pt")
-
-    style_predictor = load(checkpoint_style).to(device)
-
     if fine_tuning:
         scheduled_optim = ScheduledOptimFinetuning(
-            parameters=chain(gen.parameters(), style_predictor.parameters()),
-            train_config=train_config,
-            current_step=step,
+            parameters=gen.parameters(), train_config=train_config, current_step=step,
         )
     else:
         scheduled_optim = ScheduledOptimPretraining(
-            parameters=chain(gen.parameters(), style_predictor.parameters()),
-            train_config=train_config,
-            current_step=step,
+            parameters=gen.parameters(), train_config=train_config, current_step=step,
         )
 
     if checkpoint_acoustic is not None and not reset:
         scheduled_optim.load_state_dict(ckpt["optim"])
 
     gen.train()
-    style_predictor.train()
 
-    return gen, style_predictor, scheduled_optim, step
+    return gen, scheduled_optim, step
 
 
 def get_param_num(model: torch.nn.Module) -> int:

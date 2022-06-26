@@ -15,7 +15,6 @@ from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
 from voice_smith.utils.tools import warnings_to_stdout, get_device, get_workers
 from voice_smith.preprocessing.generate_vocab import generate_vocab
-from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
 from voice_smith.preprocessing.sample_splitting import sample_splitting, split_sample
 from voice_smith.utils.punctuation import get_punct
@@ -34,14 +33,17 @@ warnings_to_stdout()
 def get_config(cur: sqlite3.Cursor, run_id: int) -> SampleSplittingRunConfig:
     row = cur.execute(
         """
-        SELECT device, maximum_workers FROM sample_splitting_run WHERE ID=?
+        SELECT device, maximum_workers, skip_on_error FROM sample_splitting_run WHERE ID=?
         """,
         (run_id,),
     ).fetchone()
-    (device, maximum_workers) = row
+    (device, maximum_workers, skip_on_error) = row
     device = get_device(device)
     workers = get_workers(maximum_workers)
-    return SampleSplittingRunConfig(workers=workers, device=device)
+    skip_on_error = bool(skip_on_error)
+    return SampleSplittingRunConfig(
+        workers=workers, device=device, skip_on_error=skip_on_error
+    )
 
 
 def before_run(data_path: str, **kwargs):
@@ -103,7 +105,8 @@ def copying_files_stage(
     get_logger: Callable[[], SQLLogger],
     **kwargs,
 ) -> bool:
-    txt_paths, texts, audio_paths, names = [], [], [], []
+    txt_paths, texts, audio_paths, names, langs = [], [], [], [], []
+
     for (
         txt_path,
         text,
@@ -111,9 +114,13 @@ def copying_files_stage(
         speaker_name,
         dataset_id,
         speaker_id,
+        lang,
     ) in cur.execute(
         """
-        SELECT sample.txt_path, sample.text, sample.audio_path, speaker.name AS speaker_name, dataset.ID AS dataset_id, speaker.ID as speaker_id FROM sample_splitting_run INNER JOIN dataset ON sample_splitting_run.dataset_id = dataset.ID 
+        SELECT sample.txt_path, sample.text, sample.audio_path, 
+        speaker.name AS speaker_name, dataset.ID AS dataset_id, 
+        speaker.ID as speaker_id, speaker.language
+        FROM sample_splitting_run INNER JOIN dataset ON sample_splitting_run.dataset_id = dataset.ID 
         INNER JOIN speaker on speaker.dataset_id = dataset.ID
         INNER JOIN sample on sample.speaker_id = speaker.ID
         WHERE sample_splitting_run.ID=?
@@ -131,6 +138,7 @@ def copying_files_stage(
         texts.append(text)
         audio_paths.append(str(full_audio_path))
         names.append(speaker_name)
+        langs.append(lang)
 
     config = get_config(cur=cur, run_id=run_id)
 
@@ -149,6 +157,8 @@ def copying_files_stage(
         names=names,
         workers=config.workers,
         progress_cb=progress_cb,
+        langs=langs,
+        skip_on_error=config.skip_on_error,
     )
     cur.execute(
         "UPDATE sample_splitting_run SET stage='gen_vocab' WHERE ID=?", (run_id,),
@@ -163,20 +173,11 @@ def get_vocab_stage(
     run_id: int,
     data_path: str,
     assets_path: str,
+    vocab_path: str,
     **kwargs,
 ) -> bool:
-    (Path(data_path) / "data").mkdir(exist_ok=True, parents=True)
-    texts = []
-    for (text,) in cur.execute(
-        """
-        SELECT sample.text AS text FROM sample_splitting_run INNER JOIN dataset ON sample_splitting_run.dataset_id = dataset.ID 
-        INNER JOIN speaker on speaker.dataset_id = dataset.ID
-        INNER JOIN sample on sample.speaker_id = speaker.ID
-        WHERE sample_splitting_run.ID=?
-        """,
-        (run_id,),
-    ).fetchall():
-        texts.append(text)
+    vocab_path = Path(vocab_path)
+    vocab_path.mkdir(exist_ok=True, parents=True)
 
     row = cur.execute(
         "SELECT device FROM sample_splitting_run WHERE ID=?", (run_id,),
@@ -184,27 +185,41 @@ def get_vocab_stage(
     device = row[0]
     device = get_device(device)
 
-    base_lexica_path = str(Path(data_path) / "data" / "lexicon_pre.txt")
-    predicted_phones = generate_vocab(
-        texts=texts, lang="en", assets_path=assets_path, device=device
-    )
-    punct_set = get_punct(lang="en")
-    with open(base_lexica_path, "w", encoding="utf-8") as f:
-        for word, phones in predicted_phones.items():
-            word = word.lower().strip()
-            phones = " ".join(phones).strip()
-            if len(word) == 0 or len(phones) == 0:
-                continue
-            if word in punct_set:
-                continue
-            f.write(f"{word.lower()} {phones}\n")
+    langs = [el.name for el in (Path(data_path) / "raw_data").iterdir()]
+    for i, lang in enumerate(langs):
+        texts = []
+        for (text,) in cur.execute(
+            """
+            SELECT sample.text AS text FROM sample_splitting_run INNER JOIN dataset ON sample_splitting_run.dataset_id = dataset.ID 
+            INNER JOIN speaker on speaker.dataset_id = dataset.ID
+            INNER JOIN sample on sample.speaker_id = speaker.ID
+            WHERE sample_splitting_run.ID=? AND speaker.language=?
+            """,
+            (run_id, lang),
+        ).fetchall():
+            texts.append(text)
 
-    merge_lexica(
-        base_lexica_path=base_lexica_path,
-        lang="en",
-        assets_path=assets_path,
-        out_path=str(Path(data_path) / "data" / "lexicon_post.txt"),
-    )
+        lexica_path = str(vocab_path / f"{lang}.txt")
+        predicted_phones = generate_vocab(
+            texts=texts, lang=lang, assets_path=assets_path, device=device
+        )
+        punct_set = get_punct(lang=lang)
+        with open(lexica_path, "w", encoding="utf-8") as f:
+            for word, phones in predicted_phones.items():
+                word = word.lower().strip()
+                phones = " ".join(phones).strip()
+                if len(word) == 0 or len(phones) == 0:
+                    continue
+                if word in punct_set:
+                    continue
+                f.write(f"{word.lower()} {phones}\n")
+
+        cur.execute(
+            "UPDATE sample_splitting_run SET gen_vocab_progress=? WHERE ID=?",
+            ((i + 1) / len(langs), run_id),
+        )
+        con.commit()
+
     cur.execute(
         "UPDATE sample_splitting_run SET stage='gen_alignments', gen_vocab_progress=1.0 WHERE ID=?",
         (run_id,),
@@ -219,16 +234,26 @@ def gen_alignments_stage(
     run_id: int,
     data_path: str,
     environment_name: str,
+    vocab_path: str,
     **kwargs,
 ):
     p_config = get_config(cur, run_id)
-    align(
-        environment_name=environment_name,
-        in_path=str(Path(data_path) / "raw_data"),
-        lexicon_path=str(Path(data_path) / "data" / "lexicon_post.txt"),
-        out_path=(str(Path(data_path) / "data" / "textgrid")),
-        n_workers=p_config.workers,
-    )
+    vocab_paths = list(Path(vocab_path).iterdir())
+    for i, vocab_path in enumerate(vocab_paths):
+        lang = vocab_path.name.split(".")[0]
+        align(
+            environment_name=environment_name,
+            in_path=str(Path(data_path) / "raw_data" / lang),
+            lexicon_path=str(Path(data_path) / "data" / "vocabs" / f"{lang}.txt"),
+            out_path=(str(Path(data_path) / "data" / "textgrid")),
+            n_workers=p_config.workers,
+            lang=lang,
+        )
+        cur.execute(
+            "UPDATE sample_splitting_run SET gen_align_progress=? WHERE ID=?",
+            ((i + 1) / len(vocab_paths), run_id),
+        )
+        con.commit()
     cur.execute(
         "UPDATE sample_splitting_run SET stage='creating_splits', gen_align_progress=1.0 WHERE ID=?",
         (run_id,),
@@ -262,9 +287,11 @@ def creating_splits_stage(
     )
 
     con.commit()
-    for (sample_id, text, audio_path, speaker_name,) in cur.execute(
+    for (sample_id, text, audio_path, speaker_name, lang) in cur.execute(
         """
-        SELECT sample.ID, sample.text, sample.audio_path, speaker.name AS speaker_name FROM sample_splitting_run INNER JOIN dataset ON sample_splitting_run.dataset_id = dataset.ID 
+        SELECT sample.ID, sample.text, sample.audio_path, 
+        speaker.name AS speaker_name, speaker.language
+        FROM sample_splitting_run INNER JOIN dataset ON sample_splitting_run.dataset_id = dataset.ID 
         INNER JOIN speaker on speaker.dataset_id = dataset.ID
         INNER JOIN sample on sample.speaker_id = speaker.ID
         WHERE sample_splitting_run.ID=?
@@ -278,7 +305,7 @@ def creating_splits_stage(
             / speaker_name
             / f"{Path(audio_path).stem}.TextGrid"
         )
-        langs.append("en")
+        langs.append(lang)
 
     splits = sample_splitting(
         ids=sample_ids, texts=texts, textgrid_paths=textgrid_paths, languages=langs,
@@ -400,7 +427,6 @@ def apply_changes_stage(
         INNER JOIN speaker on sample.speaker_id = speaker.ID
         INNER JOIN dataset ON speaker.dataset_id = dataset.ID
         WHERE sample_splitting_run_sample.sample_splitting_run_id=?
-
         """,
         (run_id,),
     ).fetchall():
@@ -458,7 +484,6 @@ def apply_changes_stage(
                 ),
             )
             delete_audio_paths.append(split.full_audio_path)
-            print("HERE", flush=True)
         delete_audio_paths.append(str(old_sample_full_audio_path))
         cur.execute("DELETE FROM sample WHERE ID=?", (apply_changes_info.sample_id,))
         cur.execute(
@@ -483,6 +508,7 @@ def continue_sample_splitting_run(run_id: int,):
     save_current_pid(con=con, cur=cur)
     data_path = str(Path(SAMPLE_SPLITTING_RUNS_PATH) / str(run_id))
     splits_path = str(Path(data_path) / "splits")
+    vocab_path = str(Path(data_path) / "data" / "vocabs")
 
     def get_logger():
         con = get_con(DB_PATH)
@@ -521,6 +547,7 @@ def continue_sample_splitting_run(run_id: int,):
         environment_name=ENVIRONMENT_NAME,
         datasets_path=DATASETS_PATH,
         splits_path=splits_path,
+        vocab_path=vocab_path,
     )
 
 

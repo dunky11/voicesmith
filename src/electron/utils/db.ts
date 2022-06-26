@@ -37,6 +37,7 @@ const createTables = (db: any) => {
         vocoder_fine_tuning_progress FLOAT NOT NULL DEFAULT 0.0,
         save_model_progress FLOAT NOT NULL DEFAULT 0.0,
         only_train_speaker_emb_until INTEGER NOT NULL,
+        skip_on_error BOOLEAN DEFAULT 0,
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID) ON DELETE SET NULL,
         UNIQUE(name)
@@ -57,8 +58,10 @@ const createTables = (db: any) => {
     CREATE TABLE IF NOT EXISTS speaker (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
+        language TEXT NOT NULL DEFAULT "en",
         dataset_id INTEGER NOT NULL,
         UNIQUE(name, dataset_id),
+        INDEX(language),
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
     ); 
     `
@@ -184,9 +187,10 @@ const createTables = (db: any) => {
     CREATE TABLE IF NOT EXISTS cleaning_run (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        get_txt_progress FLOAT DEFAULT 0.0,
-        gen_file_embeddings_progress FLOAT DEFAULT 0.0,
+        copying_files_progress FLOAT DEFAULT 0.0,
+        transcription_progress FLOAT DEFAULT 0.0,
         apply_changes_progress FLOAT DEFAULT 0.0,
+        skip_on_error BOOLEAN,
         stage TEXT DEFAULT "not_started",
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
@@ -195,10 +199,11 @@ const createTables = (db: any) => {
   ).run();
   db.prepare(
     `
-    CREATE TABLE IF NOT EXISTS noisy_sample (
+    CREATE TABLE IF NOT EXISTS cleaning_run_sample (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        label_quality FLOAT DEFAULT NULL,
+        quality_score FLOAT DEFAULT NULL,
         sample_id INT NOT NULL,
+        transcription TEXT NOT NULL,
         cleaning_run_id INT NOT NULL,
         FOREIGN KEY (sample_id) REFERENCES sample(ID),
         FOREIGN KEY (cleaning_run_id) REFERENCES cleaning_run(ID)
@@ -211,7 +216,6 @@ const createTables = (db: any) => {
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         stage TEXT DEFAULT "not_started",
-        language TEXT DEFAULT "en",
         text_normalization_progress FLOAT DEFAULT 0.0,
         dataset_id INTEGER DEFAULT NULL,  
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
@@ -259,6 +263,7 @@ const createTables = (db: any) => {
         creating_splits_progress FLOAT NOT NULL DEFAULT 0.0,
         applying_changes_progress FLOAT NOT NULL DEFAULT 0.0,
         device TEXT NOT NULL DEFAULT "CPU",
+        skip_on_error BOOLEAN DEFAULT 0,
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
     ); 
@@ -318,7 +323,8 @@ export const bool2int = (obj: { [key: string]: any }) => {
 export const getSpeakersWithSamples = (datasetID: number) => {
   const samples = DB.getInstance()
     .prepare(
-      `SELECT sample.text AS text, speaker.ID as speakerID, speaker.name, sample.txt_path AS txtPath, 
+      `SELECT sample.text AS text, speaker.ID as speakerID, speaker.name,
+      speaker.language AS language, sample.txt_path AS txtPath, 
       sample.audio_path AS audioPath, sample.ID 
       FROM speaker 
       LEFT JOIN sample ON speaker.ID = sample.speaker_id
@@ -329,6 +335,7 @@ export const getSpeakersWithSamples = (datasetID: number) => {
       text: sample.text,
       speakerID: sample.speakerID,
       name: sample.name,
+      language: sample.language,
       txtPath: sample.txtPath,
       audioPath: sample.audioPath,
       ID: sample.ID,
@@ -345,12 +352,19 @@ export const getSpeakersWithSamples = (datasetID: number) => {
     }));
 
   const speaker2Samples: { [key: string]: SpeakerSampleInterface[] } = {};
-  const speaker2SpeakerID: { [key: string]: number } = {};
+  const speaker2info: {
+    [key: string]: {
+      speakerID: number;
+      language: string;
+    };
+  } = {};
   samples.forEach((sample: any) => {
     const name = sample.name;
     const speakerID = sample.speakerID;
+    const language = sample.language;
     delete sample.name;
     delete sample.speakerID;
+    delete sample.language;
     if (name in speaker2Samples) {
       if (sample.txtPath != null) {
         speaker2Samples[name].push(sample);
@@ -361,18 +375,22 @@ export const getSpeakersWithSamples = (datasetID: number) => {
       } else {
         speaker2Samples[name] = [sample];
       }
-      speaker2SpeakerID[name] = speakerID;
+      speaker2info[name] = {
+        speakerID: speakerID,
+        language: language,
+      };
     }
   });
   const speakers = Object.keys(speaker2Samples).map((key) => ({
-    ID: speaker2SpeakerID[key],
+    ID: speaker2info[key].speakerID,
     name: key,
+    language: speaker2info[key].language,
     samples: speaker2Samples[key],
   }));
   return speakers;
 };
 
-export const getReferencedBy = (datasetID: number) => {
+export const getReferencedBy = (datasetID: number): string | null => {
   let row = DB.getInstance()
     .prepare("SELECT name FROM training_run WHERE dataset_id=@datasetID")
     .get({ datasetID });

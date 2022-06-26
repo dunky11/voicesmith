@@ -6,13 +6,13 @@ import {
   EDIT_PREPROCESSING_RUN_NAME_CHANNEL,
   REMOVE_PREPROCESSING_RUN_CHANNEL,
   FETCH_PREPROCESSING_NAMES_USED_CHANNEL,
+  FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES,
 } from "../../channels";
+import { fetchCleaningRuns } from "./cleaningRuns";
 import { fetchSampleSplittingRuns } from "./sampleSplittingRuns";
+import { fetchTextNormalizationRuns } from "./textNormalizationRuns";
 import { safeRmDir } from "../utils/files";
-import {
-  PreprocessingRunInterface,
-  SampleSplittingRunInterface,
-} from "../../interfaces";
+import { RunInterface, PreprocessingRunType } from "../../interfaces";
 import {
   getCleaningRunsDir,
   getSampleSplittingRunsDir,
@@ -55,40 +55,30 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle(FETCH_PREPROCESSING_RUNS_CHANNEL.IN, () => {
-  const cleaningRuns = DB.getInstance()
-    .prepare(
-      `SELECT cleaning_run.ID AS ID, cleaning_run.name AS name, stage, dataset_id, dataset.name AS datasetName FROM cleaning_run LEFT JOIN dataset ON cleaning_run.dataset_id = dataset.ID`
-    )
-    .all()
-    .map((el: any) => ({
-      ...el,
-      type: "dSCleaningRun",
-    }));
-  const textNormalizationRuns = DB.getInstance()
-    .prepare(
-      `SELECT text_normalization_run.ID AS ID, text_normalization_run.name AS name, stage, dataset_id FROM text_normalization_run LEFT JOIN dataset ON text_normalization_run.dataset_id = dataset.ID`
-    )
-    .all()
-    .map((el: any) => ({
-      ...el,
-      type: "textNormalizationRun",
-    }));
-  const sampleSplittingRuns = fetchSampleSplittingRuns().map(
-    (el: SampleSplittingRunInterface) => ({ ...el, type: "sampleSplittingRun" })
-  );
-  return cleaningRuns.concat(textNormalizationRuns).concat(sampleSplittingRuns);
-});
+ipcMain.handle(
+  FETCH_PREPROCESSING_RUNS_CHANNEL.IN,
+  (): FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES["IN"]["OUT"] => {
+    const cleaningRuns = fetchCleaningRuns();
+    const textNormalizationRuns = fetchTextNormalizationRuns();
+    const sampleSplittingRuns = fetchSampleSplittingRuns();
+    const ret: PreprocessingRunType[] = [
+      ...cleaningRuns,
+      ...textNormalizationRuns,
+      ...sampleSplittingRuns,
+    ];
+    return ret;
+  }
+);
 
 ipcMain.handle(
   EDIT_PREPROCESSING_RUN_NAME_CHANNEL.IN,
   (
     event: IpcMainInvokeEvent,
-    preprocessingRun: PreprocessingRunInterface,
+    preprocessingRun: RunInterface,
     newName: string
   ) => {
     switch (preprocessingRun.type) {
-      case "dSCleaningRun":
+      case "cleaningRun":
         DB.getInstance()
           .prepare("UPDATE cleaning_run SET name=@name WHERE ID=@ID")
           .run({
@@ -122,12 +112,9 @@ ipcMain.handle(
 
 ipcMain.handle(
   REMOVE_PREPROCESSING_RUN_CHANNEL.IN,
-  async (
-    event: IpcMainInvokeEvent,
-    preprocessingRun: PreprocessingRunInterface
-  ) => {
+  async (event: IpcMainInvokeEvent, preprocessingRun: RunInterface) => {
     switch (preprocessingRun.type) {
-      case "dSCleaningRun": {
+      case "cleaningRun": {
         DB.getInstance().transaction(() => {
           DB.getInstance()
             .prepare("DELETE FROM noisy_sample WHERE cleaning_run_id=@ID")

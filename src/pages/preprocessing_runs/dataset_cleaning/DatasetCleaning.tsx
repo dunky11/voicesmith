@@ -1,19 +1,19 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import {
-  PreprocessingRunInterface,
-  RunInterface,
-  DSCleaningInterface,
-  UsageStatsInterface,
-} from "../../../interfaces";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../../../app/store";
+import { RunInterface, CleaningRunInterface } from "../../../interfaces";
 import { useInterval } from "../../../utils";
-import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
+import { POLL_LOGFILE_INTERVALL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
-import { FETCH_CLEANING_RUN_CHANNEL } from "../../../channels";
+import {
+  FETCH_CLEANING_RUNS_CHANNEL,
+  FETCH_CLEANING_RUNS_CHANNEL_TYPES,
+} from "../../../channels";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -35,63 +35,40 @@ const stepToTitle: {
 
 export default function DatasetCleaning({
   preprocessingRun,
-  running,
-  continueRun,
-  stopRun,
 }: {
-  preprocessingRun: PreprocessingRunInterface | null;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
-}) {
+  preprocessingRun: RunInterface;
+}): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
-  const [run, setRun] = useState<DSCleaningInterface | null>(null);
-  const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
+  const [run, setRun] = useState<CleaningRunInterface | null>(null);
 
   const selectedIsRunning =
     running !== null &&
-    running.type === "dSCleaningRun" &&
+    running.type === "cleaningRun" &&
     running.ID == preprocessingRun?.ID;
 
   const fetchCleaningRun = () => {
     if (preprocessingRun === null) {
       return;
     }
+    const args: FETCH_CLEANING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ID: preprocessingRun.ID,
+    };
     ipcRenderer
-      .invoke(FETCH_CLEANING_RUN_CHANNEL.IN, preprocessingRun.ID)
-      .then((run: DSCleaningInterface) => {
+      .invoke(FETCH_CLEANING_RUNS_CHANNEL.IN, args)
+      .then((runs: FETCH_CLEANING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
-        setRun(run);
+        setRun(runs[0]);
       });
-  };
-
-  const pollUsageInfo = () => {
-    const ajax = new XMLHttpRequest();
-    ajax.open("GET", `${SERVER_URL}/get-system-info`);
-    ajax.onload = () => {
-      if (!isMounted.current) {
-        return;
-      }
-      const response: UsageStatsInterface = JSON.parse(ajax.responseText);
-      if (usageStats.length >= 100) {
-        usageStats.shift();
-      }
-      setUsageStats([
-        ...usageStats,
-        {
-          cpuUsage: response["cpuUsage"],
-          diskUsed: parseFloat(response["diskUsed"].toFixed(2)),
-          totalDisk: parseFloat(response["totalDisk"].toFixed(2)),
-          ramUsed: parseFloat(response["ramUsed"].toFixed(2)),
-          totalRam: parseFloat(response["totalRam"].toFixed(2)),
-        },
-      ]);
-    };
-    ajax.send();
   };
 
   const onStepChange = (current: number) => {
@@ -111,7 +88,6 @@ export default function DatasetCleaning({
   }, []);
 
   useInterval(fetchCleaningRun, POLL_LOGFILE_INTERVALL);
-  useInterval(pollUsageInfo, 1000);
 
   return (
     <>
@@ -151,44 +127,27 @@ export default function DatasetCleaning({
             </Steps>
           </Card>
         </Col>
-        <Col className="gutter-row" span={20}>
+        <Col span={20}>
           <Switch>
             <Route
-              render={() => (
-                <Configuration
-                  onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
-                  running={running}
-                  continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
-                />
-              )}
+              render={() =>
+                run !== null && (
+                  <Configuration onStepChange={onStepChange} run={run} />
+                )
+              }
               path={stepToPath[0]}
             ></Route>
             <Route
-              render={() => (
-                <Preprocessing
-                  onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
-                  running={running}
-                  continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
-                  usageStats={usageStats}
-                  stopRun={stopRun}
-                />
-              )}
+              render={() =>
+                run !== null && (
+                  <Preprocessing onStepChange={onStepChange} run={run} />
+                )
+              }
               path={stepToPath[1]}
             ></Route>
             <Route
               render={() => (
-                <ChooseSamples
-                  onStepChange={onStepChange}
-                  selectedID={run === null ? null : run.ID}
-                  running={running}
-                  continueRun={continueRun}
-                  stage={run === null ? null : run.stage}
-                  stopRun={stopRun}
-                />
+                <ChooseSamples onStepChange={onStepChange} run={run} />
               )}
               path={stepToPath[2]}
             ></Route>

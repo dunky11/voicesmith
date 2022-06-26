@@ -4,8 +4,8 @@ import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import {
   RunInterface,
-  TextNormalizationInterface,
-  TextNormalizationConfigInterface,
+  TextNormalizationRunInterface,
+  TextNormalizationRunConfigInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
 import DatasetInput from "../../../components/inputs/DatasetInput";
@@ -17,27 +17,26 @@ import {
   FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
 } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
+import { useDispatch } from "react-redux";
+import { addToQueue } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
-const initialValues: TextNormalizationConfigInterface = {
+const initialValues: TextNormalizationRunConfigInterface = {
   name: "",
   datasetID: null,
-  language: "en",
+  datasetName: null,
 };
 
 export default function Configuration({
   onStepChange,
   run,
-  running,
-  continueRun,
 }: {
   onStepChange: (current: number) => void;
-  run: TextNormalizationInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
+  run: TextNormalizationRunInterface;
 }): ReactElement {
+  const dispatch = useDispatch();
   const isMounted = useRef(false);
-  const [configIsLoaded, setConfigIsLoaded] = useState(false);
+  const [initialIsLoading, setInitialIsLoading] = useState(true);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
   const formRef = useRef<FormInstance | null>();
@@ -57,6 +56,8 @@ export default function Configuration({
   const onDefaults = () => {
     formRef.current?.setFieldsValue({
       ...initialValues,
+      datasetID: formRef.current.getFieldValue("datasetID"),
+      datasetName: formRef.current.getFieldValue("datasetName"),
       name: formRef.current.getFieldValue("name"),
     });
   };
@@ -70,7 +71,7 @@ export default function Configuration({
   };
 
   const onFinish = () => {
-    const values: TextNormalizationConfigInterface = {
+    const values: TextNormalizationRunConfigInterface = {
       ...initialValues,
       ...formRef.current?.getFieldsValue(),
     };
@@ -83,10 +84,13 @@ export default function Configuration({
         }
         if (navigateNextRef.current) {
           if (run.stage === "not_started") {
-            continueRun({
-              ID: run.ID,
-              type: "textNormalizationRun",
-            });
+            dispatch(
+              addToQueue({
+                ID: run.ID,
+                type: "textNormalizationRun",
+                name: run.name,
+              })
+            );
           }
           onStepChange(1);
           navigateNextRef.current = false;
@@ -99,12 +103,12 @@ export default function Configuration({
   const fetchConfiguration = () => {
     ipcRenderer
       .invoke(FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL.IN, run.ID)
-      .then((configuration: TextNormalizationInterface) => {
+      .then((configuration: TextNormalizationRunInterface) => {
         if (!isMounted.current) {
           return;
         }
-        if (!configIsLoaded) {
-          setConfigIsLoaded(true);
+        if (!initialIsLoading) {
+          setInitialIsLoading(false);
         }
         formRef.current?.setFieldsValue(configuration);
       });
@@ -128,22 +132,24 @@ export default function Configuration({
     fetchConfiguration();
   }, []);
 
-  const disableNameEdit = !configIsLoaded;
-  const disableElseEdit = disableNameEdit || run.stage !== "not_started";
-
-  const disableNext = !configIsLoaded;
-  const disableDefaults = disableNext || run.stage !== "not_started";
+  const hasStarted = run.stage !== "not_started";
 
   return (
     <RunCard
       title="Configure the Text Normalization Run"
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button disabled={disableDefaults} onClick={onDefaults}>
+        <Button disabled={initialIsLoading} onClick={onDefaults}>
           Reset to Default
         </Button>,
-        <Button onClick={onSave}>Save</Button>,
-        <Button type="primary" disabled={disableNext} onClick={onNextClick}>
+        <Button disabled={initialIsLoading} onClick={onSave}>
+          Save
+        </Button>,
+        <Button
+          type="primary"
+          disabled={initialIsLoading}
+          onClick={onNextClick}
+        >
           {getNextButtonText()}
         </Button>,
       ]}
@@ -157,41 +163,12 @@ export default function Configuration({
         onFinish={onFinish}
       >
         <NameInput
-          disabled={disableNameEdit}
+          disabled={initialIsLoading}
           fetchNames={() => {
             return fetchNames(run.ID);
           }}
         />
-        <DatasetInput disabled={disableElseEdit} />
-        <Form.Item
-          label="Language"
-          name="language"
-          rules={[
-            () => ({
-              validator(_, value: string) {
-                if (value === null) {
-                  return Promise.reject(new Error("Please select a language"));
-                }
-                return Promise.resolve();
-              },
-            }),
-          ]}
-        >
-          <Select disabled={disableElseEdit}>
-            <Select.Option value="en" key="en">
-              English
-            </Select.Option>
-            <Select.Option value="es" key="es">
-              Spanish
-            </Select.Option>
-            <Select.Option value="de" key="de">
-              German
-            </Select.Option>
-            <Select.Option value="ru" key="ru">
-              Russian
-            </Select.Option>
-          </Select>
-        </Form.Item>
+        <DatasetInput disabled={initialIsLoading || hasStarted} />
       </Form>
     </RunCard>
   );

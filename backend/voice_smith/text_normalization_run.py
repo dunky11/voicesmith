@@ -56,19 +56,17 @@ def text_normalization_stage(
     assets_path: str,
     **kwargs,
 ) -> bool:
-    row = cur.execute(
-        "SELECT language FROM text_normalization_run WHERE ID=?", (run_id,),
-    ).fetchone()
-    lang = row[0]
     cur.execute(
         "DELETE FROM text_normalization_sample WHERE text_normalization_run_id = ?",
         (run_id,),
     )
     con.commit()
-    id_text_pairs = []
-    for (sample_id, text) in cur.execute(
+    sample_ids = []
+    texts = []
+    langs = []
+    for (sample_id, text, lang) in cur.execute(
         """
-        SELECT sample.ID AS sampleID, sample.text FROM sample
+        SELECT sample.ID, sample.text, speaker.language FROM sample
         INNER JOIN speaker ON sample.speaker_id = speaker.ID
         INNER JOIN dataset on speaker.dataset_id = dataset.ID
         INNER JOIN text_normalization_run ON text_normalization_run.dataset_id = dataset.ID
@@ -76,7 +74,9 @@ def text_normalization_stage(
         """,
         (run_id,),
     ).fetchall():
-        id_text_pairs.append((sample_id, text))
+        sample_ids.append(sample_id)
+        texts.append(text)
+        langs.append(lang)
 
     def callback(progress: float):
         progress = progress * 0.9
@@ -85,11 +85,12 @@ def text_normalization_stage(
             (progress, run_id),
         )
         con.commit()
- 
+
     normalizations = text_normalize(
-        id_text_pairs=id_text_pairs,
+        sample_ids=sample_ids,
+        texts=texts,
+        langs=langs,
         assets_path=assets_path,
-        lang=lang,
         progress_cb=callback,
     )
 

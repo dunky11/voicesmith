@@ -49,7 +49,6 @@ def freeze_torchscript(model: ScriptModule) -> None:
 
 def synth_iter(
     gen: AcousticModel,
-    style_predictor: ScriptModule,
     step: int,
     preprocess_config: PreprocessingConfig,
     device: torch.device,
@@ -91,19 +90,17 @@ def synth_iter(
                     pitches,
                     durations,
                     mel_lens,
-                    token_ids,
-                    attention_masks,
+                    langs,
                 ) = batch
-                style_embeds_pred = style_predictor(token_ids, attention_masks)
-                for (speaker, text, src_len, mel, mel_len, style_pred,) in zip(
-                    speakers, texts, src_lens, mels, mel_lens, style_embeds_pred,
+                for (speaker, text, src_len, mel, mel_len, lang) in zip(
+                    speakers, texts, src_lens, mels, mel_lens, langs
                 ):
                     y_pred = gen(
                         x=text[: src_len.item()].unsqueeze(0),
                         speakers=speaker.unsqueeze(0),
-                        style_embeds_pred=style_pred.unsqueeze(0),
                         p_control=1.0,
                         d_control=1.0,
+                        langs=lang.unsqueeze(0),
                     )
 
                     wav_prediction = vocoder(y_pred)
@@ -182,7 +179,6 @@ def get_data_loaders(
 def train_iter(
     db_id: int,
     gen: AcousticModel,
-    style_predictor: ScriptModule,
     optim: Union[ScheduledOptimPretraining, ScheduledOptimFinetuning],
     train_loader: Generator,
     criterion: FastSpeech2LossGen,
@@ -197,7 +193,6 @@ def train_iter(
 ) -> None:
 
     gen.train()
-    style_predictor.train()
 
     losses = {
         "reconstruction_loss": torch.FloatTensor([0.0]).to(device),
@@ -224,10 +219,8 @@ def train_iter(
             pitches,
             durations,
             mel_lens,
-            token_ids,
-            attention_masks,
+            langs,
         ) = batch
-        style_embeds_pred = style_predictor(token_ids, attention_masks)
 
         src_mask = get_mask_from_lengths(src_lens)
         mel_mask = get_mask_from_lengths(mel_lens)
@@ -237,10 +230,9 @@ def train_iter(
             src_lens=src_lens,
             mels=mels,
             mel_lens=mel_lens,
-            style_embeds_pred=style_embeds_pred,
-            attention_mask=attention_masks,
             pitches=pitches,
             durations=durations,
+            langs=langs,
         )
         y_pred = outputs["y_pred"]
         log_duration_prediction = outputs["log_duration_prediction"]
@@ -280,9 +272,7 @@ def train_iter(
         (total_loss / grad_acc_steps).backward()
 
     # Clipping gradients to avoid gradient explosion
-    clip_grad_norm_(
-        chain(gen.parameters(), style_predictor.parameters()), grad_clip_thresh
-    )
+    clip_grad_norm_(gen.parameters(), grad_clip_thresh)
 
     # Update weights
     optim.step_and_update_lr(step)
@@ -314,12 +304,6 @@ def train_iter(
             name="only_train_speaker_emb", value=1 if model_is_frozen else 0, step=step
         )
 
-        logger.log_image(
-            name="bert_attention",
-            image=outputs["bert_attention"][0, 0, :, :].T.detach().cpu().numpy(),
-            step=step,
-        )
-
     if step % 10 == 0:
         logger.query(
             "UPDATE training_run SET acoustic_fine_tuning_progress=? WHERE ID=?",
@@ -329,7 +313,6 @@ def train_iter(
 
 def eval_iter(
     gen: AcousticModel,
-    style_predictor: ScriptModule,
     step: int,
     train_config: Union[AcousticFinetuningConfig, AcousticPretrainingConfig],
     batch_size: int,
@@ -339,7 +322,6 @@ def eval_iter(
     logger: Logger,
 ) -> None:
     gen.eval()
-    style_predictor.eval()
 
     losses = {
         "reconstruction_loss": torch.FloatTensor([0.0]).to(device),
@@ -366,26 +348,21 @@ def eval_iter(
                     pitches,
                     durations,
                     mel_lens,
-                    token_ids,
-                    attention_masks,
+                    langs,
                 ) = batch
-                style_embeds_pred = style_predictor(token_ids, attention_masks)
 
                 src_mask = get_mask_from_lengths(src_lens)
                 mel_mask = get_mask_from_lengths(mel_lens)
-
                 outputs = gen.forward_train(
                     x=texts,
                     speakers=speakers,
                     src_lens=src_lens,
                     mels=mels,
                     mel_lens=mel_lens,
-                    style_embeds_pred=style_embeds_pred,
-                    attention_mask=attention_masks,
                     pitches=pitches,
                     durations=durations,
+                    langs=langs,
                 )
-
                 y_pred = outputs["y_pred"]
                 log_duration_prediction = outputs["log_duration_prediction"]
                 p_prosody_ref = outputs["p_prosody_ref"]
@@ -440,19 +417,17 @@ def eval_iter(
                     pitches,
                     durations,
                     mel_lens,
-                    token_ids,
-                    attention_masks,
+                    langs,
                 ) = batch
-                style_embeds_pred = style_predictor(token_ids, attention_masks)
-                for (speaker, text, src_len, mel, mel_len, style_pred,) in zip(
-                    speakers, texts, src_lens, mels, mel_lens, style_embeds_pred,
+                for (speaker, text, src_len, mel, mel_len, lang) in zip(
+                    speakers, texts, src_lens, mels, mel_lens, langs
                 ):
                     y_pred = gen(
                         x=text[: src_len.item()].unsqueeze(0),
                         speakers=speaker.unsqueeze(0),
-                        style_embeds_pred=style_pred.unsqueeze(0),
                         p_control=1.0,
                         d_control=1.0,
+                        langs=lang.unsqueeze(0),
                     )
 
                     samples_generated += 1
@@ -499,7 +474,6 @@ def train_acoustic(
     device: torch.device,
     reset: bool,
     checkpoint_acoustic: Union[str, None],
-    checkpoint_style: Union[str, None],
     fine_tuning: bool,
     overwrite_saves: bool,
     assets_path: str,
@@ -509,10 +483,9 @@ def train_acoustic(
     data_path = Path(training_runs_path) / str(training_run_name) / "data"
 
     # Prepare model
-    gen, style_predictor, optim, step = get_acoustic_models(
+    gen, optim, step = get_acoustic_models(
         data_path=str(data_path),
         checkpoint_acoustic=checkpoint_acoustic,
-        checkpoint_style=checkpoint_style,
         train_config=train_config,
         preprocess_config=preprocess_config,
         model_config=model_config,
@@ -534,15 +507,12 @@ def train_acoustic(
     criterion = FastSpeech2LossGen(fine_tuning=fine_tuning, device=device)
 
     gen_pars = get_param_num(gen)
-    style_pars = get_param_num(style_predictor)
     prosody_encoder_pars = get_param_num(gen.phoneme_prosody_encoder)
 
     print(f"Number of acoustic model parameters: {gen_pars}")
-    print(f"Number of style predictor parameters: {style_pars}")
 
-    print(f"Total number of parameters: {gen_pars + style_pars}")
     print(
-        f"Total number of parameters during inference: {gen_pars + style_pars - prosody_encoder_pars}"
+        f"Total number of parameters during inference: {gen_pars - prosody_encoder_pars}"
     )
 
     # Training
@@ -554,18 +524,11 @@ def train_acoustic(
     val_step = train_config.val_step
     total_step = train_config.train_steps
     only_train_speaker_until = train_config.only_train_speaker_until
-    freeze_bert_until = 0 if fine_tuning else train_config.freeze_bert_until
     freeze_model_until = only_train_speaker_until if fine_tuning else 0
     ckpt_dir = Path(training_runs_path) / training_run_name / "ckpt" / "acoustic"
     ckpt_dir.mkdir(exist_ok=True, parents=True)
 
-    bert_is_frozen = step < freeze_bert_until
     model_is_frozen = step < freeze_model_until
-
-    if bert_is_frozen or model_is_frozen:
-        freeze_torchscript(style_predictor)
-    else:
-        unfreeze_torchscript(style_predictor)
 
     if model_is_frozen:
         gen.freeze()
@@ -575,20 +538,14 @@ def train_acoustic(
     for step in iter_logger(
         iterable=range(step, total_step + 1), start=step, total=total_step,
     ):
-        if bert_is_frozen and step >= freeze_bert_until:
-            bert_is_frozen = False
-            if not model_is_frozen:
-                unfreeze_torchscript(style_predictor)
 
         if model_is_frozen and step >= freeze_model_until:
             model_is_frozen = False
             gen.unfreeze()
-            unfreeze_torchscript(style_predictor)
 
         train_iter(
             db_id=db_id,
             gen=gen,
-            style_predictor=style_predictor,
             optim=optim,
             train_loader=train_loader,
             criterion=criterion,
@@ -605,7 +562,6 @@ def train_acoustic(
         if step % val_step == 0 and step != 0:
             eval_iter(
                 gen=gen,
-                style_predictor=style_predictor,
                 step=step,
                 train_config=train_config,
                 batch_size=batch_size,
@@ -618,7 +574,6 @@ def train_acoustic(
         if step % synth_step == 0 and step != 0:
             synth_iter(
                 gen=gen,
-                style_predictor=style_predictor,
                 step=step,
                 preprocess_config=preprocess_config,
                 device=device,
@@ -635,13 +590,6 @@ def train_acoustic(
                     "optim": optim._optimizer.state_dict(),
                     "steps": step,
                 },
-                ckpt_dir=str(ckpt_dir),
-                step=step,
-                overwrite=overwrite_saves,
-            )
-            save_torchscript(
-                name="style",
-                model=style_predictor,
                 ckpt_dir=str(ckpt_dir),
                 step=step,
                 overwrite=overwrite_saves,

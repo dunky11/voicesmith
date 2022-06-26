@@ -2,18 +2,21 @@ import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../app/store";
 import {
-  PreprocessingRunInterface,
   RunInterface,
-  UsageStatsInterface,
-  TextNormalizationInterface,
+  TextNormalizationRunInterface,
 } from "../../../interfaces";
 import { useInterval } from "../../../utils";
-import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
+import { POLL_LOGFILE_INTERVALL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
-import { FETCH_TEXT_NORMALIZATION_RUN_CHANNEL } from "../../../channels";
+import {
+  FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL,
+  FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES,
+} from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 const { ipcRenderer } = window.require("electron");
 
@@ -35,20 +38,19 @@ const stepToTitle: {
 
 export default function TextNormalization({
   preprocessingRun,
-  running,
-  continueRun,
-  stopRun,
 }: {
-  preprocessingRun: PreprocessingRunInterface | null;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
+  preprocessingRun: RunInterface | null;
 }): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
-  const [run, setRun] = useState<TextNormalizationInterface | null>(null);
-  const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
+  const [run, setRun] = useState<TextNormalizationRunInterface | null>(null);
 
   const selectedIsRunning =
     running !== null &&
@@ -59,39 +61,17 @@ export default function TextNormalization({
     if (preprocessingRun === null) {
       return;
     }
+    const args: FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ID: preprocessingRun.ID,
+    };
     ipcRenderer
-      .invoke(FETCH_TEXT_NORMALIZATION_RUN_CHANNEL.IN, preprocessingRun.ID)
-      .then((run: TextNormalizationInterface) => {
+      .invoke(FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL.IN, args)
+      .then((run: FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
-        setRun(run);
+        setRun(run[0]);
       });
-  };
-
-  const pollUsageInfo = () => {
-    const ajax = new XMLHttpRequest();
-    ajax.open("GET", `${SERVER_URL}/get-system-info`);
-    ajax.onload = () => {
-      if (!isMounted.current) {
-        return;
-      }
-      const response: UsageStatsInterface = JSON.parse(ajax.responseText);
-      if (usageStats.length >= 100) {
-        usageStats.shift();
-      }
-      setUsageStats([
-        ...usageStats,
-        {
-          cpuUsage: response["cpuUsage"],
-          diskUsed: parseFloat(response["diskUsed"].toFixed(2)),
-          totalDisk: parseFloat(response["totalDisk"].toFixed(2)),
-          ramUsed: parseFloat(response["ramUsed"].toFixed(2)),
-          totalRam: parseFloat(response["totalRam"].toFixed(2)),
-        },
-      ]);
-    };
-    ajax.send();
   };
 
   const onStepChange = (current: number) => {
@@ -111,7 +91,6 @@ export default function TextNormalization({
   }, []);
 
   useInterval(fetchRun, POLL_LOGFILE_INTERVALL);
-  useInterval(pollUsageInfo, 1000);
 
   return (
     <>
@@ -154,12 +133,7 @@ export default function TextNormalization({
             <Route
               render={() =>
                 run !== null && (
-                  <Configuration
-                    onStepChange={onStepChange}
-                    run={run}
-                    running={running}
-                    continueRun={continueRun}
-                  />
+                  <Configuration onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[0]}
@@ -167,14 +141,7 @@ export default function TextNormalization({
             <Route
               render={() =>
                 run !== null && (
-                  <Preprocessing
-                    onStepChange={onStepChange}
-                    run={run}
-                    running={running}
-                    continueRun={continueRun}
-                    usageStats={usageStats}
-                    stopRun={stopRun}
-                  />
+                  <Preprocessing onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[1]}
@@ -182,13 +149,7 @@ export default function TextNormalization({
             <Route
               render={() =>
                 run !== null && (
-                  <ChooseSamples
-                    onStepChange={onStepChange}
-                    run={run}
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
-                  />
+                  <ChooseSamples onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[2]}

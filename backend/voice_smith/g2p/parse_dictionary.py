@@ -1,16 +1,19 @@
 from pathlib import Path
 from tqdm import tqdm
+from typing import List, Tuple
 
-def parse_dictionary(dictionary_name, name):
-    this_path = Path(__file__).parent.resolve()
+
+def parse_dictionary(
+    dictionary_path: str, name: str
+) -> Tuple[List[Tuple[str, str, List[str]]], List[str], List[str]]:
     out = []
     all_phones = []
     words_preprocessed = {}
-    with open(this_path / "dictionaries" /  dictionary_name, "r", encoding="utf-8") as f:
+    with open(str(dictionary_path), "r", encoding="utf-8") as f:
         for line in tqdm(f.readlines()):
             line = line.strip().split()
             word = line[0]
-            phones = line[1:]
+            phones = line[1 + 4 :]
             word = word.lower()
             words_preprocessed[word] = 0
             out.append((name, word, phones))

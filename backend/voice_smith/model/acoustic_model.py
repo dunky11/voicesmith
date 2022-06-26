@@ -19,8 +19,12 @@ from voice_smith.model.layers import (
 )
 from voice_smith.model.attention import ConformerMultiHeadedSelfAttention
 from voice_smith.model.position_encoding import positional_encoding
-from voice_smith.model.reference_encoder import PhonemeLevelProsodyEncoder
+from voice_smith.model.reference_encoder import (
+    PhonemeLevelProsodyEncoder,
+    UtteranceLevelProsodyEncoder,
+)
 from voice_smith.utils import tools
+from voice_smith.config.langs import languages
 
 LRELU_SLOPE = 0.3
 
@@ -39,35 +43,35 @@ class AcousticModel(nn.Module):
         super().__init__()
         n_src_vocab = len(symbols) + 1
         self.emb_dim = model_config.encoder.n_hidden
-        self.encoder_1 = Conformer(
+        self.encoder = Conformer(
             dim=model_config.encoder.n_hidden,
-            n_layers=model_config.encoder.n_layers // 2,
+            n_layers=model_config.encoder.n_layers,
             n_heads=model_config.encoder.n_heads,
-            embedding_dim=model_config.speaker_embed_dim,
-            p_dropout=model_config.encoder.p_dropout,
-            kernel_size_conv_mod=model_config.encoder.kernel_size_conv_mod,
-        )
-        self.encoder_2 = Conformer(
-            dim=model_config.encoder.n_hidden,
-            n_layers=model_config.encoder.n_layers // 2,
-            n_heads=model_config.encoder.n_heads,
-            embedding_dim=model_config.speaker_embed_dim,
+            embedding_dim=model_config.speaker_embed_dim + model_config.lang_embed_dim,
             p_dropout=model_config.encoder.p_dropout,
             kernel_size_conv_mod=model_config.encoder.kernel_size_conv_mod,
         )
         self.pitch_adaptor = PitchAdaptor(model_config, data_path=data_path)
         self.length_regulator = LengthAdaptor(model_config)
-        self.bert_attention = BertAttention(
-            d_model=model_config.encoder.n_hidden,
-            num_heads=model_config.encoder.n_heads,
-            p_dropout=model_config.encoder.p_dropout,
-        )
 
+        self.utterance_prosody_encoder = UtteranceLevelProsodyEncoder(
+            preprocess_config, model_config,
+        )
+        self.utterance_prosody_predictor = PhonemeProsodyPredictor(
+            model_config=model_config, phoneme_level=False
+        )
         self.phoneme_prosody_encoder = PhonemeLevelProsodyEncoder(
             preprocess_config, model_config,
         )
         self.phoneme_prosody_predictor = PhonemeProsodyPredictor(
             model_config=model_config, phoneme_level=True
+        )
+        self.u_bottle_out = nn.Linear(
+            model_config.reference_encoder.bottleneck_size_u,
+            model_config.encoder.n_hidden,
+        )
+        self.u_norm = nn.LayerNorm(
+            model_config.reference_encoder.bottleneck_size_u, elementwise_affine=False,
         )
         self.p_bottle_out = nn.Linear(
             model_config.reference_encoder.bottleneck_size_p,
@@ -81,7 +85,7 @@ class AcousticModel(nn.Module):
             dim=model_config.decoder.n_hidden,
             n_layers=model_config.decoder.n_layers,
             n_heads=model_config.decoder.n_heads,
-            embedding_dim=model_config.speaker_embed_dim,
+            embedding_dim=model_config.speaker_embed_dim + model_config.lang_embed_dim,
             p_dropout=model_config.decoder.p_dropout,
             kernel_size_conv_mod=model_config.decoder.kernel_size_conv_mod,
         )
@@ -92,23 +96,29 @@ class AcousticModel(nn.Module):
         self.to_mel = nn.Linear(
             model_config.decoder.n_hidden, preprocess_config.stft.n_mel_channels,
         )
-        # TODO can be removed
-        self.proj_speaker = EmbeddingProjBlock(model_config.speaker_embed_dim)
 
         self.speaker_embed = Parameter(
             tools.initialize_embeddings((n_speakers, model_config.speaker_embed_dim))
         )
+        self.lang_embed = Parameter(
+            tools.initialize_embeddings((len(languages), model_config.lang_embed_dim))
+        )
 
     def get_embeddings(
-        self, token_idx: torch.Tensor, speaker_ids: torch.Tensor, src_mask: torch.Tensor
+        self,
+        token_idx: torch.Tensor,
+        speaker_idx: torch.Tensor,
+        src_mask: torch.Tensor,
+        lang_idx: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         token_embeddings = self.src_word_emb(token_idx)
-        speaker_embeds = torch.index_select(self.speaker_embed, 0, speaker_ids).squeeze(
+        speaker_embeds = torch.index_select(self.speaker_embed, 0, speaker_idx).squeeze(
             1
         )
-        speaker_embeds = self.proj_speaker(speaker_embeds)
+        lang_embeds = torch.index_select(self.lang_embed, 0, lang_idx)
+        embeddings = torch.cat([speaker_embeds, lang_embeds], dim=1)
         token_embeddings = token_embeddings.masked_fill(src_mask.unsqueeze(-1), 0.0)
-        return token_embeddings, speaker_embeds
+        return token_embeddings, embeddings
 
     def prepare_for_export(self) -> None:
         del self.phoneme_prosody_encoder
@@ -130,33 +140,30 @@ class AcousticModel(nn.Module):
         src_lens: torch.Tensor,
         mels: torch.Tensor,
         mel_lens: torch.Tensor,
-        style_embeds_pred: torch.Tensor,
-        attention_mask: torch.Tensor,
         pitches: torch.Tensor,
         durations: torch.Tensor,
+        langs: torch.Tensor,
         use_ground_truth: bool = True,
     ) -> Dict[str, torch.Tensor]:
         src_mask = tools.get_mask_from_lengths(src_lens)
         mel_mask = tools.get_mask_from_lengths(mel_lens)
 
-        x, embeddings = self.get_embeddings(x, speakers, src_mask)
+        x, embeddings = self.get_embeddings(
+            token_idx=x, speaker_idx=speakers, src_mask=src_mask, lang_idx=langs
+        )
 
         encoding = positional_encoding(
-            self.emb_dim,
-            max(x.shape[1], style_embeds_pred.shape[1], max(mel_lens)),
-            device=x.device,
+            self.emb_dim, max(x.shape[1], max(mel_lens)), device=x.device,
         )
 
-        x = self.encoder_1(x, src_mask, embeddings=embeddings, encoding=encoding)
-        x, bert_attention = self.bert_attention(
-            x=x,
-            style_pred=style_embeds_pred,
-            mask=src_mask,
-            attention_mask=~attention_mask.bool(),
-            encoding=encoding,
-        )
-        x = self.encoder_2(x, src_mask, embeddings=embeddings, encoding=encoding)
+        x = self.encoder(x, src_mask, embeddings=embeddings, encoding=encoding)
 
+        u_prosody_ref = self.u_norm(
+            self.utterance_prosody_encoder(mels=mels, mel_lens=mel_lens)
+        )
+        u_prosody_pred = self.u_norm(
+            self.utterance_prosody_predictor(x=x, mask=src_mask,)
+        )
         p_prosody_ref = self.p_norm(
             self.phoneme_prosody_encoder(
                 x=x, src_mask=src_mask, mels=mels, mel_lens=mel_lens, encoding=encoding
@@ -166,8 +173,10 @@ class AcousticModel(nn.Module):
             self.phoneme_prosody_predictor(x=x, mask=src_mask,)
         )
         if use_ground_truth:
+            x = x + self.u_bottle_out(u_prosody_ref)
             x = x + self.p_bottle_out(p_prosody_ref)
         else:
+            x = x + self.u_bottle_out(u_prosody_pred)
             x = x + self.p_bottle_out(p_prosody_pred)
         x_res = x
         x, pitch_prediction, _, _ = self.pitch_adaptor.add_pitch_train(
@@ -191,14 +200,13 @@ class AcousticModel(nn.Module):
             "log_duration_prediction": log_duration_prediction,
             "p_prosody_pred": p_prosody_pred,
             "p_prosody_ref": p_prosody_ref,
-            "bert_attention": bert_attention,
         }
 
     def forward(
         self,
         x: torch.Tensor,
         speakers: torch.Tensor,
-        style_embeds_pred: torch.Tensor,
+        langs: torch.Tensor,
         p_control: float,
         d_control: float,
     ) -> torch.Tensor:
@@ -206,36 +214,20 @@ class AcousticModel(nn.Module):
             torch.tensor([x.shape[1]], dtype=torch.int64, device=x.device)
         )
 
-        x, embeddings = self.get_embeddings(x, speakers, src_mask)
-
-        encoding = positional_encoding(
-            self.emb_dim, max(x.shape[1], style_embeds_pred.shape[1]), device=x.device
+        x, embeddings = self.get_embeddings(
+            token_idx=x, speaker_idx=speakers, src_mask=src_mask, lang_idx=langs
         )
+        encoding = positional_encoding(self.emb_dim, x.shape[1], device=x.device)
 
-        x = self.encoder_1(x, src_mask, embeddings=embeddings, encoding=encoding)
+        x = self.encoder(x, src_mask, embeddings=embeddings, encoding=encoding)
 
-        attention_mask = tools.get_mask_from_lengths(
-            torch.tensor(
-                [style_embeds_pred.shape[1]],
-                dtype=torch.int64,
-                device=style_embeds_pred.device,
-            )
+        u_prosody_pred = self.u_norm(
+            self.utterance_prosody_predictor(x=x, mask=src_mask,)
         )
-        attention_mask = attention_mask.view((attention_mask.shape[0], 1, 1, -1))
-
-        x, _ = self.bert_attention(
-            x=x,
-            style_pred=style_embeds_pred,
-            mask=src_mask,
-            attention_mask=attention_mask,
-            encoding=encoding,
-        )
-
-        x = self.encoder_2(x, src_mask, embeddings=embeddings, encoding=encoding)
-
         p_prosody_pred = self.p_norm(
             self.phoneme_prosody_predictor(x=x, mask=src_mask,)
         )
+        x = x + self.u_bottle_out(u_prosody_pred).expand_as(x)
         x = x + self.p_bottle_out(p_prosody_pred).expand_as(x)
         x_res = x
         x = self.pitch_adaptor.add_pitch(x=x, src_mask=src_mask, control=p_control,)
@@ -318,6 +310,7 @@ class ConformerBlock(torch.nn.Module):
             padding=kernel_size_conv_mod // 2,
             embedding_dim=embedding_dim,
         )
+        self.ff = FeedForward(d_model=d_model, dropout=dropout, kernel_size=3)
         self.conformer_conv_1 = ConformerConvModule(
             d_model, kernel_size=kernel_size_conv_mod, dropout=dropout
         )
@@ -338,6 +331,7 @@ class ConformerBlock(torch.nn.Module):
         encoding: torch.Tensor,
     ) -> torch.Tensor:
         x = self.conditioning(x, embeddings=embeddings)
+        x = self.ff(x) + x
         x = self.conformer_conv_1(x) + x
         res = x
         x = self.ln(x)
@@ -346,17 +340,23 @@ class ConformerBlock(torch.nn.Module):
         )
         x = x + res
         x = x.masked_fill(mask.unsqueeze(-1), 0)
+
         x = self.conformer_conv_2(x) + x
         return x
 
 
 class FeedForward(nn.Module):
-    def __init__(self, d_model: int, dropout: float, expansion_factor: int = 4):
+    def __init__(
+        self, d_model: int, kernel_size: int, dropout: float, expansion_factor: int = 4
+    ):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
         self.ln = nn.LayerNorm(d_model)
         self.conv_1 = nn.Conv1d(
-            d_model, d_model * expansion_factor, kernel_size=3, padding=1
+            d_model,
+            d_model * expansion_factor,
+            kernel_size=kernel_size,
+            padding=kernel_size // 2,
         )
         self.act = nn.LeakyReLU(LRELU_SLOPE)
         self.conv_2 = nn.Conv1d(d_model * expansion_factor, d_model, kernel_size=1)
@@ -630,37 +630,6 @@ class LengthAdaptor(nn.Module):
         )
         x, _ = self.length_regulate(x, duration_rounded)
         return x, duration_rounded
-
-
-class BertAttention(nn.Module):
-    def __init__(self, d_model: int, num_heads: int, p_dropout: float):
-        super().__init__()
-        self.norm = nn.LayerNorm(d_model)
-        self.attn = ConformerMultiHeadedSelfAttention(
-            d_model=d_model, num_heads=num_heads, dropout_p=p_dropout,
-        )
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        style_pred: torch.Tensor,
-        mask: torch.Tensor,
-        attention_mask: torch.Tensor,
-        encoding: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        attention_mask = attention_mask.view((attention_mask.shape[0], 1, 1, -1))
-        res = x
-        x = self.norm(x)
-        x, attn = self.attn(
-            query=x,
-            key=style_pred,
-            value=style_pred,
-            mask=attention_mask,
-            encoding=encoding,
-        )
-        x = x + res
-        x = x.masked_fill(mask.unsqueeze(-1), 0)
-        return x, attn
 
 
 class VariancePredictor(nn.Module):

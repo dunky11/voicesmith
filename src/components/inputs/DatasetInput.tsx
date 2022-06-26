@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Form, Select } from "antd";
 import { DatasetInterface } from "../../interfaces";
-import { FETCH_DATASET_CANDIATES_CHANNEL } from "../../channels";
+import { FETCH_DATASET_CANDIDATES_CHANNEL } from "../../channels";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -15,8 +15,9 @@ export default function DatasetInput({
 
   const fetchDatasets = () => {
     ipcRenderer
-      .invoke(FETCH_DATASET_CANDIATES_CHANNEL.IN)
+      .invoke(FETCH_DATASET_CANDIDATES_CHANNEL.IN)
       .then((datasets: DatasetInterface[]) => {
+        console.log(datasets);
         if (!isMounted.current) {
           return;
         }
