@@ -37,7 +37,7 @@ const createTables = (db: any) => {
         vocoder_fine_tuning_progress FLOAT NOT NULL DEFAULT 0.0,
         save_model_progress FLOAT NOT NULL DEFAULT 0.0,
         only_train_speaker_emb_until INTEGER NOT NULL,
-        skip_on_error BOOLEAN DEFAULT 0,
+        skip_on_error BOOLEAN DEFAULT 1,
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID) ON DELETE SET NULL,
         UNIQUE(name)
@@ -195,7 +195,7 @@ const createTables = (db: any) => {
         copying_files_progress FLOAT DEFAULT 0.0,
         transcription_progress FLOAT DEFAULT 0.0,
         apply_changes_progress FLOAT DEFAULT 0.0,
-        skip_on_error BOOLEAN,
+        skip_on_error BOOLEAN DEFAULT 1,
         stage TEXT DEFAULT "not_started",
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
@@ -268,7 +268,7 @@ const createTables = (db: any) => {
         creating_splits_progress FLOAT NOT NULL DEFAULT 0.0,
         applying_changes_progress FLOAT NOT NULL DEFAULT 0.0,
         device TEXT NOT NULL DEFAULT "CPU",
-        skip_on_error BOOLEAN DEFAULT 0,
+        skip_on_error BOOLEAN DEFAULT 1,
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
     ); 
