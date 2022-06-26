@@ -8,9 +8,11 @@ import {
   FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL,
+  FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES,
+  UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES,
 } from "../../channels";
 import { getDatasetsDir, getSampleSplittingRunsDir } from "../utils/globals";
-import { DB } from "../utils/db";
+import { bool2int, DB } from "../utils/db";
 import {
   SampleSplittingRunInterface,
   SampleSplittingSampleInterface,
@@ -32,44 +34,79 @@ ipcMain.on(
 export const fetchSampleSplittingRuns = (
   ID: number | null = null
 ): SampleSplittingRunInterface[] => {
-  const query = `
+  const fetchStmt = DB.getInstance().prepare(`
       SELECT sample_splitting_run.ID AS ID, device, sample_splitting_run.name AS name, 
         dataset.name AS datasetName, stage, maximum_workers AS maximumWorkers, 
         copying_files_progress AS copyingFilesProgress, gen_vocab_progress AS genVocabProgress,  
         gen_align_progress AS genAlignProgress,
         applying_changes_progress AS applyingChangesProgress,
-        creating_splits_progress AS creatingSplitsProgress, 
+        creating_splits_progress AS creatingSplitsProgress,
+        skip_on_error AS skipOnError,
         dataset_id AS datasetID
       FROM sample_splitting_run LEFT JOIN dataset ON dataset.ID = sample_splitting_run.dataset_id ${
         ID === null ? "" : "WHERE sample_splitting_run.ID=@ID"
-      }`;
+      }`);
+  let runsRaw;
   if (ID === null) {
-    return DB.getInstance().prepare(query).all();
+    runsRaw = fetchStmt.all();
+  } else {
+    runsRaw = [fetchStmt.get({ ID })];
   }
-  return [DB.getInstance().prepare(query).get({ ID })];
+  return runsRaw.map((el: any) => {
+    const run: SampleSplittingRunInterface = {
+      ID: el.ID,
+      stage: el.stage,
+      type: "sampleSplittingRun",
+      copyingFilesProgress: el.copyingFilesProgress,
+      genVocabProgress: el.genVocabProgress,
+      genAlignProgress: el.genAlignProgress,
+      creatingSplitsProgress: el.creatingSplitsProgress,
+      applyingChangesProgress: el.applyingChangesProgress,
+      name: el.name,
+      configuration: {
+        name: el.name,
+        datasetID: el.datasetID,
+        datasetName: el.datasetName,
+        device: el.device,
+        skipOnError: el.skipOnError === 1,
+        maximumWorkers: el.maximumWorkers,
+      },
+      canStart: el.datasetID !== null,
+    };
+    return run;
+  });
 };
 
 ipcMain.handle(
   FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, ID: number | null = null) => {
+  (
+    event: IpcMainInvokeEvent,
+    { ID }: FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES["IN"]["ARGS"]
+  ): FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES["IN"]["OUT"] => {
     return fetchSampleSplittingRuns(ID);
   }
 );
 
 ipcMain.handle(
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, run: SampleSplittingRunInterface) => {
+  (
+    event: IpcMainInvokeEvent,
+    run: UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES["IN"]["ARGS"]
+  ): UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES["IN"]["OUT"] => {
     DB.getInstance()
       .prepare(
-        "UPDATE sample_splitting_run SET name=@name, dataset_id=@datasetID, maximum_workers=@maximumWorkers, device=@device WHERE ID=@ID"
+        "UPDATE sample_splitting_run SET name=@name, dataset_id=@datasetID, maximum_workers=@maximumWorkers, device=@device, skip_on_error=@skipOnError WHERE ID=@ID"
       )
-      .run({
-        name: run.name,
-        datasetID: run.datasetID,
-        maximumWorkers: run.maximumWorkers,
-        ID: run.ID,
-        device: run.device,
-      });
+      .run(
+        bool2int({
+          name: run.configuration.name,
+          datasetID: run.configuration.datasetID,
+          maximumWorkers: run.configuration.maximumWorkers,
+          ID: run.ID,
+          device: run.configuration.device,
+          skipOnError: run.configuration.skipOnError,
+        })
+      );
   }
 );
 

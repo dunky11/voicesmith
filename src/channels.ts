@@ -1,3 +1,11 @@
+import {
+  TrainingRunInterface,
+  PreprocessingRunType,
+  TextNormalizationRunInterface,
+  CleaningRunInterface,
+  SampleSplittingRunInterface,
+} from "./interfaces";
+
 export const INSTALL_BACKEND_CHANNEL = {
   IN: "install-backend",
   REPLY: "install-backend-reply",
@@ -24,9 +32,16 @@ export const CONTINUE_CLEANING_RUN_CHANNEL = {
   REPLY: "run-reply",
 };
 
-export const FETCH_CLEANING_RUN_CHANNEL = {
+export const FETCH_CLEANING_RUNS_CHANNEL = {
   IN: "fetch-cleaning-run",
 };
+
+export interface FETCH_CLEANING_RUNS_CHANNEL_TYPES {
+  IN: {
+    ARGS: { ID: number | null };
+    OUT: CleaningRunInterface[];
+  };
+}
 
 export const FETCH_CLEANING_RUN_CONFIG_CHANNEL = {
   IN: "fetch-cleaning-run-config",
@@ -49,10 +64,6 @@ export const FINISH_CLEANING_RUN_CHANNEL = {
   REPLY: "finish-cleaning-run-reply",
 };
 
-export const FETCH_DATASET_CANDIATES_CHANNEL = {
-  IN: "fetch-dataset-candidates",
-};
-
 export const REMOVE_TRAINING_RUN_CHANNEL = {
   IN: "remove-training-run",
 };
@@ -63,30 +74,28 @@ export const CONTINUE_TRAINING_RUN_CHANNEL = {
 };
 
 export const FETCH_TRAINING_RUN_NAMES_CHANNEL = {
-  IN: "fetch-trainng-run-names",
-};
-
-export const FETCH_TRAINING_RUN_PROGRESS_CHANNEL = {
-  IN: "fetch-training-run-progress",
+  IN: "fetch-training-run-names",
 };
 
 export const FETCH_TRAINING_RUNS_CHANNEL = {
   IN: "fetch-training-runs",
 };
 
-export const FETCH_TRAINING_RUN_STATISTICS_CHANNEL = {
-  IN: "fetch-training-run-statistics",
-};
-
-export const FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL = {
-  IN: "fetch-training-run-configuration",
-};
+export interface FETCH_TRAINING_RUNS_CHANNEL_TYPES {
+  IN: {
+    ARGS: {
+      withStatistics: boolean;
+      ID: number | null;
+    };
+    OUT: TrainingRunInterface[];
+  };
+}
 
 export const CREATE_TRAINING_RUN_CHANNEL = {
   IN: "create-training-run",
 };
 
-export const UPDATE_TRAINING_RUN_CONFIG_CHANNEL = {
+export const UPDATE_TRAINING_RUN_CHANNEL = {
   IN: "update-training-run-config",
 };
 
@@ -124,8 +133,8 @@ export const REMOVE_SAMPLES_CHANNEL = {
   IN: "remove-samples",
 };
 
-export const EDIT_SPEAKER_NAME_CHANNEL = {
-  IN: "edit-speaker-name",
+export const EDIT_SPEAKER_CHANNEL = {
+  IN: "edit-speaker",
 };
 
 export const PICK_SPEAKERS_CHANNEL = {
@@ -171,9 +180,13 @@ export const EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL = {
   IN: "edit-text-normalization-sample-new-text",
 };
 
-export const FETCH_TEXT_NORMALIZATION_RUN_CHANNEL = {
-  IN: "fetch-text-normalization-run",
+export const FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL = {
+  IN: "fetch-text-normalization-runs",
 };
+
+export interface FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES {
+  IN: { ARGS: { ID: number | null }; OUT: TextNormalizationRunInterface[] };
+}
 
 export const UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL = {
   IN: "update-text-normalization-run-config",
@@ -222,6 +235,12 @@ export const CREATE_PREPROCESSING_RUN_CHANNEL = {
 export const FETCH_PREPROCESSING_RUNS_CHANNEL = {
   IN: "fetch-preprocessing-runs",
 };
+
+export interface FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES {
+  IN: {
+    OUT: PreprocessingRunType[];
+  };
+}
 
 export const EDIT_PREPROCESSING_RUN_NAME_CHANNEL = {
   IN: "edit-preprocessing-run-name",
@@ -272,9 +291,17 @@ export const UPDATE_SAMPLE_SPLITTING_SAMPLE_CHANNEL = {
   IN: "update-sample-splitting-sample",
 };
 
+export interface UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES {
+  IN: { ARGS: SampleSplittingRunInterface; OUT: void };
+}
+
 export const FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL = {
   IN: "fetch-sample-splitting-samples",
 };
+
+export interface FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES {
+  IN: { ARGS: { ID: number | null }; OUT: SampleSplittingRunInterface[] };
+}
 
 export const REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL = {
   IN: "remove-sample-splitting-sample",

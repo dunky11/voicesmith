@@ -1,94 +1,44 @@
-import React, { useEffect, useState, useRef, ReactElement } from "react";
-import { Tabs, Card, Button } from "antd";
+import React, { useEffect, useRef, ReactElement } from "react";
+import { Tabs, Button } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 import VocoderStatistics from "./VocoderStatistics";
 import LogPrinter from "../../components/log_printer/LogPrinter";
-import {
-  GraphStatisticInterface,
-  ImageStatisticInterface,
-  AudioStatisticInterface,
-  UsageStatsInterface,
-  RunInterface,
-} from "../../interfaces";
-import {
-  useInterval,
-  getStageIsRunning,
-  getWouldContinueRun,
-} from "../../utils";
-import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
+import { getStageIsRunning, getWouldContinueRun } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
-const { ipcRenderer } = window.require("electron");
+import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
+import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
 
 export default function VocoderFineTuning({
   onStepChange,
-  selectedTrainingRunID,
-  running,
-  continueRun,
-  stopRun,
-  stage,
-  usageStats,
+  run,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
-  stage:
-    | "not_started"
-    | "preprocessing"
-    | "acoustic_fine_tuning"
-    | "ground_truth_alignment"
-    | "vocoder_fine_tuning"
-    | "save_model"
-    | "finished"
-    | null;
-  usageStats: UsageStatsInterface[];
+  run: TrainingRunInterface;
 }): ReactElement {
-  const [selectedTab, setSelectedTab] = useState<string>("Overview");
-
-  const [graphStatistics, setGraphStatistics] = useState<
-    GraphStatisticInterface[]
-  >([]);
-  const [imageStatistics, setImageStatistics] = useState<
-    ImageStatisticInterface[]
-  >([]);
-  const [audioStatistics, setAudioStatistics] = useState<
-    AudioStatisticInterface[]
-  >([]);
   const isMounted = useRef(false);
-
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const stageIsRunning = getStageIsRunning(
     ["vocoder_fine_tuning"],
-    stage,
+    run.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    run.ID
   );
   const wouldContinueRun = getWouldContinueRun(
     ["vocoder_fine_tuning"],
-    stage,
+    run.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    run.ID
   );
-
-  const pollStatistics = () => {
-    ipcRenderer
-      .invoke("fetch-training-run-statistics", selectedTrainingRunID, "vocoder")
-      .then(
-        (statistics: {
-          graphStatistics: GraphStatisticInterface[];
-          imageStatistics: ImageStatisticInterface[];
-          audioStatistics: AudioStatisticInterface[];
-        }) => {
-          if (!isMounted.current) {
-            return;
-          }
-          setGraphStatistics(statistics.graphStatistics);
-          setImageStatistics(statistics.imageStatistics);
-          setAudioStatistics(statistics.audioStatistics);
-        }
-      );
-  };
 
   const onBackClick = () => {
     onStepChange(4);
@@ -96,9 +46,15 @@ export default function VocoderFineTuning({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
+      dispatch(
+        addToQueue({
+          ID: run.ID,
+          type: "trainingRun",
+          name: run.name,
+        })
+      );
     } else {
       onStepChange(6);
     }
@@ -113,8 +69,6 @@ export default function VocoderFineTuning({
     }
     return "Next";
   };
-
-  useInterval(pollStatistics, 5000);
 
   useEffect(() => {
     isMounted.current = true;
@@ -132,21 +86,18 @@ export default function VocoderFineTuning({
         </Button>,
       ]}
     >
-      <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
+      <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <VocoderStatistics
-            audioStatistics={audioStatistics}
-            imageStatistics={imageStatistics}
-            graphStatistics={graphStatistics}
+            audioStatistics={run.audioStatistics}
+            imageStatistics={run.imageStatistics}
+            graphStatistics={run.graphStatistics}
           ></VocoderStatistics>
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(selectedTrainingRunID)}
+            name={String(run.ID)}
             logFileName="vocoder_fine_tuning.txt"
             type="trainingRun"
           />

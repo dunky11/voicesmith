@@ -5,20 +5,21 @@ const fsPromises = fsNative.promises;
 import { startRun } from "../utils/processes";
 import { exists } from "../utils/files";
 import {
-  ConfigurationInterface,
   SpeakerInterface,
   ContinueTrainingRunReplyInterface,
+  TrainingRunInterface,
+  GraphStatisticInterface,
+  ImageStatisticInterface,
+  AudioStatisticInterface,
 } from "../../interfaces";
 import {
   REMOVE_TRAINING_RUN_CHANNEL,
   CONTINUE_TRAINING_RUN_CHANNEL,
   FETCH_TRAINING_RUN_NAMES_CHANNEL,
-  FETCH_TRAINING_RUN_PROGRESS_CHANNEL,
   FETCH_TRAINING_RUNS_CHANNEL,
-  FETCH_TRAINING_RUN_STATISTICS_CHANNEL,
-  FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL,
   CREATE_TRAINING_RUN_CHANNEL,
-  UPDATE_TRAINING_RUN_CONFIG_CHANNEL,
+  UPDATE_TRAINING_RUN_CHANNEL,
+  FETCH_TRAINING_RUNS_CHANNEL_TYPES,
 } from "../../channels";
 import { getTrainingRunsDir } from "../utils/globals";
 import { DB, bool2int, getSpeakersWithSamples } from "../utils/db";
@@ -49,7 +50,8 @@ ipcMain.handle(
         vocoder_validate_every,
         only_train_speaker_emb_until,
         dataset_id,
-        device
+        device,
+        skip_on_error
       ) VALUES(
         @name,
         @maximumWorkers,
@@ -69,7 +71,8 @@ ipcMain.handle(
         @vocoderValidateEvery,
         @onlyTrainSpeakerEmbUntil,
         @datasetID,
-        @device
+        @device,
+        @skipOnError
       )`
       )
       .run(bool2int({ ...trainingRunInitialValues, name }));
@@ -78,12 +81,15 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  UPDATE_TRAINING_RUN_CONFIG_CHANNEL.IN,
-  async (
-    event: IpcMainInvokeEvent,
-    config: ConfigurationInterface,
-    ID: number
-  ) => {
+  UPDATE_TRAINING_RUN_CHANNEL.IN,
+  async (event: IpcMainInvokeEvent, trainingRun: TrainingRunInterface) => {
+    const config = { ...trainingRun.configuration };
+    const temp = { ...trainingRun };
+    delete temp.configuration;
+    const flattened = {
+      ...temp,
+      ...config,
+    };
     DB.getInstance()
       .prepare(
         `UPDATE training_run SET
@@ -104,15 +110,156 @@ ipcMain.handle(
       vocoder_validate_every=@vocoderValidateEvery,
       only_train_speaker_emb_until=@onlyTrainSpeakerEmbUntil,
       dataset_id=@datasetID,
-      device=@device
-      WHERE ID=@trainingRunID`
+      device=@device,
+      skip_on_error=@skipOnError
+      WHERE ID=@ID`
       )
-      .run(
-        bool2int({
-          ...config,
-          trainingRunID: ID,
-        })
-      );
+      .run(bool2int(flattened));
+  }
+);
+
+ipcMain.handle(
+  FETCH_TRAINING_RUNS_CHANNEL.IN,
+  async (
+    event: IpcMainInvokeEvent,
+    { withStatistics, ID }: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"]
+  ): Promise<FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["OUT"]> => {
+    const selectTrainingRunsStmt = DB.getInstance().prepare(`
+      SELECT
+      training_run.ID AS ID,
+      training_run.name AS name,
+      maximum_workers AS maximumWorkers,
+      validation_size AS validationSize,
+      min_seconds AS minSeconds, 
+      max_seconds AS maxSeconds,
+      use_audio_normalization AS useAudioNormalization,
+      acoustic_learning_rate AS acousticLearningRate,
+      acoustic_training_iterations AS acousticTrainingIterations,
+      acoustic_batch_size AS acousticBatchSize,
+      acoustic_grad_accum_steps AS acousticGradAccumSteps,
+      acoustic_validate_every AS acousticValidateEvery,
+      vocoder_learning_rate AS vocoderLearningRate,
+      vocoder_training_iterations AS vocoderTrainingIterations,
+      vocoder_batch_size AS vocoderBatchSize,
+      vocoder_grad_accum_steps AS vocoderGradAccumSteps,
+      vocoder_validate_every AS vocoderValidateEvery,
+      only_train_speaker_emb_until AS onlyTrainSpeakerEmbUntil,
+      stage,
+      preprocessing_stage AS preprocessingStage,
+      preprocessing_copying_files_progress AS preprocessingCopyingFilesProgress,
+      preprocessing_gen_vocab_progress AS preprocessingGenVocabProgress,
+      preprocessing_gen_align_progress AS preprocessingGenAlignProgress,
+      preprocessing_extract_data_progress AS preprocessingExtractDataProgress,
+      acoustic_fine_tuning_progress AS acousticFineTuningProgress,
+      ground_truth_alignment_progress AS groundTruthAlignmentProgress,
+      vocoder_fine_tuning_progress AS vocoderFineTuningProgress,
+      dataset_id AS datasetID,
+      dataset.name AS datasetName,
+      device,
+      skip_on_error AS skipOnError
+    FROM training_run
+    LEFT JOIN dataset ON training_run.dataset_id = dataset.ID 
+    ${ID === null ? "" : "WHERE training_run.ID=@ID"}`);
+    const selectGraphStatisticsStmt = DB.getInstance().prepare(
+      `SELECT name, step, value FROM graph_statistic WHERE training_run_id=@ID`
+    );
+    const selectImageStatisticsStmt = DB.getInstance().prepare(
+      `SELECT name, step FROM image_statistic WHERE training_run_id=@ID`
+    );
+    const selectAudioStatisticsStmt = DB.getInstance().prepare(
+      `SELECT name, step FROM audio_statistic WHERE training_run_id=@ID`
+    );
+    let runs;
+
+    if (ID === null) {
+      runs = selectTrainingRunsStmt.all();
+    } else {
+      runs = [selectTrainingRunsStmt.get({ ID })];
+    }
+    const trainingRuns: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["OUT"] =
+      runs.map((el: any) => {
+        let graphStatistics: GraphStatisticInterface[] = [];
+        let imageStatistics: ImageStatisticInterface[] = [];
+        let audioStatistics: AudioStatisticInterface[] = [];
+        if (withStatistics) {
+          graphStatistics = selectGraphStatisticsStmt.all({
+            ID: el.ID,
+          });
+          imageStatistics = selectImageStatisticsStmt
+            .all({
+              ID: el.ID,
+            })
+            .map((el: any) => ({
+              ...el,
+              path: path.join(
+                getTrainingRunsDir(),
+                String(el.ID),
+                "image_logs",
+                el.name,
+                `${el.step}.png`
+              ),
+            }));
+          audioStatistics = selectAudioStatisticsStmt
+            .all({
+              ID: el.ID,
+            })
+            .map((el: any) => ({
+              ...el,
+              path: path.join(
+                getTrainingRunsDir(),
+                String(el.ID),
+                "audio_logs",
+                el.name,
+                `${el.step}.flac`
+              ),
+            }));
+        }
+
+        const run: TrainingRunInterface = {
+          ID: el.ID,
+          type: "trainingRun",
+          name: el.name,
+          stage: el.stage,
+          preprocessingStage: el.preprocessingStage,
+          imageStatistics,
+          audioStatistics,
+          graphStatistics,
+          preprocessingCopyingFilesProgress:
+            el.preprocessingCopyingFilesProgress,
+          preprocessingGenVocabProgress: el.preprocessingGenVocabProgress,
+          preprocessingGenAlignProgress: el.preprocessingGenAlignProgress,
+          preprocessingExtractDataProgress: el.preprocessingExtractDataProgress,
+          acousticFineTuningProgress: el.acousticFineTuningProgress,
+          groundTruthAlignmentProgress: el.groundTruthAlignmentProgress,
+          vocoderFineTuningProgress: el.vocoderFineTuningProgress,
+          configuration: {
+            name: el.name,
+            maximumWorkers: el.maximumWorkers,
+            validationSize: el.validationSize,
+            minSeconds: el.minSeconds,
+            maxSeconds: el.maxSeconds,
+            useAudioNormalization: el.useAudioNormalization,
+            acousticLearningRate: el.acousticLearningRate,
+            acousticTrainingIterations: el.acousticTrainingIterations,
+            acousticBatchSize: el.acousticBatchSize,
+            acousticGradAccumSteps: el.acousticGradAccumSteps,
+            acousticValidateEvery: el.acousticValidateEvery,
+            vocoderLearningRate: el.vocoderLearningRate,
+            vocoderTrainingIterations: el.vocoderTrainingIterations,
+            vocoderBatchSize: el.vocoderBatchSize,
+            vocoderGradAccumSteps: el.vocoderGradAccumSteps,
+            vocoderValidateEvery: el.vocoderValidateEvery,
+            onlyTrainSpeakerEmbUntil: el.onlyTrainSpeakerEmbUntil,
+            device: el.device,
+            datasetID: el.datasetID,
+            datasetName: el.datasetName,
+            skipOnError: el.skipOnError === 1,
+          },
+          canStart: el.datasetID !== null,
+        };
+        return run;
+      });
+    return trainingRuns;
   }
 );
 
@@ -171,7 +318,7 @@ ipcMain.on(
       event,
       "/home/backend/voice_smith/training_run.py",
       ["--run_id", String(runID)],
-      true
+      false
     );
   }
 );
@@ -189,123 +336,5 @@ ipcMain.handle(
     }
     names = names.map((model: any) => model.name);
     return names;
-  }
-);
-
-ipcMain.handle(
-  FETCH_TRAINING_RUN_CONFIGURATION_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, trainingRunID: number) => {
-    const configuration = DB.getInstance()
-      .prepare(
-        `SELECT 
-        name,
-        maximum_workers AS maximumWorkers,
-        validation_size AS validationSize,
-        min_seconds AS minSeconds, 
-        max_seconds AS maxSeconds,
-        use_audio_normalization AS useAudioNormalization,
-        acoustic_learning_rate AS acousticLearningRate,
-        acoustic_training_iterations AS acousticTrainingIterations,
-        acoustic_batch_size AS acousticBatchSize,
-        acoustic_grad_accum_steps AS acousticGradAccumSteps,
-        acoustic_validate_every AS acousticValidateEvery,
-        vocoder_learning_rate AS vocoderLearningRate,
-        vocoder_training_iterations AS vocoderTrainingIterations,
-        vocoder_batch_size AS vocoderBatchSize,
-        vocoder_grad_accum_steps AS vocoderGradAccumSteps,
-        vocoder_validate_every AS vocoderValidateEvery,
-        only_train_speaker_emb_until AS onlyTrainSpeakerEmbUntil,
-        dataset_id AS datasetID,
-        device
-      FROM training_run WHERE ID=@trainingRunID`
-      )
-      .get({ trainingRunID });
-    return configuration;
-  }
-);
-
-ipcMain.handle(
-  FETCH_TRAINING_RUN_STATISTICS_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, trainingRunID: number, stage: string) => {
-    const graphStatistics = DB.getInstance()
-      .prepare(
-        `SELECT name, step, value FROM graph_statistic WHERE training_run_id=@trainingRunID AND stage=@stage`
-      )
-      .all({
-        trainingRunID,
-        stage,
-      });
-    const imageStatistics = DB.getInstance()
-      .prepare(
-        `SELECT name, step FROM image_statistic WHERE training_run_id=@trainingRunID AND stage=@stage`
-      )
-      .all({
-        trainingRunID,
-        stage,
-      })
-      .map((el: any) => ({
-        ...el,
-        path: path.join(
-          getTrainingRunsDir(),
-          String(trainingRunID),
-          "image_logs",
-          el.name,
-          `${el.step}.png`
-        ),
-      }));
-    const audioStatistics = DB.getInstance()
-      .prepare(
-        `SELECT name, step FROM audio_statistic WHERE training_run_id=@trainingRunID AND stage=@stage`
-      )
-      .all({
-        trainingRunID,
-        stage,
-      })
-      .map((el: any) => ({
-        ...el,
-        path: path.join(
-          getTrainingRunsDir(),
-          String(trainingRunID),
-          "audio_logs",
-          el.name,
-          `${el.step}.flac`
-        ),
-      }));
-    return {
-      graphStatistics,
-      imageStatistics,
-      audioStatistics,
-    };
-  }
-);
-
-ipcMain.handle(FETCH_TRAINING_RUNS_CHANNEL.IN, async () => {
-  const trainingRuns = DB.getInstance()
-    .prepare(
-      `SELECT training_run.ID AS ID, training_run.name AS name, stage, dataset.name AS datasetName FROM training_run LEFT JOIN dataset ON training_run.dataset_id = dataset.ID`
-    )
-    .all();
-  return trainingRuns;
-});
-
-ipcMain.handle(
-  FETCH_TRAINING_RUN_PROGRESS_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, trainingRunID: number) => {
-    const progress = DB.getInstance()
-      .prepare(
-        `SELECT 
-        stage, 
-        preprocessing_stage AS preprocessingStage, 
-        preprocessing_copying_files_progress AS preprocessingCopyingFilesProgress,
-        preprocessing_gen_vocab_progress AS preprocessingGenVocabProgress,
-        preprocessing_gen_align_progress AS preprocessingGenAlignProgress,
-        preprocessing_extract_data_progress AS preprocessingExtractDataProgress,
-        acoustic_fine_tuning_progress AS acousticFineTuningProgress,
-        ground_truth_alignment_progress AS groundTruthAlignmentProgress,
-        vocoder_fine_tuning_progress AS vocoderFineTuningProgress 
-      FROM training_run WHERE ID=@trainingRunID`
-      )
-      .get({ trainingRunID });
-    return progress;
   }
 );

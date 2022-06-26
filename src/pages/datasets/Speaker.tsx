@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useRef, ReactElement } from "react";
-import { Card, Button, Table, Breadcrumb, Space, Typography } from "antd";
+import {
+  Card,
+  Button,
+  Table,
+  Breadcrumb,
+  Space,
+  Typography,
+  InputRef,
+} from "antd";
 import { Link } from "react-router-dom";
 import { defaultPageOptions } from "../../config";
 import AudioBottomBar from "../../components/audio_player/AudioBottomBar";
-import { stringCompare } from "../../utils";
+import { stringCompare, getSearchableColumn } from "../../utils";
 import {
   SpeakerInterface,
   SpeakerSampleInterface,
@@ -17,6 +25,8 @@ import {
   GET_AUDIO_DATA_URL_CHANNEL,
 } from "../../channels";
 import { DATASETS_ROUTE } from "../../routes";
+import { useDispatch } from "react-redux";
+import { setNavIsDisabled } from "../../features/navigationSettingsSlice";
 const { ipcRenderer } = window.require("electron");
 
 export default function Speaker({
@@ -25,15 +35,17 @@ export default function Speaker({
   fetchDataset,
   datasetID,
   datasetName,
-  referencedBy,
+  isDisabled,
 }: {
   speaker: SpeakerInterface | null;
   setSelectedSpeakerID: (ID: number | null) => void;
   fetchDataset: () => void;
   datasetID: number | null;
   datasetName: string | null;
-  referencedBy: string | null;
+  isDisabled: boolean;
 }): ReactElement {
+  const dispatch = useDispatch();
+  const [isLoading, setIsLoading] = useState(false);
   const isMounted = useRef(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const onSpeakerBackClick = () => {
@@ -41,6 +53,7 @@ export default function Speaker({
   };
   const playFuncRef = useRef<null | (() => void)>(null);
   const [audioDataURL, setAudioDataURL] = useState<string | null>(null);
+  const searchInput = useRef<InputRef>(null);
 
   const removeSamples = (sampleIDs: number[]) => {
     if (datasetID === null || speaker === null) {
@@ -55,22 +68,30 @@ export default function Speaker({
     ipcRenderer
       .invoke(REMOVE_SAMPLES_CHANNEL.IN, datasetID, speaker.ID, samples)
       .then(() => {
+        dispatch(setNavIsDisabled(false));
         if (!isMounted.current) {
           return;
         }
+        setIsLoading(false);
         fetchDataset();
       });
+    setIsLoading(true);
+    dispatch(setNavIsDisabled(true));
   };
 
   const onFilesAddClick = () => {
     ipcRenderer
       .invoke(PICK_SPEAKER_FILES_CHANNEL.IN)
       .then((filePaths: FileInterface[]) => {
+        setIsLoading(false);
+        dispatch(setNavIsDisabled(false));
         if (speaker === null || !isMounted.current || filePaths.length === 0) {
           return;
         }
         addSamplesToSpeaker(filePaths);
       });
+    setIsLoading(true);
+    dispatch(setNavIsDisabled(true));
   };
 
   const addSamplesToSpeaker = (filePaths: FileInterface[]) => {
@@ -79,7 +100,13 @@ export default function Speaker({
     }
     ipcRenderer
       .invoke(ADD_SAMPLES_CHANNEL.IN, speaker, filePaths, datasetID)
-      .then(fetchDataset);
+      .then(() => {
+        setIsLoading(false);
+        dispatch(setNavIsDisabled(false));
+        fetchDataset();
+      });
+    setIsLoading(true);
+    dispatch(setNavIsDisabled(true));
   };
 
   const onSamplesRemove = () => {
@@ -109,44 +136,60 @@ export default function Speaker({
   };
 
   const columns = [
-    {
-      title: "Text Path",
-      dataIndex: "txtPath",
-      key: "txtPath",
-      sorter: {
-        compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
-          stringCompare(a.txtPath, b.txtPath),
+    getSearchableColumn(
+      {
+        title: "Text Path",
+        dataIndex: "txtPath",
+        key: "txtPath",
+        sorter: {
+          compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
+            stringCompare(a.txtPath, b.txtPath),
+        },
       },
-    },
-    {
-      title: "Audio Path",
-      dataIndex: "audioPath",
-      key: "audioPath",
-      sorter: {
-        compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
-          stringCompare(a.audioPath, b.audioPath),
+      "txtPath",
+      searchInput
+    ),
+    getSearchableColumn(
+      {
+        title: "Audio Path",
+        dataIndex: "audioPath",
+        key: "audioPath",
+        sorter: {
+          compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
+            stringCompare(a.audioPath, b.audioPath),
+        },
       },
-    },
-    {
-      title: "Text",
-      dataIndex: "text",
-      key: "text",
-      sorter: {
-        compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
-          stringCompare(a.text, b.text),
+      "audioPath",
+      searchInput
+    ),
+    getSearchableColumn(
+      {
+        title: "Text",
+        dataIndex: "text",
+        key: "text",
+        sorter: {
+          compare: (a: SpeakerSampleInterface, b: SpeakerSampleInterface) =>
+            stringCompare(a.text, b.text),
+        },
+        render: (text: any, record: SpeakerSampleInterface) => (
+          <Typography.Text
+            editable={
+              isLoading
+                ? null
+                : {
+                    onChange: (newText) => {
+                      onTextChange(record.ID, newText);
+                    },
+                  }
+            }
+          >
+            {record.text}
+          </Typography.Text>
+        ),
       },
-      render: (text: any, record: SpeakerSampleInterface) => (
-        <Typography.Text
-          editable={{
-            onChange: (newText) => {
-              onTextChange(record.ID, newText);
-            },
-          }}
-        >
-          {record.text}
-        </Typography.Text>
-      ),
-    },
+      "text",
+      searchInput
+    ),
     {
       title: "",
       key: "action",
@@ -201,13 +244,13 @@ export default function Speaker({
           <div style={{ marginBottom: 16, display: "flex" }}>
             <Button
               onClick={onFilesAddClick}
-              disabled={referencedBy !== null}
+              disabled={isDisabled || isLoading}
               style={{ marginRight: 8 }}
             >
               Add Files
             </Button>
             <Button
-              disabled={selectedRowKeys.length === 0 || referencedBy !== null}
+              disabled={selectedRowKeys.length === 0 || isDisabled || isLoading}
               onClick={onSamplesRemove}
             >
               Remove Selected
@@ -219,12 +262,16 @@ export default function Speaker({
             bordered
             style={{ width: "100%" }}
             columns={columns}
-            rowSelection={{
-              selectedRowKeys: selectedRowKeys,
-              onChange: (selectedRowKeys: any[]) => {
-                setSelectedRowKeys(selectedRowKeys);
-              },
-            }}
+            rowSelection={
+              isDisabled || isLoading
+                ? null
+                : {
+                    selectedRowKeys: selectedRowKeys,
+                    onChange: (selectedRowKeys: any[]) => {
+                      setSelectedRowKeys(selectedRowKeys);
+                    },
+                  }
+            }
             dataSource={speaker?.samples.map(
               (sample: SpeakerSampleInterface) => ({
                 ...sample,

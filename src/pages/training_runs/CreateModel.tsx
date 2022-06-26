@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import { useSelector } from "react-redux";
 import AcousticModelFinetuning from "./AcousticModelFinetuning";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
@@ -9,14 +10,14 @@ import GroundTruthAlignment from "./GroundTruthAlignment";
 import VocoderFineTuning from "./VocoderFineTuning";
 import SaveModel from "./SaveModel";
 import {
-  RunInterface,
-  TrainingRunProgressInterface,
-  UsageStatsInterface,
-} from "../../interfaces";
-import { useInterval, getProgressTitle } from "../../utils";
-import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../config";
-import { FETCH_TRAINING_RUN_PROGRESS_CHANNEL } from "../../channels";
+  FETCH_TRAINING_RUNS_CHANNEL,
+  FETCH_TRAINING_RUNS_CHANNEL_TYPES,
+} from "../../channels";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
+import { getProgressTitle, useInterval } from "../../utils";
+import { POLL_LOGFILE_INTERVALL } from "../../config";
 import { TRAINING_RUNS_ROUTE } from "../../routes";
+import { RootState } from "../../app/store";
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
@@ -42,62 +43,35 @@ const stepToTitle: {
 };
 
 export default function CreateModel({
-  selectedTrainingRunID,
-  setSelectedTrainingRunID,
-  running,
-  continueRun,
-  stopRun,
+  selectedTrainingRun,
 }: {
-  selectedTrainingRunID: number;
-  setSelectedTrainingRunID: (selectedTrainingRunID: number) => void;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
+  selectedTrainingRun: TrainingRunInterface;
 }): ReactElement {
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
-  const [progress, setProgress] = useState<TrainingRunProgressInterface | null>(
-    null
-  );
-  const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
+  const [trainingRun, setTrainingRun] = useState<TrainingRunInterface>(null);
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
+  const selectedIsRunning = running?.ID === selectedTrainingRun.ID;
 
-  const selectedIsRunning = running?.ID === selectedTrainingRunID;
-
-  const pollProgress = () => {
+  const pollTrainingRun = () => {
+    const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      withStatistics: true,
+      ID: selectedTrainingRun.ID,
+    };
     ipcRenderer
-      .invoke(FETCH_TRAINING_RUN_PROGRESS_CHANNEL.IN, selectedTrainingRunID)
-      .then((progress: TrainingRunProgressInterface) => {
+      .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN, args)
+      .then((trainingRuns: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
-        setProgress(progress);
+        setTrainingRun(trainingRuns[0]);
       });
-  };
-
-  const pollUsageInfo = () => {
-    const ajax = new XMLHttpRequest();
-    ajax.open("GET", `${SERVER_URL}/get-system-info`);
-    ajax.onload = () => {
-      if (!isMounted.current) {
-        return;
-      }
-      const response: UsageStatsInterface = JSON.parse(ajax.responseText);
-      if (usageStats.length >= 100) {
-        usageStats.shift();
-      }
-      setUsageStats([
-        ...usageStats,
-        {
-          cpuUsage: response["cpuUsage"],
-          diskUsed: parseFloat(response["diskUsed"].toFixed(2)),
-          totalDisk: parseFloat(response["totalDisk"].toFixed(2)),
-          ramUsed: parseFloat(response["ramUsed"].toFixed(2)),
-          totalRam: parseFloat(response["totalRam"].toFixed(2)),
-        },
-      ]);
-    };
-    ajax.send();
   };
 
   const onStepChange = (current: number) => {
@@ -117,10 +91,8 @@ export default function CreateModel({
   }, []);
 
   useInterval(() => {
-    pollProgress();
+    pollTrainingRun();
   }, POLL_LOGFILE_INTERVALL);
-
-  useInterval(pollUsageInfo, 1000);
 
   /**
    * TODO Display training run name in Breadcrumb like it is done in preprocessing runs
@@ -136,7 +108,7 @@ export default function CreateModel({
         <Breadcrumb.Item>{stepToTitle[current]}</Breadcrumb.Item>
       </Breadcrumb>
       <Row gutter={[0, 100]}>
-        <Col className="gutter-row" span={4}>
+        <Col span={4}>
           <Card style={{ borderRight: "none", height: "100%" }}>
             <Steps
               current={current}
@@ -148,96 +120,102 @@ export default function CreateModel({
               <Steps.Step
                 title={getProgressTitle(
                   stepToTitle[1],
-                  progress === null
+                  trainingRun === null
                     ? null
-                    : (progress.preprocessingCopyingFilesProgress +
-                        progress.preprocessingGenVocabProgress +
-                        progress.preprocessingGenAlignProgress +
-                        progress.preprocessingExtractDataProgress) /
+                    : (trainingRun.preprocessingCopyingFilesProgress +
+                        trainingRun.preprocessingGenVocabProgress +
+                        trainingRun.preprocessingGenAlignProgress +
+                        trainingRun.preprocessingExtractDataProgress) /
                         4.0
                 )}
                 disabled={
-                  progress === null || ["not_started"].includes(progress.stage)
+                  trainingRun === null ||
+                  ["not_started"].includes(trainingRun.stage)
                 }
                 icon={
-                  selectedIsRunning && progress?.stage === "preprocessing" ? (
+                  selectedIsRunning &&
+                  trainingRun?.stage === "preprocessing" ? (
                     <LoadingOutlined />
                   ) : undefined
                 }
               />
               <Steps.Step
                 disabled={
-                  progress === null ||
-                  ["not_started", "preprocessing"].includes(progress.stage)
+                  trainingRun === null ||
+                  ["not_started", "preprocessing"].includes(trainingRun.stage)
                 }
                 title={getProgressTitle(
                   stepToTitle[2],
-                  progress === null ? null : progress.acousticFineTuningProgress
+                  trainingRun === null
+                    ? null
+                    : trainingRun.acousticFineTuningProgress
                 )}
                 icon={
                   selectedIsRunning &&
-                  progress?.stage === "acoustic_fine_tuning" ? (
+                  trainingRun?.stage === "acoustic_fine_tuning" ? (
                     <LoadingOutlined />
                   ) : undefined
                 }
               />
               <Steps.Step
                 disabled={
-                  progress === null ||
+                  trainingRun === null ||
                   [
                     "not_started",
                     "preprocessing",
                     "acoustic_fine_tuning",
-                  ].includes(progress.stage)
+                  ].includes(trainingRun.stage)
                 }
                 title={getProgressTitle(
                   stepToTitle[3],
-                  progress === null
+                  trainingRun === null
                     ? null
-                    : progress.groundTruthAlignmentProgress
+                    : trainingRun.groundTruthAlignmentProgress
                 )}
                 icon={
                   selectedIsRunning &&
-                  progress?.stage === "ground_truth_alignment" ? (
+                  trainingRun?.stage === "ground_truth_alignment" ? (
                     <LoadingOutlined />
                   ) : undefined
                 }
               />
               <Steps.Step
                 disabled={
-                  progress === null ||
+                  trainingRun === null ||
                   [
                     "not_started",
                     "preprocessing",
                     "acoustic_fine_tuning",
                     "ground_truth_alignment",
-                  ].includes(progress.stage)
+                  ].includes(trainingRun.stage)
                 }
                 title={getProgressTitle(
                   stepToTitle[4],
-                  progress === null ? null : progress.vocoderFineTuningProgress
+                  trainingRun === null
+                    ? null
+                    : trainingRun.vocoderFineTuningProgress
                 )}
                 icon={
                   selectedIsRunning &&
-                  progress?.stage === "vocoder_fine_tuning" ? (
+                  trainingRun?.stage === "vocoder_fine_tuning" ? (
                     <LoadingOutlined />
                   ) : undefined
                 }
               />
               <Steps.Step
                 disabled={
-                  progress === null ||
+                  trainingRun === null ||
                   [
                     "not_started",
                     "preprocessing",
                     "acoustic_fine_tuning",
                     "ground_truth_alignment",
                     "vocoder_fine_tuning",
-                  ].includes(progress.stage)
+                  ].includes(trainingRun.stage)
                 }
                 title={stepToTitle[5]}
                 icon={
-                  selectedIsRunning && progress?.stage === "save_model" ? (
+                  selectedIsRunning && trainingRun?.stage === "save_model" ? (
                     <LoadingOutlined />
                   ) : undefined
                 }
@@ -245,112 +223,69 @@ export default function CreateModel({
             </Steps>
           </Card>
         </Col>
-        <Col className="gutter-row" span={20}>
+        <Col span={20}>
           <Switch>
             <Route
-              render={(props) => (
-                <Configuration
-                  onStepChange={onStepChange}
-                  setSelectedTrainingRunID={setSelectedTrainingRunID}
-                  selectedTrainingRunID={selectedTrainingRunID}
-                  running={running}
-                  continueRun={continueRun}
-                  stage={progress !== null ? progress.stage : null}
-                ></Configuration>
-              )}
+              render={(props) =>
+                trainingRun && (
+                  <Configuration
+                    onStepChange={onStepChange}
+                    run={trainingRun}
+                  ></Configuration>
+                )
+              }
               path={stepToPath[0]}
             ></Route>
             <Route
-              render={(props) => (
-                <Preprocessing
-                  onStepChange={onStepChange}
-                  selectedTrainingRunID={selectedTrainingRunID}
-                  running={running}
-                  continueRun={continueRun}
-                  stopRun={stopRun}
-                  stage={progress !== null ? progress.stage : null}
-                  preprocessingStage={
-                    progress !== null ? progress.preprocessingStage : null
-                  }
-                  usageStats={usageStats}
-                  copyingFilesProgress={
-                    progress === null
-                      ? null
-                      : progress.preprocessingCopyingFilesProgress
-                  }
-                  genVocabProgress={
-                    progress === null
-                      ? null
-                      : progress.preprocessingGenVocabProgress
-                  }
-                  genAlignProgress={
-                    progress === null
-                      ? null
-                      : progress.preprocessingGenAlignProgress
-                  }
-                  extractDataProgress={
-                    progress === null
-                      ? null
-                      : progress.preprocessingExtractDataProgress
-                  }
-                />
-              )}
+              render={(props) =>
+                trainingRun && (
+                  <Preprocessing
+                    onStepChange={onStepChange}
+                    run={trainingRun}
+                  />
+                )
+              }
               path={stepToPath[1]}
             ></Route>
             <Route
-              render={(props) => (
-                <AcousticModelFinetuning
-                  onStepChange={onStepChange}
-                  selectedTrainingRunID={selectedTrainingRunID}
-                  running={running}
-                  continueRun={continueRun}
-                  stopRun={stopRun}
-                  stage={progress !== null ? progress.stage : null}
-                  usageStats={usageStats}
-                />
-              )}
+              render={(props) =>
+                trainingRun && (
+                  <AcousticModelFinetuning
+                    onStepChange={onStepChange}
+                    run={trainingRun}
+                  />
+                )
+              }
               path={stepToPath[2]}
             ></Route>
             <Route
-              render={(props) => (
-                <GroundTruthAlignment
-                  onStepChange={onStepChange}
-                  selectedTrainingRunID={selectedTrainingRunID}
-                  running={running}
-                  continueRun={continueRun}
-                  stopRun={stopRun}
-                  stage={progress !== null ? progress.stage : null}
-                  usageStats={usageStats}
-                />
-              )}
+              render={(props) =>
+                trainingRun && (
+                  <GroundTruthAlignment
+                    onStepChange={onStepChange}
+                    run={trainingRun}
+                  />
+                )
+              }
               path={stepToPath[3]}
             ></Route>
             <Route
-              render={(props) => (
-                <VocoderFineTuning
-                  onStepChange={onStepChange}
-                  selectedTrainingRunID={selectedTrainingRunID}
-                  running={running}
-                  continueRun={continueRun}
-                  stopRun={stopRun}
-                  stage={progress !== null ? progress.stage : null}
-                  usageStats={usageStats}
-                />
-              )}
+              render={(props) =>
+                trainingRun && (
+                  <VocoderFineTuning
+                    onStepChange={onStepChange}
+                    run={trainingRun}
+                  />
+                )
+              }
               path={stepToPath[4]}
             ></Route>
             <Route
-              render={(props) => (
-                <SaveModel
-                  onStepChange={onStepChange}
-                  selectedTrainingRunID={selectedTrainingRunID}
-                  running={running}
-                  continueRun={continueRun}
-                  stopRun={stopRun}
-                  stage={progress !== null ? progress.stage : null}
-                  usageStats={usageStats}
-                />
-              )}
+              render={(props) =>
+                trainingRun && (
+                  <SaveModel onStepChange={onStepChange} run={trainingRun} />
+                )
+              }
               path={stepToPath[5]}
             ></Route>
           </Switch>

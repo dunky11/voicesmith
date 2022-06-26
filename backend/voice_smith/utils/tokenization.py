@@ -2,10 +2,6 @@ import torch
 from typing import Dict, List, Tuple
 import unicodedata
 from pathlib import Path
-from spacy.lang.en import English
-from spacy.lang.es import Spanish
-from spacy.lang.ru import Russian
-from spacy.lang.de import German
 from voice_smith.utils.text import strip_cont_whitespaces
 from voice_smith.utils.punctuation import get_punct
 
@@ -355,14 +351,48 @@ class WordpieceTokenizer(object):
 
 
 def _get_nlp(lang):
-    if lang == "en":
+    if lang == "bg":
+        from spacy.lang.bg import Bulgarian
+        nlp = Bulgarian()
+    elif lang == "cs":
+        from spacy.lang.cs import Czech
+        nlp = Czech()
+    elif lang == "de":
+        from spacy.lang.de import German
+        nlp = German()
+    elif lang == "en":
+        from spacy.lang.en import English
         nlp = English()
     elif lang == "es":
+        from spacy.lang.es import Spanish
         nlp = Spanish()
-    elif lang == "de":
-        nlp = German()
+    elif lang == "fr":
+        from spacy.lang.fr import French
+        nlp = French()
+    elif lang == "hr":
+        from spacy.lang.hr import Croatian
+        nlp = Croatian()
+    elif lang == "pl":
+        from spacy.lang.pl import Polish
+        nlp = Polish()
+    elif lang == "pt":
+        from spacy.lang.pt import Portuguese
+        nlp = Portuguese()
     elif lang == "ru":
+        from spacy.lang.ru import Russian
         nlp = Russian()
+    elif lang == "sv":
+        from spacy.lang.sv import Swedish
+        nlp = Swedish()
+    elif lang == "th":
+        from spacy.lang.th import Thai
+        nlp = Thai()
+    elif lang == "tr":
+        from spacy.lang.tr import Turkish
+        nlp = Turkish()
+    elif lang == "uk":
+        from spacy.lang.uk import Ukrainian
+        nlp = Ukrainian()
     else:
         raise Exception(
             f"No case selected in switch-statement, '{lang}' is not a valid case ..."

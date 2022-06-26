@@ -9,21 +9,31 @@ from voice_smith.utils.tools import iter_logger
 from voice_smith.utils.audio import save_audio
 
 
-def write_text_file(src: str, text: str, out_dir: str) -> None:
-    out_path = Path(out_dir)
-    out_path.mkdir(exist_ok=True, parents=True)
-    with open(out_path / Path(src).name, "w", encoding="utf-8") as f:
-        f.write(text)
-
-
-def copy_audio_file(src: str, out_dir: str) -> None:
-    if not Path(src).exists():
-        print(f"Audio file {src} doesn't exist, skipping ...")
+def copy_sample(
+    audio_src: str, text_src: str, text: str, out_dir: str, skip_on_error: bool
+) -> None:
+    if not Path(audio_src).exists():
+        print(f"Audio file {audio_src} doesn't exist, skipping ...")
         return
     out_path = Path(out_dir)
     out_path.mkdir(exist_ok=True, parents=True)
-    audio, sr = safe_load(src, sr=None)
-    save_audio(str(out_path / (Path(src).stem + ".wav")), torch.FloatTensor(audio), sr)
+    audio_out_path = out_path / (Path(audio_src).stem + ".flac")
+    txt_out_path = out_path / Path(text_src).name
+    if txt_out_path.exists():
+        return
+    try:
+        audio, sr = safe_load(audio_src, sr=None)
+        save_audio(str(audio_out_path), torch.FloatTensor(audio), sr)
+        with open(txt_out_path, "w", encoding="utf-8") as f:
+            f.write(text)
+    except Exception as e:
+        if skip_on_error:
+            if audio_out_path.exists():
+                audio_out_path.unlink()
+            print(e)
+            return
+        else:
+            raise e
 
 
 def copy_files(
@@ -32,33 +42,30 @@ def copy_files(
     texts: List[str],
     audio_paths: List[str],
     names: List[str],
+    langs: List[str],
     workers: int,
+    skip_on_error: bool,
     progress_cb: Callable[[int], None],
     log_every: int = 200,
 ) -> None:
-    assert len(txt_paths) == len(texts)
+    assert len(txt_paths) == len(audio_paths) == len(names) == len(texts) == len(langs)
 
-    def txt_callback(index: int):
+    def callback(index: int):
         if index % log_every == 0:
-            progress = index / len(txt_paths) / 2
+            progress = index / len(txt_paths)
             progress_cb(progress)
 
-    def audio_callback(index: int):
-        if index % log_every == 0:
-            progress = (index / len(audio_paths) / 2) + 0.5
-            progress_cb(progress)
-
-
-    print("Writing text files ...")
+    print("Copying files ...")
     Parallel(n_jobs=workers)(
-        delayed(write_text_file)(file_path, text, Path(data_path) / "raw_data" / name)
-        for file_path, text, name in iter_logger(
-            zip(txt_paths, texts, names), cb=txt_callback
+        delayed(copy_sample)(
+            audio_path,
+            txt_path,
+            text,
+            Path(data_path) / "raw_data" / lang / name,
+            skip_on_error,
         )
-    )
-    print("Copying audio files ...")
-    Parallel(n_jobs=workers)(
-        delayed(copy_audio_file)(file_path, Path(data_path) / "raw_data" / name)
-        for file_path, name in iter_logger(zip(audio_paths, names), cb=audio_callback)
+        for audio_path, txt_path, text, name, lang in iter_logger(
+            zip(audio_paths, txt_paths, texts, names, langs), cb=callback
+        )
     )
     progress_cb(1.0)

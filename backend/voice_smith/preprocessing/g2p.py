@@ -5,8 +5,9 @@ from voice_smith.g2p.dp.utils.infer import batched_predict
 
 
 def grapheme_to_phonemes(
-    texts: List[str], assets_path: str, device: torch.device
+    texts: List[str], langs: List[str], assets_path: str, device: torch.device
 ) -> List[List[str]]:
+    assert len(texts) == len(langs)
     model = get_g2p(assets_path=assets_path, device=device)
     phonemes_list = batched_predict(model, texts)
     return phonemes_list

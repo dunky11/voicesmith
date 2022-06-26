@@ -34,6 +34,7 @@ export const startRun = (
         }
       : null,
     (code: number) => {
+      console.log("FINISHED RUN CALLED");
       event.reply(CONTINUE_TRAINING_RUN_CHANNEL.REPLY, {
         type: "finishedRun",
       });

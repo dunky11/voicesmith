@@ -1,52 +1,42 @@
-import React, { ReactElement, useState } from "react";
+import React, { ReactElement } from "react";
 import { Tabs, Card, Button, Steps } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 import RunCard from "../../components/cards/RunCard";
 import LogPrinter from "../../components/log_printer/LogPrinter";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 import { getStageIsRunning, getWouldContinueRun } from "../../utils";
-import { RunInterface, UsageStatsInterface } from "../../interfaces";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
+import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
 
 export default function GroundTruthAlignment({
   onStepChange,
-  selectedTrainingRunID,
-  running,
-  continueRun,
-  stopRun,
-  stage,
-  usageStats,
+  run,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
-  stage:
-    | "not_started"
-    | "preprocessing"
-    | "acoustic_fine_tuning"
-    | "ground_truth_alignment"
-    | "vocoder_fine_tuning"
-    | "save_model"
-    | "finished"
-    | null;
-  usageStats: UsageStatsInterface[];
+  run: TrainingRunInterface;
 }): ReactElement {
-  const [selectedTab, setSelectedTab] = useState<string>("Overview");
-
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const stageIsRunning = getStageIsRunning(
     ["ground_truth_alignment"],
-    stage,
+    run.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    run.ID
   );
   const wouldContinueRun = getWouldContinueRun(
     ["ground_truth_alignment"],
-    stage,
+    run.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    run.ID
   );
 
   const onBackClick = () => {
@@ -55,9 +45,15 @@ export default function GroundTruthAlignment({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
+      dispatch(
+        addToQueue({
+          ID: run.ID,
+          type: "trainingRun",
+          name: run.name,
+        })
+      );
     } else {
       onStepChange(5);
     }
@@ -84,12 +80,9 @@ export default function GroundTruthAlignment({
         </Button>,
       ]}
     >
-      <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
+      <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={0}>
               <Steps.Step
@@ -102,7 +95,7 @@ export default function GroundTruthAlignment({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(selectedTrainingRunID)}
+            name={String(run.ID)}
             logFileName="ground_truth_alignment.txt"
             type="trainingRun"
           />

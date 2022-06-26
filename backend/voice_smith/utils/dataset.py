@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import random
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
-from voice_smith.utils.tokenization import BertTokenizer
+from voice_smith.config.langs import lang2id
 from voice_smith.utils.text import phones_to_token_ids
 from voice_smith.utils.tools import pad_1D, pad_2D
 from voice_smith.config.configs import PreprocessingConfig
@@ -28,16 +28,15 @@ class AcousticDataset(Dataset):
         sort: bool = False,
         drop_last: bool = False,
     ):
-        self.tokenizer = BertTokenizer(assets_path)
         self.preprocessed_path = Path(data_path)
         self.batch_size = batch_size
         self.basename, self.speaker = self.process_meta(filename)
-        with open(self.preprocessed_path / "speakers.json") as f:
+        with open(self.preprocessed_path / "speakers.json", encoding="utf-8") as f:
             self.speaker_map = json.load(f)
         self.sort = sort
         self.drop_last = drop_last
 
-        with open(self.preprocessed_path / "stats.json") as f:
+        with open(self.preprocessed_path / "stats.json", encoding="utf-8") as f:
             stats = json.load(f)
             self.pitch_max, self.pitch_mean, self.pitch_std = (
                 stats["pitch"][1],
@@ -59,6 +58,7 @@ class AcousticDataset(Dataset):
         mel = data["mel"]
         pitch = data["pitch"]
         durations = data["durations"]
+        lang = data["lang"]
         phone = torch.LongTensor(phones_to_token_ids(data["phones"]))
 
         sample = {
@@ -70,6 +70,7 @@ class AcousticDataset(Dataset):
             "mel": mel,
             "pitch": pitch,
             "duration": durations,
+            "lang": lang2id[lang],
         }
 
         if mel.shape[1] < 20:
@@ -100,9 +101,9 @@ class AcousticDataset(Dataset):
         mels = [data[idx]["mel"] for idx in idxs]
         pitches = [data[idx]["pitch"] for idx in idxs]
         durations = [data[idx]["duration"] for idx in idxs]
+        langs = np.array([data[idx]["lang"] for idx in idxs])
         text_lens = np.array([text.shape[0] for text in texts])
         mel_lens = np.array([mel.shape[1] for mel in mels])
-        encoding = self.tokenizer(raw_texts)
         speakers = np.array(speakers)
         texts = pad_1D(texts)
         mels = pad_2D(mels)
@@ -120,8 +121,7 @@ class AcousticDataset(Dataset):
             pitches,
             durations,
             mel_lens,
-            encoding["input_ids"],
-            encoding["attention_mask"],
+            langs,
         )
 
     def collate_fn(self, data):

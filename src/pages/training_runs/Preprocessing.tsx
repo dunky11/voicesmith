@@ -1,79 +1,52 @@
-import React, { ReactElement, useState } from "react";
+import React, { ReactElement } from "react";
 import { Tabs, Card, Steps, Button } from "antd";
+import { useSelector, useDispatch } from "react-redux";
+import { LoadingOutlined } from "@ant-design/icons";
 import UsageStatsRow from "../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../components/log_printer/LogPrinter";
-import { RunInterface, UsageStatsInterface } from "../../interfaces";
-import { LoadingOutlined } from "@ant-design/icons";
+import { RunInterface, TrainingRunInterface } from "../../interfaces";
+import { RootState } from "../../app/store";
 import {
   getProgressTitle,
   getStageIsRunning,
   getWouldContinueRun,
 } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
+import { setIsRunning, addToQueue } from "../../features/runManagerSlice";
 
 export default function Preprocessing({
   onStepChange,
-  selectedTrainingRunID,
-  running,
-  continueRun,
-  stopRun,
-  stage,
-  preprocessingStage,
-  usageStats,
-  copyingFilesProgress,
-  genVocabProgress,
-  genAlignProgress,
-  extractDataProgress,
+  run,
 }: {
   onStepChange: (step: number) => void;
-  selectedTrainingRunID: number;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
-  stage:
-    | "not_started"
-    | "preprocessing"
-    | "acoustic_fine_tuning"
-    | "ground_truth_alignment"
-    | "vocoder_fine_tuning"
-    | "save_model"
-    | "finished"
-    | null;
-  preprocessingStage:
-    | "not_started"
-    | "copying_files"
-    | "gen_vocab"
-    | "gen_alignments"
-    | "extract_data"
-    | "finished"
-    | null;
-  usageStats: UsageStatsInterface[];
-  copyingFilesProgress: number | null;
-  genVocabProgress: number | null;
-  genAlignProgress: number | null;
-  extractDataProgress: number | null;
+  run: TrainingRunInterface;
 }): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
+  const runManager = useSelector((state: RootState) => state.runManager);
+  const dispatch = useDispatch();
   const stageIsRunning = getStageIsRunning(
     ["preprocessing"],
-    stage,
+    run.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    run.ID
   );
 
   const wouldContinueRun = getWouldContinueRun(
     ["preprocessing"],
-    stage,
+    run.stage,
     running,
     "trainingRun",
-    selectedTrainingRunID
+    run.ID
   );
 
   const getCurrent = () => {
-    if (preprocessingStage == null) {
-      return 0;
-    }
-    switch (preprocessingStage) {
+    switch (run.preprocessingStage) {
       case "not_started":
         return 0;
       case "copying_files":
@@ -88,7 +61,7 @@ export default function Preprocessing({
         return 4;
       default:
         throw new Error(
-          `No case selected in switch-statemen, '${preprocessingStage}' is not a valid case ...`
+          `No case selected in switch-statemen, '${run.preprocessingStage}' is not a valid case ...`
         );
     }
   };
@@ -99,10 +72,16 @@ export default function Preprocessing({
 
   const onNextClick = () => {
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({ ID: selectedTrainingRunID, type: "trainingRun" });
-    } else if (stage === "finished") {
+      dispatch(
+        addToQueue({
+          ID: run.ID,
+          type: "trainingRun",
+          name: run.name,
+        })
+      );
+    } else if (run.stage === "finished") {
       onStepChange(3);
     }
   };
@@ -130,14 +109,14 @@ export default function Preprocessing({
     >
       <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step
-                title={getProgressTitle("Copy Files", copyingFilesProgress)}
+                title={getProgressTitle(
+                  "Copy Files",
+                  run.preprocessingCopyingFilesProgress
+                )}
                 description="Copy text and audio files into the training folder."
                 icon={
                   current === 0 && stageIsRunning ? (
@@ -147,9 +126,12 @@ export default function Preprocessing({
               />
               <Steps.Step
                 title={
-                  genVocabProgress === 0
+                  run.preprocessingGenVocabProgress === 0
                     ? "Generate Vocabulary"
-                    : getProgressTitle("Generate Vocabulary", genVocabProgress)
+                    : getProgressTitle(
+                        "Generate Vocabulary",
+                        run.preprocessingGenVocabProgress
+                      )
                 }
                 description="Generate phonemes for each word."
                 icon={
@@ -160,9 +142,12 @@ export default function Preprocessing({
               />
               <Steps.Step
                 title={
-                  genAlignProgress === 0
+                  run.preprocessingGenAlignProgress === 0
                     ? "Generate Alignments"
-                    : getProgressTitle("Generate Alignments", genAlignProgress)
+                    : getProgressTitle(
+                        "Generate Alignments",
+                        run.preprocessingGenAlignProgress
+                      )
                 }
                 description="Generate timestamps for each phoneme."
                 icon={
@@ -172,7 +157,10 @@ export default function Preprocessing({
                 }
               />
               <Steps.Step
-                title={getProgressTitle("Extract Data", extractDataProgress)}
+                title={getProgressTitle(
+                  "Extract Data",
+                  run.preprocessingExtractDataProgress
+                )}
                 description="Resample audio and extract pitch information and mel-spectrograms."
                 icon={
                   current === 3 && stageIsRunning ? (
@@ -185,7 +173,7 @@ export default function Preprocessing({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={String(selectedTrainingRunID)}
+            name={String(run.ID)}
             logFileName="preprocessing.txt"
             type="trainingRun"
           />

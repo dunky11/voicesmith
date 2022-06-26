@@ -1,26 +1,16 @@
 import React, { useState, useEffect, useRef, ReactElement } from "react";
-import {
-  Table,
-  Space,
-  Input,
-  Button,
-  List,
-  Typography,
-  notification,
-} from "antd";
-import { SearchOutlined } from "@ant-design/icons";
-import type { FilterConfirmProps } from "antd/lib/table/interface";
-import type { ColumnType } from "antd/lib/table";
+import { Table, Space, Button, List, Typography } from "antd";
+import { useDispatch, useSelector } from "react-redux";
 import type { InputRef } from "antd";
+import { getWouldContinueRun, getSearchableColumn } from "../../../utils";
+import { RootState } from "../../../app/store";
 import {
   FETCH_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SAMPLES_CHANNEL,
-  UPDATE_SAMPLE_SPLITTING_SAMPLE_CHANNEL,
   REMOVE_SAMPLE_SPLITTING_SPLITS_CHANNEL,
   GET_AUDIO_DATA_URL_CHANNEL,
   UPDATE_SAMPLE_SPLITTING_RUN_STAGE_CHANNEL,
 } from "../../../channels";
-import { useHistory } from "react-router-dom";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import { defaultPageOptions } from "../../../config";
 import {
@@ -30,24 +20,24 @@ import {
   SampleSplittingSplitInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
-import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
-import { getStageIsRunning, getWouldContinueRun } from "../../../utils";
-import { IpcMainEvent } from "electron";
+import { addToQueue } from "../../../features/runManagerSlice";
+
 const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
   onStepChange,
-  running,
-  continueRun,
   run,
-  stopRun,
 }: {
   onStepChange: (current: number) => void;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
   run: SampleSplittingRunInterface;
-  stopRun: () => void;
 }): ReactElement {
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const isMounted = useRef(false);
   const [samples, setSamples] = useState<SampleSplittingSampleInterface[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
@@ -62,87 +52,6 @@ export default function ChooseSamples({
     "sampleSplittingRun",
     run.ID
   );
-
-  const handleSearch = (
-    selectedKeys: string[],
-    confirm: (param?: FilterConfirmProps) => void,
-    dataIndex: any
-  ) => {
-    confirm();
-  };
-
-  const handleReset = (clearFilters: () => void) => {
-    clearFilters();
-  };
-
-  const onNewTextEdit = (
-    record: SampleSplittingSampleInterface,
-    newText: string
-  ) => {
-    ipcRenderer
-      .invoke(UPDATE_SAMPLE_SPLITTING_SAMPLE_CHANNEL.IN, record.ID, newText)
-      .then(fetchSamples);
-  };
-
-  const getColumnSearchProps = (dataIndex: any): ColumnType<any> => ({
-    filterDropdown: ({
-      setSelectedKeys,
-      selectedKeys,
-      confirm,
-      clearFilters,
-    }) => (
-      <div style={{ padding: 8 }}>
-        <Input
-          ref={searchInput}
-          placeholder={`Search ${dataIndex}`}
-          value={selectedKeys[0]}
-          onChange={(e) =>
-            setSelectedKeys(e.target.value ? [e.target.value] : [])
-          }
-          onPressEnter={() =>
-            handleSearch(selectedKeys as string[], confirm, dataIndex)
-          }
-          style={{ marginBottom: 8, display: "block" }}
-        />
-        <Space>
-          <Button
-            type="primary"
-            onClick={() =>
-              handleSearch(selectedKeys as string[], confirm, dataIndex)
-            }
-            icon={<SearchOutlined />}
-            size="small"
-            style={{ width: 90 }}
-          >
-            Search
-          </Button>
-          <Button
-            onClick={() => {
-              setSelectedKeys([]);
-              handleReset(clearFilters);
-              handleSearch([], confirm, dataIndex);
-            }}
-            size="small"
-          >
-            Reset
-          </Button>
-        </Space>
-      </div>
-    ),
-    filterIcon: (filtered: boolean) => (
-      <SearchOutlined style={{ color: filtered ? "#1890ff" : undefined }} />
-    ),
-    onFilter: (value, record) =>
-      record[dataIndex]
-        .toString()
-        .toLowerCase()
-        .includes((value as string).toLowerCase()),
-    onFilterDropdownVisibleChange: (visible) => {
-      if (visible) {
-        setTimeout(() => searchInput.current?.select(), 100);
-      }
-    },
-  });
 
   const removeSamples = (sampleIDs: number[]) => {
     ipcRenderer
@@ -192,7 +101,9 @@ export default function ChooseSamples({
   const onNext = () => {
     const navigateNext = () => {
       if (wouldContinueRun) {
-        continueRun({ ID: run.ID, type: "sampleSplittingRun" });
+        dispatch(
+          addToQueue({ ID: run.ID, type: "sampleSplittingRun", name: run.name })
+        );
       }
       onStepChange(3);
     };
@@ -232,18 +143,24 @@ export default function ChooseSamples({
   }, []);
 
   const columns = [
-    {
-      title: "Text",
-      dataIndex: "text",
-      key: "text",
-      ...getColumnSearchProps("text"),
-    },
-    {
-      title: "Speaker",
-      dataIndex: "speakerName",
-      key: "speakerName",
-      ...getColumnSearchProps("speakerName"),
-    },
+    getSearchableColumn(
+      {
+        title: "Text",
+        dataIndex: "text",
+        key: "text",
+      },
+      "text",
+      searchInput
+    ),
+    getSearchableColumn(
+      {
+        title: "Speaker",
+        dataIndex: "speakerName",
+        key: "speakerName",
+      },
+      "speakerName",
+      searchInput
+    ),
     {
       title: "",
       key: "action",

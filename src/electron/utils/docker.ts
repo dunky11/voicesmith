@@ -58,6 +58,11 @@ export const spawnCondaCmd = (
   onError: ((data: string) => void) | null,
   onExit: ((code: number) => void) | null
 ): ChildProcessWithoutNullStreams => {
+  console.log(
+    ["conda", "run", "-n", CONDA_ENV_NAME, "--no-capture-output", ...args].join(
+      " "
+    )
+  );
   const proc = childProcess.spawn("docker", [
     "exec",
     DOCKER_CONTAINER_NAME,
@@ -65,6 +70,7 @@ export const spawnCondaCmd = (
     "run",
     "-n",
     CONDA_ENV_NAME,
+    "--no-capture-output",
     ...args,
   ]);
 
@@ -185,6 +191,8 @@ export const createContainer = async (
       "stack=67108864",
       "-p",
       `${PORT}:80`,
+      "-u",
+      "$(id -u):$(id -g)",
       ...(withGPU ? ["--gpus", "all"] : []),
       DOCKER_IMAGE_NAME,
     ],

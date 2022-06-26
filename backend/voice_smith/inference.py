@@ -139,11 +139,7 @@ def synthesize(
                     encoding["input_ids"], encoding["attention_mask"]
                 )
                 mel = acoustic_model(
-                    symbol_ids,
-                    speaker_ids,
-                    style_embeds,
-                    1.0,
-                    talking_speed,
+                    symbol_ids, speaker_ids, style_embeds, 1.0, talking_speed,
                 )
                 wave = vocoder(mel)
                 waves.append(wave.view(-1))

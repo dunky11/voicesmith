@@ -35,8 +35,7 @@ def to_device(
         pitches,
         durations,
         mel_lens,
-        token_ids,
-        attention_masks,
+        langs,
     ) = data
 
     speakers = torch.from_numpy(speakers).to(device, non_blocking=non_blocking)
@@ -46,8 +45,7 @@ def to_device(
     pitches = torch.from_numpy(pitches).float().to(device, non_blocking=non_blocking)
     durations = torch.from_numpy(durations).long().to(device, non_blocking=non_blocking)
     mel_lens = torch.from_numpy(mel_lens).to(device, non_blocking=non_blocking)
-    token_ids = token_ids.to(device, non_blocking=non_blocking)
-    attention_masks = attention_masks.to(device, non_blocking=non_blocking)
+    langs = torch.from_numpy(langs).long().to(device, non_blocking=non_blocking)
 
     return (
         ids,
@@ -60,8 +58,7 @@ def to_device(
         pitches,
         durations,
         mel_lens,
-        token_ids,
-        attention_masks,
+        langs,
     )
 
 
@@ -194,6 +191,7 @@ def iter_logger(
     start: Union[int, None] = None,
     total: Union[int, None] = None,
     print_every: int = 20,
+    callback_every: int = 1,
     cb: Union[Callable, None] = None,
 ) -> Iterator:
     last_time = time.time()
@@ -207,7 +205,7 @@ def iter_logger(
             last_time = this_time
             print(message, flush=True)
 
-        if cb != None:
+        if cb != None and i % callback_every == 0:
             cb(i)
 
         yield el

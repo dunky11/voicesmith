@@ -6,6 +6,23 @@ If you want to play around with a model trained on a highly emotional emotional 
 
 <img src="/.media/hero.png">
 
+| Language | Training + Inference |  Sample Splitting | Text Normalization | # Files Pretrained | # Speakers Pretrained |
+| --- | --- | --- | --- | --- | --- |
+| English | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 978283 | 5415 |
+| German  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 380175 | 1034 |
+| French  | :heavy_check_mark: | :heavy_check_mark: |  | 382797 | 1013 |
+| Spanish  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 327944 | 960 |
+| Russian  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | 72527 | 132 |
+| Polish  | :heavy_check_mark: | :heavy_check_mark: | | 72536 | 132 |
+| Bulgarian  | :heavy_check_mark: | :heavy_check_mark: | | 0 | 0 |
+| Czech  | :heavy_check_mark: | :heavy_check_mark: | | 0 | 0 |
+| Croatian  | :heavy_check_mark: | :heavy_check_mark: | | 0 | 0 |
+| European Portuguese | :heavy_check_mark: | :heavy_check_mark: | | 0 | 0 |
+| Swedish  | :heavy_check_mark: | :heavy_check_mark: | | 0 | 0 |
+| Thai  | :heavy_check_mark: | :heavy_check_mark: | | 0 | 0 |
+| Turkish  | :heavy_check_mark: | :heavy_check_mark: | | 0 | 0 |
+| Ukrainian  | :heavy_check_mark: | :heavy_check_mark: | | 0 | 0 |
+
 ## Requirements
 
 #### Hardware

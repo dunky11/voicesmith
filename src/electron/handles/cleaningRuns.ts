@@ -2,7 +2,8 @@ import { ipcMain, IpcMainInvokeEvent, IpcMainEvent } from "electron";
 import path from "path";
 import {
   CONTINUE_CLEANING_RUN_CHANNEL,
-  FETCH_CLEANING_RUN_CHANNEL,
+  FETCH_CLEANING_RUNS_CHANNEL,
+  FETCH_CLEANING_RUNS_CHANNEL_TYPES,
   FETCH_CLEANING_RUN_CONFIG_CHANNEL,
   UPDATE_CLEANING_RUN_CONFIG_CHANNEL,
   FETCH_NOISY_SAMPLES_CHANNEL,
@@ -13,7 +14,7 @@ import { safeUnlink } from "../utils/files";
 import { getCleaningRunsDir, getDatasetsDir, DB_PATH } from "../utils/globals";
 import { DB, getSpeakersWithSamples } from "../utils/db";
 import {
-  DSCleaningInterface,
+  CleaningRunInterface,
   CleaningRunConfigInterface,
   SpeakerInterface,
   ContinueTrainingRunReplyInterface,
@@ -69,13 +70,48 @@ ipcMain.on(
   }
 );
 
-ipcMain.handle(
-  FETCH_CLEANING_RUN_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, ID: number) => {
-    const run: DSCleaningInterface = DB.getInstance()
-      .prepare("SELECT ID, name, stage FROM cleaning_run WHERE ID=@ID")
-      .get({ ID });
+export const fetchCleaningRuns = (
+  ID: number | null = null
+): CleaningRunInterface[] => {
+  const fetchStmt = DB.getInstance().prepare(
+    `SELECT cleaning_run.ID AS ID, cleaning_run.name AS name, stage,
+      dataset.ID AS datasetID, dataset.name AS datasetName,
+      cleaning_run.skip_on_error AS skipOnError
+    FROM cleaning_run
+    LEFT JOIN dataset ON cleaning_run.dataset_id = dataset.ID
+    ${ID === null ? "" : "WHERE ID=@ID"}`
+  );
+  let runsRaw;
+  if (ID === null) {
+    runsRaw = fetchStmt.all();
+  } else {
+    runsRaw = [fetchStmt.get({ ID })];
+  }
+  return runsRaw.map((el: any) => {
+    const run: CleaningRunInterface = {
+      ID: el.ID,
+      stage: el.stage,
+      type: "cleaningRun",
+      name: el.name,
+      configuration: {
+        name: el.name,
+        datasetID: el.datasetID,
+        datasetName: el.datasetName,
+        skipOnError: el.skipOnError,
+      },
+      canStart: el.datasetID !== null,
+    };
     return run;
+  });
+};
+
+ipcMain.handle(
+  FETCH_CLEANING_RUNS_CHANNEL.IN,
+  (
+    event: IpcMainInvokeEvent,
+    { ID }: FETCH_CLEANING_RUNS_CHANNEL_TYPES["IN"]["ARGS"]
+  ): FETCH_CLEANING_RUNS_CHANNEL_TYPES["IN"]["OUT"] => {
+    return fetchCleaningRuns(ID);
   }
 );
 

@@ -3,7 +3,8 @@ import path from "path";
 import {
   EDIT_TEXT_NORMALIZATION_SAMPLE_NEW_TEXT_CHANNEL,
   CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL,
-  FETCH_TEXT_NORMALIZATION_RUN_CHANNEL,
+  FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL,
+  FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES,
   UPDATE_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
   FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
   FETCH_TEXT_NORMALIZATION_SAMPLES_CHANNEL,
@@ -14,7 +15,7 @@ import { getDatasetsDir } from "../utils/globals";
 import { DB } from "../utils/db";
 import {
   TextNormalizationRunConfigInterface,
-  TextNormalizationInterface,
+  TextNormalizationRunInterface,
 } from "../../interfaces";
 import { startRun } from "../utils/processes";
 
@@ -42,15 +43,49 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle(
-  FETCH_TEXT_NORMALIZATION_RUN_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, ID: number) => {
-    const run: TextNormalizationInterface = DB.getInstance()
-      .prepare(
-        "SELECT ID, name, stage, language, text_normalization_progress AS textNormalizationProgress FROM text_normalization_run WHERE ID=@ID"
-      )
-      .get({ ID });
+export const fetchTextNormalizationRuns = (
+  ID: number | null = null
+): TextNormalizationRunInterface[] => {
+  const fetchStmt = DB.getInstance().prepare(
+    `SELECT 
+      text_normalization_run.ID AS ID, text_normalization_run.name AS name, 
+      stage, text_normalization_progress AS textNormalizationProgress,
+      dataset.ID AS datasetID, dataset.name AS datasetName
+    FROM text_normalization_run
+    LEFT JOIN dataset ON text_normalization_run.dataset_id=dataset.ID
+    ${ID === null ? "" : "WHERE text_normalization_run.ID=@ID"}`
+  );
+  let runsRaw;
+  if (ID === null) {
+    runsRaw = fetchStmt.all();
+  } else {
+    runsRaw = [fetchStmt.get({ ID })];
+  }
+  return runsRaw.map((el: any) => {
+    const run: TextNormalizationRunInterface = {
+      ID: el.ID,
+      stage: el.stage,
+      type: "textNormalizationRun",
+      textNormalizationProgress: el.textNormalizationProgress,
+      name: el.name,
+      configuration: {
+        name: el.name,
+        datasetID: el.datasetID,
+        datasetName: el.datasetName,
+      },
+      canStart: el.datasetID !== null,
+    };
     return run;
+  });
+};
+
+ipcMain.handle(
+  FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL.IN,
+  (
+    event: IpcMainInvokeEvent,
+    { ID }: FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES["IN"]["ARGS"]
+  ): FETCH_TEXT_NORMALIZATION_RUNS_CHANNEL_TYPES["IN"]["OUT"] => {
+    return fetchTextNormalizationRuns(ID);
   }
 );
 
@@ -63,7 +98,7 @@ ipcMain.handle(
   ) => {
     return DB.getInstance()
       .prepare(
-        "UPDATE text_normalization_run SET name=@name, language=@language, dataset_id=@datasetID WHERE ID=@ID"
+        "UPDATE text_normalization_run SET name=@name, dataset_id=@datasetID WHERE ID=@ID"
       )
       .run({
         ID,
@@ -77,7 +112,7 @@ ipcMain.handle(
   (event: IpcMainInvokeEvent, ID: number) => {
     return DB.getInstance()
       .prepare(
-        "SELECT name, dataset_id AS datasetID, language FROM text_normalization_run WHERE ID=@ID"
+        "SELECT name, dataset_id AS datasetID FROM text_normalization_run WHERE ID=@ID"
       )
       .get({ ID });
   }

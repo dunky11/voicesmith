@@ -128,7 +128,7 @@ wandb/
 /assets/tiny_bert/
 /pretrained_models/
 /new_storage_path_plus/
-/backend/voice_smith/g2p/checkpoints/
-/backend/voice_smith/g2p/datasets/
-/backend/voice_smith/g2p/dictionaries/
+/backend/voice_smith/g2p/checkpoints*/
+/backend/voice_smith/g2p/datasets*/
+/backend/voice_smith/g2p/dictionaries*/
 /assets/g2p/

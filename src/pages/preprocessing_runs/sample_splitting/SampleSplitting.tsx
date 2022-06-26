@@ -2,20 +2,21 @@ import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Switch, useHistory, Route, Link } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import {
-  PreprocessingRunInterface,
-  RunInterface,
-  UsageStatsInterface,
-  SampleSplittingRunInterface,
-} from "../../../interfaces";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../app/store";
+import { RunInterface, SampleSplittingRunInterface } from "../../../interfaces";
 import { useInterval } from "../../../utils";
-import { POLL_LOGFILE_INTERVALL, SERVER_URL } from "../../../config";
+import { POLL_LOGFILE_INTERVALL } from "../../../config";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
 import ChooseSamples from "./ChooseSamples";
 import ApplyChanges from "./ApplyChanges";
-import { FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
+import {
+  FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL,
+  FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES,
+} from "../../../channels";
+
 const { ipcRenderer } = window.require("electron");
 
 const stepToPath: {
@@ -38,20 +39,19 @@ const stepToTitle: {
 
 export default function SampleSplitting({
   preprocessingRun,
-  running,
-  continueRun,
-  stopRun,
 }: {
-  preprocessingRun: PreprocessingRunInterface;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stopRun: () => void;
+  preprocessingRun: RunInterface;
 }): ReactElement {
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const isMounted = useRef(false);
   const [current, setCurrent] = useState(0);
   const history = useHistory();
   const [run, setRun] = useState<SampleSplittingRunInterface | null>(null);
-  const [usageStats, setUsageStats] = useState<UsageStatsInterface[]>([]);
 
   const selectedIsRunning =
     running !== null &&
@@ -59,39 +59,17 @@ export default function SampleSplitting({
     running.ID === preprocessingRun.ID;
 
   const fetchRun = () => {
+    const args: FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ID: preprocessingRun.ID,
+    };
     ipcRenderer
-      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, preprocessingRun.ID)
-      .then((run: SampleSplittingRunInterface[]) => {
+      .invoke(FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL.IN, args)
+      .then((run: FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
         setRun(run[0]);
       });
-  };
-
-  const pollUsageInfo = () => {
-    const ajax = new XMLHttpRequest();
-    ajax.open("GET", `${SERVER_URL}/get-system-info`);
-    ajax.onload = () => {
-      if (!isMounted.current) {
-        return;
-      }
-      const response: UsageStatsInterface = JSON.parse(ajax.responseText);
-      if (usageStats.length >= 100) {
-        usageStats.shift();
-      }
-      setUsageStats([
-        ...usageStats,
-        {
-          cpuUsage: response["cpuUsage"],
-          diskUsed: parseFloat(response["diskUsed"].toFixed(2)),
-          totalDisk: parseFloat(response["totalDisk"].toFixed(2)),
-          ramUsed: parseFloat(response["ramUsed"].toFixed(2)),
-          totalRam: parseFloat(response["totalRam"].toFixed(2)),
-        },
-      ]);
-    };
-    ajax.send();
   };
 
   const onStepChange = (current: number) => {
@@ -111,7 +89,6 @@ export default function SampleSplitting({
   }, []);
 
   useInterval(fetchRun, POLL_LOGFILE_INTERVALL);
-  useInterval(pollUsageInfo, 1000);
 
   return (
     <>
@@ -185,12 +162,7 @@ export default function SampleSplitting({
             <Route
               render={() =>
                 run !== null && (
-                  <Configuration
-                    onStepChange={onStepChange}
-                    running={running}
-                    continueRun={continueRun}
-                    run={run}
-                  />
+                  <Configuration onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[0]}
@@ -198,14 +170,7 @@ export default function SampleSplitting({
             <Route
               render={() =>
                 run !== null && (
-                  <Preprocessing
-                    onStepChange={onStepChange}
-                    run={run}
-                    running={running}
-                    continueRun={continueRun}
-                    usageStats={usageStats}
-                    stopRun={stopRun}
-                  />
+                  <Preprocessing onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[1]}
@@ -213,13 +178,7 @@ export default function SampleSplitting({
             <Route
               render={() =>
                 run !== null && (
-                  <ChooseSamples
-                    onStepChange={onStepChange}
-                    run={run}
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
-                  />
+                  <ChooseSamples onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[2]}
@@ -227,14 +186,7 @@ export default function SampleSplitting({
             <Route
               render={() =>
                 run !== null && (
-                  <ApplyChanges
-                    onStepChange={onStepChange}
-                    run={run}
-                    running={running}
-                    continueRun={continueRun}
-                    usageStats={usageStats}
-                    stopRun={stopRun}
-                  />
+                  <ApplyChanges onStepChange={onStepChange} run={run} />
                 )
               }
               path={stepToPath[3]}

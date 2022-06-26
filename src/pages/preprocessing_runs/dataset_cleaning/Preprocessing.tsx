@@ -1,56 +1,43 @@
-import React, { useState } from "react";
+import React, { ReactElement } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../../app/store";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
-import { RunInterface, UsageStatsInterface } from "../../../interfaces";
-import { LoadingOutlined } from "@ant-design/icons";
-import {
-  getProgressTitle,
-  getStageIsRunning,
-  getWouldContinueRun,
-} from "../../../utils";
+import { CleaningRunInterface, RunInterface } from "../../../interfaces";
+import { getStageIsRunning, getWouldContinueRun } from "../../../utils";
 import RunCard from "../../../components/cards/RunCard";
+import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
 
 export default function Configuration({
   onStepChange,
-  selectedID,
-  running,
-  continueRun,
-  stage,
-  usageStats,
-  stopRun,
+  run,
 }: {
   onStepChange: (current: number) => void;
-  selectedID: number | null;
-  running: RunInterface | null;
-  continueRun: (run: RunInterface) => void;
-  stage:
-    | "not_started"
-    | "gen_file_embeddings"
-    | "detect_outliers"
-    | "choose_samples"
-    | "apply_changes"
-    | "finished"
-    | null;
-  usageStats: UsageStatsInterface[];
-  stopRun: () => void;
-}) {
-  const [selectedTab, setSelectedTab] = useState<string>("Overview");
-
+  run: CleaningRunInterface;
+}): ReactElement {
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
   const stageIsRunning = getStageIsRunning(
-    ["not_started", "gen_file_embeddings", "detect_outliers"],
-    stage,
+    ["not_started", "copying_files", "transcribe"],
+    run.stage,
     running,
-    "dSCleaning",
-    selectedID
+    "cleaningRun",
+    run.ID
   );
 
   const wouldContinueRun = getWouldContinueRun(
-    ["not_started", "gen_file_embeddings", "detect_outliers"],
-    stage,
+    ["not_started", "copying_files", "transcribe"],
+    run.stage,
     running,
-    "dSCleaning",
-    selectedID
+    "cleaningRun",
+    run.ID
   );
 
   const onBackClick = () => {
@@ -58,24 +45,18 @@ export default function Configuration({
   };
 
   const onNextClick = () => {
-    if (selectedID === null) {
-      return;
-    }
     if (stageIsRunning) {
-      stopRun();
+      dispatch(setIsRunning(false));
     } else if (wouldContinueRun) {
-      continueRun({ ID: selectedID, type: "dSCleaningRun" });
+      dispatch(addToQueue({ ID: run.ID, type: "cleaningRun", name: run.name }));
     } else if (
-      ["choose_samples", "apply_changes", "finished"].includes(stage)
+      ["choose_samples", "apply_changes", "finished"].includes(run.stage)
     ) {
       onStepChange(2);
     }
   };
 
   const getNextButtonText = () => {
-    if (selectedID === null) {
-      return "Next";
-    }
     if (stageIsRunning) {
       return "Pause Run";
     }
@@ -86,15 +67,12 @@ export default function Configuration({
   };
 
   const getCurrent = () => {
-    if (selectedID === null || stage == null) {
-      return 0;
-    }
-    switch (stage) {
+    switch (run.stage) {
       case "not_started":
         return 0;
-      case "gen_file_embeddings":
+      case "copying_files":
         return 0;
-      case "detect_outliers":
+      case "transcribe":
         return 1;
       case "choose_samples":
         return 1;
@@ -104,7 +82,7 @@ export default function Configuration({
         return 1;
       default:
         throw new Error(
-          `No case selected in switch-statemen, '${stage}' is not a valid case ...`
+          `No case selected in switch-statement, '${run.stage}' is not a valid case ...`
         );
     }
   };
@@ -115,26 +93,19 @@ export default function Configuration({
     <RunCard
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button
-          type="primary"
-          disabled={selectedID === null}
-          onClick={onNextClick}
-        >
+        <Button type="primary" onClick={onNextClick}>
           {getNextButtonText()}
         </Button>,
       ]}
     >
-      <Tabs defaultActiveKey="Overview" onChange={setSelectedTab}>
+      <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
-          <UsageStatsRow
-            usageStats={usageStats}
-            style={{ marginBottom: 16 }}
-          ></UsageStatsRow>
+          <UsageStatsRow style={{ marginBottom: 16 }}></UsageStatsRow>
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step
-                title="Generating File Embeddings"
-                description="Generating an embedding vector for each file."
+                title="Copying Files"
+                description="Copy audio files into the correct folder."
                 icon={
                   current === 0 && stageIsRunning ? (
                     <LoadingOutlined />
@@ -142,8 +113,8 @@ export default function Configuration({
                 }
               />
               <Steps.Step
-                title="Detecting Outliers"
-                description="Detecting outliers in the dataset."
+                title="Transcribe"
+                description="Transcribe audio to calculate sample quality score."
                 icon={
                   current === 1 && stageIsRunning ? (
                     <LoadingOutlined />
@@ -155,7 +126,7 @@ export default function Configuration({
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log" key="log">
           <LogPrinter
-            name={selectedID === null ? null : String(selectedID)}
+            name={String(run.ID)}
             logFileName="preprocessing.txt"
             type="cleaningRun"
           />

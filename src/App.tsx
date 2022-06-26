@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, ReactElement } from "react";
 import { Route, Switch, useHistory } from "react-router-dom";
-import { Layout, Menu, Typography, notification, Divider } from "antd";
+import { Layout, Menu, Typography, Divider } from "antd";
 import {
   ShareAltOutlined,
   FundFilled,
@@ -9,13 +9,16 @@ import {
   SettingOutlined,
 } from "@ant-design/icons";
 import { createUseStyles } from "react-jss";
+import { useDispatch, useSelector } from "react-redux";
+import { editAppInfo } from "./features/appInfoSlice";
+import { RootState } from "./app/store";
 import MainLoading from "./pages/main_loading/MainLoading";
 import Models from "./pages/models/Models";
 import Synthesize from "./pages/models/Synthesize";
 import TrainingRuns from "./pages/training_runs/TrainingRuns";
 import Datasets from "./pages/datasets/Datasets";
 import PreprocessingRuns from "./pages/preprocessing_runs/PreprocessingRuns";
-import { AppInfoInterface, RunInterface } from "./interfaces";
+import { AppInfoInterface } from "./interfaces";
 import { pingServer } from "./utils";
 import {
   DATASETS_ROUTE,
@@ -23,16 +26,17 @@ import {
   PREPROCESSING_RUNS_ROUTE,
   SETTINGS_ROUTE,
   TRAINING_RUNS_ROUTE,
+  RUN_QUEUE_ROUTE,
 } from "./routes";
 import Settings from "./pages/settings/Settings";
+import RunQueue from "./pages/run_queue/RunQueue";
 import {
-  CONTINUE_CLEANING_RUN_CHANNEL,
-  CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL,
-  CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL,
   CONTINUE_TRAINING_RUN_CHANNEL,
   GET_APP_INFO_CHANNEL,
-  STOP_RUN_CHANNEL,
 } from "./channels";
+import RunManager from "./components/run_management/RunManager";
+import { app } from "electron";
+
 const { ipcRenderer } = window.require("electron");
 
 const useStyles = createUseStyles({
@@ -77,109 +81,23 @@ export default function App(): ReactElement {
   const classes = useStyles();
   const history = useHistory();
   const isMounted = useRef(false);
-  const [appInfo, setAppInfo] = useState<AppInfoInterface | null>(null);
+  const dispatch = useDispatch();
+  const appInfo = useSelector((state: RootState) => state.appInfo);
+  const navIsDisabled = useSelector(
+    (state: RootState) => state.navigationSettings.isDisabled
+  );
   const [selectedKeys, setSelectedKeys] = useState<string[]>(["models"]);
   const [selectedModel, setSelectedModel] = useState(null);
-  const [navIsDisabled, setNavIsDisabled] = useState(false);
-  const [running, setRunning] = useState<RunInterface | null>(null);
   const [serverIsReady, setServerIsReady] = useState(false);
+
+  console.log(appInfo);
 
   const fetchAppInfo = () => {
     ipcRenderer
       .invoke(GET_APP_INFO_CHANNEL.IN)
       .then((appInfo: AppInfoInterface) => {
-        setAppInfo(appInfo);
+        dispatch(editAppInfo(appInfo));
       });
-  };
-
-  const continueRun = (run: RunInterface) => {
-    if (running !== null) {
-      notification["warning"]({
-        message: `Another run is currently active, please stop it before starting this one.`,
-        placement: "top",
-      });
-      return;
-    }
-    ipcRenderer.removeAllListeners(CONTINUE_TRAINING_RUN_CHANNEL.REPLY);
-    ipcRenderer.on(
-      CONTINUE_TRAINING_RUN_CHANNEL.REPLY,
-      (
-        _: any,
-        message: {
-          type: string;
-          errorMessage?: string;
-        }
-      ) => {
-        if (!isMounted.current) {
-          return;
-        }
-
-        switch (message.type) {
-          case "notEnoughSpeakers": {
-            notification["error"]({
-              message: "Couldn't Start Run",
-              description:
-                "This runs dataset contains only one speaker, but it has to have at least two speakers in order to detect potentially noisy samples.",
-              placement: "top",
-            });
-            return;
-          }
-          case "notEnoughSamples":
-            notification["error"]({
-              message: "Couldn't Start Run",
-              description:
-                "This runs dataset contains no samples. Please attach samples to the speakers in your dataset and try again.",
-              placement: "top",
-            });
-            return;
-          case "startedRun":
-            setRunning(run);
-            return;
-          case "finishedRun":
-            setRunning(null);
-            return;
-          case "error":
-            setRunning(null);
-            notification["error"]({
-              message: "Oops, an error occured, check logs for more info ...",
-              description: message.errorMessage,
-              placement: "top",
-            });
-            return;
-          default:
-            throw new Error(
-              `No branch selected in switch-statement, '${message.type}' is not a valid case ...`
-            );
-        }
-      }
-    );
-    switch (run.type) {
-      case "trainingRun":
-        ipcRenderer.send(CONTINUE_TRAINING_RUN_CHANNEL.IN, run.ID);
-        break;
-      case "dSCleaningRun":
-        ipcRenderer.send(CONTINUE_CLEANING_RUN_CHANNEL.IN, run.ID);
-        break;
-      case "textNormalizationRun":
-        ipcRenderer.send(CONTINUE_TEXT_NORMALIZATION_RUN_CHANNEL.IN, run.ID);
-        break;
-      case "sampleSplittingRun":
-        ipcRenderer.send(CONTINUE_SAMPLE_SPLITTING_RUN_CHANNEL.IN, run.ID);
-        break;
-      default:
-        throw new Error(
-          `No branch selected in switch-statement, '${run.type}' is not a valid case ...`
-        );
-    }
-  };
-
-  const stopRun = () => {
-    ipcRenderer.invoke(STOP_RUN_CHANNEL.IN).then(() => {
-      if (!isMounted.current) {
-        return;
-      }
-      setRunning(null);
-    });
   };
 
   const onModelSelect = (model: any) => {
@@ -195,7 +113,8 @@ export default function App(): ReactElement {
       | "datasets"
       | "training-runs"
       | "preprocessing-runs"
-      | "settings";
+      | "settings"
+      | "run-queue";
   }) => {
     setSelectedKeys([key]);
     switch (key) {
@@ -213,6 +132,9 @@ export default function App(): ReactElement {
         break;
       case "settings":
         history.push(SETTINGS_ROUTE.ROUTE);
+        break;
+      case "run-queue":
+        history.push(RUN_QUEUE_ROUTE.ROUTE);
         break;
       default:
         throw new Error(
@@ -234,6 +156,10 @@ export default function App(): ReactElement {
       setSelectedKeys(["datasets"]);
     } else if (route.includes(PREPROCESSING_RUNS_ROUTE.ROUTE)) {
       setSelectedKeys(["preprocessing-runs"]);
+    } else if (route.includes(SETTINGS_ROUTE.ROUTE)) {
+      setSelectedKeys(["settings"]);
+    } else if (route.includes(RUN_QUEUE_ROUTE.ROUTE)) {
+      setSelectedKeys(["run-queue"]);
     } else {
       throw new Error(`Route '${route}' is not a valid route.`);
     }
@@ -251,6 +177,7 @@ export default function App(): ReactElement {
 
   return (
     <>
+      <RunManager />
       <Layout className={classes.leftLayout}>
         <Layout.Sider className={classes.sider}>
           <div className={classes.logoWrapper}>
@@ -312,6 +239,16 @@ export default function App(): ReactElement {
               </Menu.Item>
               <Menu.Item
                 onClick={() => {
+                  onNavigationSelect({ key: "run-queue" });
+                }}
+                key="run-queue"
+                icon={<ClearOutlined className={classes.navIcon} />}
+                className={classes.navItem}
+              >
+                Run Queue
+              </Menu.Item>
+              <Menu.Item
+                onClick={() => {
                   onNavigationSelect({ key: "settings" });
                 }}
                 key="settings"
@@ -350,13 +287,7 @@ export default function App(): ReactElement {
                 path={MODELS_ROUTE.ROUTE}
               ></Route>
               <Route
-                render={() => (
-                  <TrainingRuns
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
-                  ></TrainingRuns>
-                )}
+                render={() => <TrainingRuns></TrainingRuns>}
                 path={TRAINING_RUNS_ROUTE.ROUTE}
               ></Route>
               <Route
@@ -364,30 +295,20 @@ export default function App(): ReactElement {
                 path={DATASETS_ROUTE.ROUTE}
               ></Route>
               <Route
-                render={() => (
-                  <PreprocessingRuns
-                    running={running}
-                    continueRun={continueRun}
-                    stopRun={stopRun}
-                  ></PreprocessingRuns>
-                )}
+                render={() => <PreprocessingRuns></PreprocessingRuns>}
                 path={PREPROCESSING_RUNS_ROUTE.ROUTE}
               ></Route>
               <Route
-                render={() => (
-                  <Settings
-                    running={running}
-                    setNavIsDisabled={setNavIsDisabled}
-                  ></Settings>
-                )}
+                render={() => <RunQueue></RunQueue>}
+                path={RUN_QUEUE_ROUTE.ROUTE}
+              ></Route>
+              <Route
+                render={() => <Settings></Settings>}
                 path={SETTINGS_ROUTE.ROUTE}
               ></Route>
               <Route
                 render={() => (
-                  <MainLoading
-                    appInfo={appInfo}
-                    onServerIsReady={onServerIsReady}
-                  ></MainLoading>
+                  <MainLoading onServerIsReady={onServerIsReady}></MainLoading>
                 )}
               ></Route>
             </Switch>

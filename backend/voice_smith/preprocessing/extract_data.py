@@ -93,6 +93,7 @@ def process_utterance(
     in_dir: str,
     out_dir: str,
     speaker: str,
+    lang: str,
     basename: str,
     sampling_rate: int,
     filter_length: int,
@@ -103,9 +104,9 @@ def process_utterance(
     normalize_loudness: bool,
     ignore_below_hz: Union[int, None],
 ) -> Union[None, Tuple[str, int]]:
-    audio_path = Path(in_dir) / speaker / f"{basename}.wav"
-    text_path = Path(in_dir) / speaker / f"{basename}.txt"
-    tg_path = Path(out_dir) / "textgrid" / speaker / f"{basename}.TextGrid"
+    audio_path = Path(in_dir) / lang / speaker / f"{basename}.flac"
+    text_path = Path(in_dir) / lang / speaker / f"{basename}.txt"
+    tg_path = Path(out_dir) / "textgrid" / lang / speaker / f"{basename}.TextGrid"
 
     min_samples = int(sampling_rate * min_seconds)
     max_samples = int(sampling_rate * max_seconds)
@@ -209,6 +210,7 @@ def process_utterance(
         {
             "mel": torch.from_numpy(mel_spectrogram),
             "pitch": torch.from_numpy(averaged_pitch),
+            "lang": lang,
             "phones": phones,
             "raw_text": raw_text,
             "durations": torch.LongTensor(durations),
@@ -217,9 +219,7 @@ def process_utterance(
     )
 
     torch.save(
-        {
-            "wav": torch.from_numpy(wav).float(),
-        },
+        {"wav": torch.from_numpy(wav).float(),},
         Path(out_dir) / "wav" / speaker / f"{basename}.pt",
     )
 
@@ -270,13 +270,12 @@ def extract_data(
     out = []
     speaker_names = []
     n_frames_total = 0
-    speakers = {speaker.name: i for i, speaker in enumerate(in_dir.iterdir())}
+    speakers = {speaker.name: i for i, speaker in enumerate(in_dir.glob("*/*"))}
 
-    for speaker_path in in_dir.iterdir():
+    for speaker_path in in_dir.glob("*/*"):
         (out_dir / "data" / speaker_path.name).mkdir(exist_ok=True, parents=True)
         (out_dir / "wav" / speaker_path.name).mkdir(exist_ok=True, parents=True)
-
-    wav_paths = list(in_dir.glob("*/*.wav"))
+    wav_paths = list(in_dir.glob("*/*/*.flac"))
 
     def callback(index: int):
         if index % log_every == 0:
@@ -292,6 +291,7 @@ def extract_data(
             in_dir=in_dir,
             out_dir=out_dir,
             speaker=str(wav_path.parent.name),
+            lang=str(wav_path.parent.parent.name),
             basename=wav_path.stem,
             sampling_rate=sampling_rate,
             filter_length=filter_length,

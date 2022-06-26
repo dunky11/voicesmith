@@ -2,6 +2,7 @@ from pathlib import Path
 from nemo_text_processing.text_normalization.normalize import Normalizer
 from typing import Tuple, List, Dict, Any, Callable, Optional
 from voice_smith.utils.tokenization import WordTokenizer
+from dataclasses import dataclass
 
 LATIN_CHARACTERS = list("abcdefghijklmnopqrstuvwxyz")
 GERMAN_CHARACTERS = list("öüäß")
@@ -248,8 +249,8 @@ class DetShouldNormalizeES(DetShouldNormalizeBase):
             + self.fetch_word_list("spanish_initialisms.txt", assets_path=assets_path)
             + SPANISH_INITIALISMS
         )
-        self.abbreviations = set(abbr, es_punctuation)
-        self.initialisms = set(initialisms, es_punctuation)
+        self.abbreviations = set(abbr)
+        self.initialisms = set(initialisms)
 
     def should_normalize(
         self, text: str, tokenizer: WordTokenizer
@@ -313,8 +314,8 @@ class DetShouldNormalizeRU(DetShouldNormalizeBase):
             self.fetch_word_list("russian_initialisms.txt", assets_path=assets_path)
             + RUSSIAN_INITIALISMS
         )
-        self.abbreviations = set(abbr, ru_punctuation)
-        self.initialisms = set(initialisms, ru_punctuation)
+        self.abbreviations = set(abbr)
+        self.initialisms = set(initialisms)
 
     def should_normalize(
         self, text: str, tokenizer: WordTokenizer
@@ -357,18 +358,20 @@ def apply_nemo_normalization(text: str, normalizer: Normalizer):
 def normalize_sample(
     text_in: str,
     char_normalizer: Optional[CharNormalizer],
-    detector: DetShouldNormalizeEN,
-    normalizer: Normalizer,
-    deterministic: bool,
+    detector: Optional[DetShouldNormalizeEN],
+    normalizer: Optional[Normalizer],
     tokenizer: WordTokenizer,
 ):
     if char_normalizer is None:
         text_out, reasons_char_norm = text_in, []
     else:
         text_out, reasons_char_norm = char_normalizer.normalize(text_in)
-    should_normalize, reasons_det = detector.should_normalize(text_out, tokenizer)
-    if should_normalize:
-        text_out = apply_nemo_normalization(text=text_out, normalizer=normalizer)
+    if detector is not None:
+        should_normalize, reasons_det = detector.should_normalize(text_out, tokenizer)
+        if should_normalize:
+            text_out = apply_nemo_normalization(text=text_out, normalizer=normalizer)
+    else:
+        reasons_det = []
 
     reason = ". ".join(reasons_char_norm + reasons_det)
     if len(reason) > 0:
@@ -387,50 +390,77 @@ def load_text(text_path: Path):
     return text
 
 
+@dataclass
+class NormalizationUtils:
+    tokenizer: WordTokenizer
+    char_normalizer: Optional[CharNormalizer]
+    detector: Optional[DetShouldNormalizeBase]
+    normalizer: Optional[Normalizer]
+
+
+def get_normalization_utils(
+    lang: str, normalize_characters: bool, assets_path: str
+) -> NormalizationUtils:
+    if lang == "en":
+        detector = DetShouldNormalizeEN(assets_path)
+        normalizer = Normalizer(
+            input_case="cased", lang=lang, overwrite_cache=False, deterministic=True,
+        )
+    elif lang == "es":
+        detector = DetShouldNormalizeES(assets_path)
+        normalizer = Normalizer(
+            input_case="cased", lang=lang, overwrite_cache=False, deterministic=True,
+        )
+    elif lang == "de":
+        detector = DetShouldNormalizeDE(assets_path)
+        normalizer = Normalizer(
+            input_case="cased", lang=lang, overwrite_cache=False, deterministic=True,
+        )
+    elif lang == "ru":
+        detector = DetShouldNormalizeRU(assets_path)
+        normalizer = Normalizer(
+            input_case="cased", lang=lang, overwrite_cache=False, deterministic=False,
+        )
+    else:
+        detector = None
+        normalizer = None
+
+    return NormalizationUtils(
+        tokenizer=WordTokenizer(lang, remove_punct=False),
+        char_normalizer=CharNormalizer() if normalize_characters else None,
+        detector=detector,
+        normalizer=normalizer,
+    )
+
+
 def text_normalize(
-    id_text_pairs: List[Tuple[int, str]],
+    sample_ids: List[str],
+    texts: List[str],
+    langs: List[str],
     assets_path: str,
-    lang: str,
     progress_cb: Callable[[float], None],
     callback_every: int = 50,
     normalize_characters: bool = True,
 ) -> List[Tuple[int, str, str, str]]:
-    if lang == "en":
-        detector = DetShouldNormalizeEN(assets_path)
-        deterministic = True
-    elif lang == "es":
-        detector = DetShouldNormalizeES(assets_path)
-        deterministic = True
-    elif lang == "de":
-        detector = DetShouldNormalizeDE(assets_path)
-        deterministic = True
-    elif lang == "ru":
-        detector = DetShouldNormalizeRU(assets_path)
-        deterministic = False
-    else:
-        raise Exception(
-            f"No case selected in switch-statement, '{lang}' is not a valid case ..."
-        )
-
-    tokenizer = WordTokenizer(lang, remove_punct=False)
-    char_normalizer = CharNormalizer()
-    normalizer = Normalizer(
-        input_case="cased",
-        lang=lang,
-        overwrite_cache=False,
-        deterministic=deterministic,
-    )
+    assert len(sample_ids) == len(texts) == len(langs)
 
     normalizations = []
+    lang2Utils: Dict[str, NormalizationUtils] = {}
 
-    for i, (sample_id, text) in enumerate(id_text_pairs):
+    for i, (sample_id, text, lang) in enumerate(zip(sample_ids, texts, langs)):
+        if not lang in lang2Utils:
+            lang2Utils[lang] = get_normalization_utils(
+                lang=lang,
+                normalize_characters=normalize_characters,
+                assets_path=assets_path,
+            )
+        utils = lang2Utils[lang]
         ret = normalize_sample(
             text_in=text,
-            char_normalizer=CharNormalizer() if normalize_characters else None,
-            detector=detector,
-            normalizer=normalizer,
-            deterministic=deterministic,
-            tokenizer=tokenizer,
+            char_normalizer=utils.char_normalizer,
+            detector=utils.detector,
+            normalizer=utils.normalizer,
+            tokenizer=utils.tokenizer,
         )
         is_normalized, text_in, text_out, reason = ret
         if is_normalized:
@@ -441,7 +471,7 @@ def text_normalize(
             print("", flush=True)
 
         if i % callback_every == 0 and i != 0:
-            progress_cb((i + 1) / len(id_text_pairs))
+            progress_cb((i + 1) / len(sample_ids))
 
     progress_cb(1.0)
 

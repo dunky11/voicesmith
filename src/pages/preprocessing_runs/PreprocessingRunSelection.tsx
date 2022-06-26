@@ -1,5 +1,7 @@
 import React, { ReactElement, useEffect, useRef, useState } from "react";
 import { SyncOutlined } from "@ant-design/icons";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../../app/store";
 import {
   Table,
   Button,
@@ -8,58 +10,55 @@ import {
   Breadcrumb,
   Popconfirm,
   Typography,
-  Tag,
 } from "antd";
 import { defaultPageOptions } from "../../config";
-import { PreprocessingRunInterface, RunInterface } from "../../interfaces";
-import { stringCompare } from "../../utils";
+import { RunInterface, PreprocessingRunType } from "../../interfaces";
+import {
+  stringCompare,
+  isInQueue,
+  getStateTag,
+  getTypeTag,
+  getTypeFullName,
+} from "../../utils";
 import {
   CREATE_PREPROCESSING_RUN_CHANNEL,
   EDIT_PREPROCESSING_RUN_NAME_CHANNEL,
   FETCH_PREPROCESSING_RUNS_CHANNEL,
+  FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES,
   REMOVE_PREPROCESSING_RUN_CHANNEL,
 } from "../../channels";
+import { addToQueue } from "../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
-
-const prettyType = (
-  type: "textNormalizationRun" | "dSCleaningRun" | "sampleSplittingRun"
-) => {
-  switch (type) {
-    case "textNormalizationRun":
-      return "Text Normalization";
-    case "dSCleaningRun":
-      return "Dataset Cleaning";
-    case "sampleSplittingRun":
-      return "Sample Splitting";
-    default:
-      throw new Error(
-        `No case selected in switch-statement, '${type}' is not a valid case ...`
-      );
-  }
-};
 
 export default function PreprocessingRunSelection({
   setSelectedPreprocessingRun,
-  running,
-  stopRun,
-  continueRun,
 }: {
   setSelectedPreprocessingRun: (
-    preprocessingRun: PreprocessingRunInterface | null
+    preprocessingRun: PreprocessingRunType | null
   ) => void;
-  running: RunInterface | null;
-  stopRun: () => void;
-  continueRun: (run: RunInterface) => void;
 }): ReactElement {
   const isMounted = useRef(false);
   const [preprocessingRuns, setPreprocessingRuns] = useState<
-    PreprocessingRunInterface[]
+    PreprocessingRunType[]
   >([]);
+  const dispatch = useDispatch();
+  const running: RunInterface = useSelector((state: RootState) => {
+    if (!state.runManager.isRunning || state.runManager.queue.length === 0) {
+      return null;
+    }
+    return state.runManager.queue[0];
+  });
+  const isRunning = useSelector((state: RootState) => {
+    return state.runManager.isRunning;
+  });
+  const queue = useSelector((state: RootState) => {
+    return state.runManager.queue;
+  });
   const [isDisabled, setIsDisabled] = useState(false);
 
   const getFirstPossibleName = () => {
     const names = preprocessingRuns.map(
-      (preprocessingRun: PreprocessingRunInterface) => preprocessingRun.name
+      (preprocessingRun: PreprocessingRunType) => preprocessingRun.name
     );
     let i = 1;
     let name = `Preprocessing Run ${i}`;
@@ -72,13 +71,13 @@ export default function PreprocessingRunSelection({
 
   const nameIsValid = (name: string) => {
     const names = preprocessingRuns.map(
-      (preprocessingRun: PreprocessingRunInterface) => preprocessingRun.name
+      (preprocessingRun: PreprocessingRunType) => preprocessingRun.name
     );
     return !names.includes(name);
   };
 
   const onNameEdit = (
-    preprocessingRun: PreprocessingRunInterface,
+    preprocessingRun: PreprocessingRunType,
     newName: string
   ) => {
     if (!nameIsValid(newName)) {
@@ -92,7 +91,7 @@ export default function PreprocessingRunSelection({
   const fetchPreprocessingRuns = () => {
     ipcRenderer
       .invoke(FETCH_PREPROCESSING_RUNS_CHANNEL.IN)
-      .then((ds: PreprocessingRunInterface[]) => {
+      .then((ds: FETCH_PREPROCESSING_RUNS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
@@ -100,9 +99,7 @@ export default function PreprocessingRunSelection({
       });
   };
 
-  const removePreprocessingRun = (
-    preprocessingRun: PreprocessingRunInterface
-  ) => {
+  const removePreprocessingRun = (preprocessingRun: PreprocessingRunType) => {
     ipcRenderer
       .invoke(REMOVE_PREPROCESSING_RUN_CHANNEL.IN, preprocessingRun)
       .then(fetchPreprocessingRuns);
@@ -117,19 +114,11 @@ export default function PreprocessingRunSelection({
       .then(fetchPreprocessingRuns);
   };
 
-  const getIsRunning = (record: PreprocessingRunInterface) => {
-    return (
-      running !== null &&
-      running.type === record.type &&
-      record.ID === running.ID
-    );
-  };
-
   const columns = [
     {
       title: "Name",
       key: "name",
-      render: (text: any, record: PreprocessingRunInterface) => (
+      render: (text: any, record: PreprocessingRunType) => (
         <Typography.Text
           editable={{
             tooltip: false,
@@ -143,19 +132,18 @@ export default function PreprocessingRunSelection({
         </Typography.Text>
       ),
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
           stringCompare(a.name, b.name),
       },
     },
     {
       title: "Type",
       key: "type",
-      render: (text: any, record: PreprocessingRunInterface) => (
-        <Typography.Text>{prettyType(record.type)}</Typography.Text>
-      ),
+      render: (text: any, record: PreprocessingRunType) =>
+        getTypeTag(record.type),
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
-          stringCompare(prettyType(a.type), prettyType(b.type)),
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
+          stringCompare(getTypeFullName(a.type), getTypeFullName(b.type)),
       },
     },
     {
@@ -163,15 +151,15 @@ export default function PreprocessingRunSelection({
       key: "stage",
       dataIndex: "stage",
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
           stringCompare(a.stage, b.stage),
       },
     },
     {
       title: "State",
-      key: "action",
+      key: "state",
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
           stringCompare(
             running !== null &&
               running.type === "trainingRun" &&
@@ -185,54 +173,53 @@ export default function PreprocessingRunSelection({
               : "not_running"
           ),
       },
-      render: (text: any, record: PreprocessingRunInterface) =>
-        getIsRunning(record) ? (
-          <Tag icon={<SyncOutlined spin />} color="green">
-            Running
-          </Tag>
-        ) : (
-          <Tag color="orange">Not Running</Tag>
-        ),
+      render: (text: any, record: PreprocessingRunType) =>
+        getStateTag(record, isRunning, queue),
     },
     {
       title: "Dataset",
-      dataIndex: "datasetName",
       key: "datasetName",
       sorter: {
-        compare: (a: PreprocessingRunInterface, b: PreprocessingRunInterface) =>
-          stringCompare(a.datasetName, b.datasetName),
+        compare: (a: PreprocessingRunType, b: PreprocessingRunType) =>
+          stringCompare(
+            a.configuration.datasetName,
+            b.configuration.datasetName
+          ),
       },
+      render: (text: any, record: PreprocessingRunType) => (
+        <Typography.Text>{record.configuration.datasetName}</Typography.Text>
+      ),
     },
     {
       title: "",
       key: "action",
-      render: (text: any, record: PreprocessingRunInterface) => {
-        const isRunning = getIsRunning(record);
-
+      render: (text: any, record: PreprocessingRunType) => {
+        const isIn = isInQueue(record, queue);
         const getRunningLink = () => {
-          if (isRunning) {
-            return <a onClick={stopRun}>Pause Training</a>;
+          if (record.stage === "finished") {
+            return <></>;
           } else {
-            if (record.stage === "finished") {
-              return <></>;
-            } else {
-              if (
-                record.stage === "choose_samples" ||
-                record.stage === "finished" ||
-                record.stage == "not_started"
-              ) {
-                return <Typography.Text disabled>Continue Run</Typography.Text>;
-              }
-              return (
-                <a
-                  onClick={() => {
-                    continueRun({ ID: record.ID, type: record.type });
-                  }}
-                >
-                  Continue Run
-                </a>
-              );
+            const text = isIn ? "Continue Run" : "Add To Queue";
+            const isDisabled =
+              isIn || record.stage === "choose_samples" || !record.canStart;
+            if (isDisabled) {
+              return <Typography.Text disabled>{text}</Typography.Text>;
             }
+            return (
+              <a
+                onClick={() => {
+                  dispatch(
+                    addToQueue({
+                      ID: record.ID,
+                      type: record.type,
+                      name: record.name,
+                    })
+                  );
+                }}
+              >
+                {text}
+              </a>
+            );
           }
         };
 
@@ -257,7 +244,7 @@ export default function PreprocessingRunSelection({
               }}
               okText="Yes"
               cancelText="No"
-              disabled={isDisabled}
+              disabled={isDisabled || isIn}
             >
               <a href="#">Delete</a>
             </Popconfirm>
@@ -300,8 +287,17 @@ export default function PreprocessingRunSelection({
                 createPreprocessingRun("sampleSplittingRun");
               }}
               disabled={isDisabled}
+              style={{ marginRight: 8 }}
             >
               New Sample Splitting Run
+            </Button>
+            <Button
+              onClick={() => {
+                createPreprocessingRun("dSCleaningRun");
+              }}
+              disabled={isDisabled}
+            >
+              New Cleaning Run
             </Button>
           </div>
           <Table
@@ -309,12 +305,10 @@ export default function PreprocessingRunSelection({
             style={{ width: "100%" }}
             columns={columns}
             pagination={defaultPageOptions}
-            dataSource={preprocessingRuns.map(
-              (ds: PreprocessingRunInterface) => ({
-                ...ds,
-                key: `${ds.type}-${ds.ID}`,
-              })
-            )}
+            dataSource={preprocessingRuns.map((ds: PreprocessingRunType) => ({
+              ...ds,
+              key: `${ds.type}-${ds.ID}`,
+            }))}
           ></Table>
         </div>
       </Card>
