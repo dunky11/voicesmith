@@ -370,6 +370,8 @@ def normalize_sample(
         should_normalize, reasons_det = detector.should_normalize(text_out, tokenizer)
         if should_normalize:
             text_out = apply_nemo_normalization(text=text_out, normalizer=normalizer)
+    else:
+        reasons_det = []
 
     reason = ". ".join(reasons_char_norm + reasons_det)
     if len(reason) > 0:
@@ -432,17 +434,20 @@ def get_normalization_utils(
 
 
 def text_normalize(
-    id_text_pairs: List[Tuple[int, str]],
-    assets_path: str,
+    sample_ids: List[str],
+    texts: List[str],
     langs: List[str],
+    assets_path: str,
     progress_cb: Callable[[float], None],
     callback_every: int = 50,
     normalize_characters: bool = True,
 ) -> List[Tuple[int, str, str, str]]:
+    assert len(sample_ids) == len(texts) == len(langs)
+
     normalizations = []
     lang2Utils: Dict[str, NormalizationUtils] = {}
 
-    for i, ((sample_id, text), lang) in enumerate(zip(id_text_pairs, langs)):
+    for i, (sample_id, text, lang) in enumerate(zip(sample_ids, texts, langs)):
         if not lang in lang2Utils:
             lang2Utils[lang] = get_normalization_utils(
                 lang=lang,
@@ -466,7 +471,7 @@ def text_normalize(
             print("", flush=True)
 
         if i % callback_every == 0 and i != 0:
-            progress_cb((i + 1) / len(id_text_pairs))
+            progress_cb((i + 1) / len(sample_ids))
 
     progress_cb(1.0)
 

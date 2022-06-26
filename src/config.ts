@@ -102,7 +102,7 @@ export const trainingRunInitialValues: TrainingRunConfigInterface = {
   onlyTrainSpeakerEmbUntil: 5000,
   datasetID: null,
   datasetName: null,
-  skipOnError: false,
+  skipOnError: true,
 };
 
 export const defaultPageOptions = {

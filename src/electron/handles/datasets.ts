@@ -548,7 +548,7 @@ ipcMain.handle(FETCH_DATASET_CANDIDATES_CHANNEL.IN, () => {
         referencedBy = dataset.cleaningRunName;
       } else if (dataset.textNormalizationName !== null) {
         referencedBy = dataset.textNormalizationName;
-      } else if (dataset.sampleSplittingRunName) {
+      } else if (dataset.sampleSplittingRunName !== null) {
         referencedBy = dataset.sampleSplittingRunName;
       }
       return {

@@ -270,12 +270,20 @@ export const getStateTag = (
       break;
     }
   }
-  if (position === 1 && isRunning) {
-    return (
-      <Tag icon={<SyncOutlined spin />} color="green">
-        Running
-      </Tag>
-    );
+  if (position === 1) {
+    if (isRunning) {
+      return (
+        <Tag icon={<SyncOutlined spin />} color="green">
+          Running
+        </Tag>
+      );
+    } else {
+      return (
+        <Tag icon={<SyncOutlined spin />} color="yellow">
+          Paused
+        </Tag>
+      );
+    }
   } else if (position !== -1) {
     return <Tag color="blue">{`Position ${position} in queue`}</Tag>;
   } else {
@@ -304,13 +312,13 @@ export const getTypeTag = (type: RunInterface["type"]): ReactElement => {
   const name = getTypeFullName(type);
   switch (type) {
     case "textNormalizationRun":
-      return <Tag>{name}</Tag>;
+      return <Tag color="geekblue">{name}</Tag>;
     case "cleaningRun":
-      return <Tag>{name}</Tag>;
+      return <Tag color="lime">{name}</Tag>;
     case "sampleSplittingRun":
-      return <Tag>{name}</Tag>;
+      return <Tag color="magenta">{name}</Tag>;
     case "trainingRun":
-      return <Tag>{name}</Tag>;
+      return <Tag color="gold">{name}</Tag>;
     default:
       throw new Error(
         `No case selected in switch-statement, '${type}' is not a valid case ...`

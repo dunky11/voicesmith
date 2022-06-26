@@ -15,7 +15,6 @@ from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
 from voice_smith.utils.tools import warnings_to_stdout, get_device, get_workers
 from voice_smith.preprocessing.generate_vocab import generate_vocab
-from voice_smith.preprocessing.merge_lexika import merge_lexica
 from voice_smith.preprocessing.align import align
 from voice_smith.preprocessing.sample_splitting import sample_splitting, split_sample
 from voice_smith.utils.punctuation import get_punct
@@ -34,14 +33,17 @@ warnings_to_stdout()
 def get_config(cur: sqlite3.Cursor, run_id: int) -> SampleSplittingRunConfig:
     row = cur.execute(
         """
-        SELECT device, maximum_workers FROM sample_splitting_run WHERE ID=?
+        SELECT device, maximum_workers, skip_on_error FROM sample_splitting_run WHERE ID=?
         """,
         (run_id,),
     ).fetchone()
-    (device, maximum_workers) = row
+    (device, maximum_workers, skip_on_error) = row
     device = get_device(device)
     workers = get_workers(maximum_workers)
-    return SampleSplittingRunConfig(workers=workers, device=device)
+    skip_on_error = bool(skip_on_error)
+    return SampleSplittingRunConfig(
+        workers=workers, device=device, skip_on_error=skip_on_error
+    )
 
 
 def before_run(data_path: str, **kwargs):
@@ -104,10 +106,7 @@ def copying_files_stage(
     **kwargs,
 ) -> bool:
     txt_paths, texts, audio_paths, names, langs = [], [], [], [], []
-    row = cur.execute(
-        "SELECT skip_on_error FROM sample_splitting_run WHERE ID=?", (run_id,),
-    ).fetchone()
-    skip_on_error = bool(row[0])
+
     for (
         txt_path,
         text,
@@ -159,7 +158,7 @@ def copying_files_stage(
         workers=config.workers,
         progress_cb=progress_cb,
         langs=langs,
-        skip_on_error=skip_on_error
+        skip_on_error=config.skip_on_error,
     )
     cur.execute(
         "UPDATE sample_splitting_run SET stage='gen_vocab' WHERE ID=?", (run_id,),

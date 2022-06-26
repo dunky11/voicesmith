@@ -10,9 +10,9 @@ export const usageStatsSlice = createSlice({
   reducers: {
     addStats: (state, action: PayloadAction<UsageStatsInterface>) => {
       if (state.length >= USAGE_STATS_MAX_LENGTH) {
-        state.pop();
+        state.shift();
       }
-      state.unshift(action.payload);
+      state.push(action.payload);
     },
   },
 });

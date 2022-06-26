@@ -75,7 +75,8 @@ export const fetchCleaningRuns = (
 ): CleaningRunInterface[] => {
   const fetchStmt = DB.getInstance().prepare(
     `SELECT cleaning_run.ID AS ID, cleaning_run.name AS name, stage,
-      dataset.ID AS datasetID, dataset.name AS datasetName
+      dataset.ID AS datasetID, dataset.name AS datasetName,
+      cleaning_run.skip_on_error AS skipOnError
     FROM cleaning_run
     LEFT JOIN dataset ON cleaning_run.dataset_id = dataset.ID
     ${ID === null ? "" : "WHERE ID=@ID"}`
@@ -96,6 +97,7 @@ export const fetchCleaningRuns = (
         name: el.name,
         datasetID: el.datasetID,
         datasetName: el.datasetName,
+        skipOnError: el.skipOnError,
       },
       canStart: el.datasetID !== null,
     };

@@ -61,6 +61,7 @@ const createTables = (db: any) => {
         language TEXT NOT NULL DEFAULT "en",
         dataset_id INTEGER NOT NULL,
         UNIQUE(name, dataset_id),
+        INDEX(language),
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
     ); 
     `
@@ -186,9 +187,10 @@ const createTables = (db: any) => {
     CREATE TABLE IF NOT EXISTS cleaning_run (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        get_txt_progress FLOAT DEFAULT 0.0,
-        gen_file_embeddings_progress FLOAT DEFAULT 0.0,
+        copying_files_progress FLOAT DEFAULT 0.0,
+        transcription_progress FLOAT DEFAULT 0.0,
         apply_changes_progress FLOAT DEFAULT 0.0,
+        skip_on_error BOOLEAN,
         stage TEXT DEFAULT "not_started",
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
@@ -197,10 +199,11 @@ const createTables = (db: any) => {
   ).run();
   db.prepare(
     `
-    CREATE TABLE IF NOT EXISTS noisy_sample (
+    CREATE TABLE IF NOT EXISTS cleaning_run_sample (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        label_quality FLOAT DEFAULT NULL,
+        quality_score FLOAT DEFAULT NULL,
         sample_id INT NOT NULL,
+        transcription TEXT NOT NULL,
         cleaning_run_id INT NOT NULL,
         FOREIGN KEY (sample_id) REFERENCES sample(ID),
         FOREIGN KEY (cleaning_run_id) REFERENCES cleaning_run(ID)
@@ -387,7 +390,7 @@ export const getSpeakersWithSamples = (datasetID: number) => {
   return speakers;
 };
 
-export const getReferencedBy = (datasetID: number) => {
+export const getReferencedBy = (datasetID: number): string | null => {
   let row = DB.getInstance()
     .prepare("SELECT name FROM training_run WHERE dataset_id=@datasetID")
     .get({ datasetID });

@@ -20,9 +20,11 @@ import {
 import { trainingRunInitialValues } from "../../config";
 import { notifySave } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
+import SkipOnErrorInput from "../../components/inputs/SkipOnErrorInput";
 import DeviceInput from "../../components/inputs/DeviceInput";
 import DatasetInput from "../../components/inputs/DatasetInput";
 import NameInput from "../../components/inputs/NameInput";
+import MaximumWorkersInput from "../../components/inputs/MaximumWorkersInput";
 import {
   UPDATE_TRAINING_RUN_CHANNEL,
   FETCH_TRAINING_RUN_NAMES_CHANNEL,
@@ -30,7 +32,7 @@ import {
   FETCH_TRAINING_RUNS_CHANNEL_TYPES,
 } from "../../channels";
 import { TRAINING_RUNS_ROUTE } from "../../routes";
-import { addToQueue, setIsRunning } from "../../features/runManagerSlice";
+import { addToQueue } from "../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
 export default function Configuration({
@@ -48,7 +50,7 @@ export default function Configuration({
   });
   const dispatch = useDispatch();
   const isMounted = useRef(false);
-  const [configIsLoaded, setConfigIsLoaded] = useState(false);
+  const [initialIsLoading, setInitialIsLoading] = useState(true);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
   const formRef = useRef<FormInstance | null>();
@@ -100,6 +102,8 @@ export default function Configuration({
   const onDefaults = () => {
     const values = {
       ...trainingRunInitialValues,
+      datasetName: formRef.current.getFieldValue("datasetName"),
+      datasetID: formRef.current.getFieldValue("datasetID"),
       name: formRef.current.getFieldValue("name"),
     };
     formRef.current?.setFieldsValue(values);
@@ -116,9 +120,8 @@ export default function Configuration({
         if (!isMounted.current) {
           return;
         }
-
-        if (!configIsLoaded) {
-          setConfigIsLoaded(true);
+        if (initialIsLoading) {
+          setInitialIsLoading(false);
         }
         formRef.current?.setFieldsValue(runs[0].configuration);
       });
@@ -143,22 +146,24 @@ export default function Configuration({
     };
   }, []);
 
-  const disableEdit = !configIsLoaded;
-
-  const disableNext = disableEdit;
-  const disableDefaults =
-    !configIsLoaded || (run.stage != "not_started" && run.stage != null);
+  const hasStarted = run.stage !== "not_started";
 
   return (
     <RunCard
       title="Configure the Training Run"
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button disabled={disableDefaults} onClick={onDefaults}>
+        <Button disabled={initialIsLoading} onClick={onDefaults}>
           Reset to Default
         </Button>,
-        <Button onClick={onSave}>Save</Button>,
-        <Button type="primary" disabled={disableNext} onClick={onNextClick}>
+        <Button disabled={initialIsLoading} onClick={onSave}>
+          Save
+        </Button>,
+        <Button
+          type="primary"
+          disabled={initialIsLoading}
+          onClick={onNextClick}
+        >
           {running !== null &&
           running.type === "trainingRun" &&
           running.ID === run.ID
@@ -175,32 +180,22 @@ export default function Configuration({
         onFinish={onFinish}
         initialValues={trainingRunInitialValues}
       >
-        <NameInput fetchNames={fetchNames} disabled={disableEdit} />
-        <DatasetInput disabled={disableEdit} />
-        <DeviceInput disabled={disableEdit} />
+        <NameInput fetchNames={fetchNames} disabled={initialIsLoading} />
+        <SkipOnErrorInput disabled={initialIsLoading} />
+        <DatasetInput disabled={initialIsLoading || hasStarted} />
+        <DeviceInput disabled={initialIsLoading} />
         <Collapse style={{ width: "100%" }}>
           <Collapse.Panel header="Preprocessing" key="preprocessing">
             <Form.Item label="Validation Size" name="validationSize">
               <InputNumber
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={0.01}
                 min={0}
                 max={100.0}
                 addonAfter="%"
               ></InputNumber>
             </Form.Item>
-            <Form.Item label="Maximum Number of Workers" name="maximumWorkers">
-              <Select disabled={disableEdit} style={{ width: 200 }}>
-                <Select.Option value={-1}>Auto</Select.Option>
-                {Array.from(Array(64 + 1).keys())
-                  .slice(1)
-                  .map((el) => (
-                    <Select.Option key={el} value={el}>
-                      {el}
-                    </Select.Option>
-                  ))}
-              </Select>
-            </Form.Item>
+            <MaximumWorkersInput disabled={initialIsLoading} />
             <Form.Item
               rules={[
                 ({ getFieldValue }) => ({
@@ -221,7 +216,7 @@ export default function Configuration({
               dependencies={["maxSeconds"]}
             >
               <InputNumber
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={0.1}
                 min={0}
               ></InputNumber>
@@ -246,14 +241,14 @@ export default function Configuration({
               name="maxSeconds"
             >
               <InputNumber
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={0.1}
                 min={0}
                 max={15}
               ></InputNumber>
             </Form.Item>
             <Form.Item name="useAudioNormalization" valuePropName="checked">
-              <Checkbox disabled={disableEdit}>
+              <Checkbox disabled={initialIsLoading}>
                 Apply Audio Normalization
               </Checkbox>
             </Form.Item>
@@ -276,7 +271,7 @@ export default function Configuration({
               name="acousticLearningRate"
             >
               <InputNumber
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={0.001}
                 min={0}
               ></InputNumber>
@@ -284,7 +279,7 @@ export default function Configuration({
             <Form.Item label="Training Steps" name="acousticTrainingIterations">
               <InputNumber
                 precision={0}
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={1}
                 min={0}
               ></InputNumber>
@@ -292,7 +287,7 @@ export default function Configuration({
             <Form.Item label="Batch Size" name="acousticBatchSize">
               <InputNumber
                 precision={0}
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={1}
                 min={1}
               ></InputNumber>
@@ -303,7 +298,7 @@ export default function Configuration({
             >
               <InputNumber
                 precision={0}
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={1}
                 min={1}
               ></InputNumber>
@@ -314,7 +309,7 @@ export default function Configuration({
             >
               <InputNumber
                 precision={0}
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={10}
                 min={0}
                 addonAfter="steps"
@@ -338,7 +333,7 @@ export default function Configuration({
             >
               <InputNumber
                 precision={0}
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={10}
                 min={0}
                 addonAfter="steps"
@@ -364,7 +359,7 @@ export default function Configuration({
               name="vocoderLearningRate"
             >
               <InputNumber
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={0.001}
                 min={0}
               ></InputNumber>
@@ -375,7 +370,7 @@ export default function Configuration({
             >
               <InputNumber
                 precision={0}
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={1}
                 min={0}
               ></InputNumber>
@@ -383,7 +378,7 @@ export default function Configuration({
             <Form.Item label="Batch Size" name="vocoderBatchSize">
               <InputNumber
                 precision={0}
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={1}
                 min={1}
               ></InputNumber>
@@ -394,7 +389,7 @@ export default function Configuration({
             >
               <InputNumber
                 precision={0}
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={1}
                 min={1}
               ></InputNumber>
@@ -402,7 +397,7 @@ export default function Configuration({
             <Form.Item label="Run Validation Every" name="vocoderValidateEvery">
               <InputNumber
                 precision={0}
-                disabled={disableEdit}
+                disabled={initialIsLoading}
                 step={10}
                 min={0}
                 addonAfter="steps"

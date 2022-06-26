@@ -111,7 +111,7 @@ ipcMain.handle(
       only_train_speaker_emb_until=@onlyTrainSpeakerEmbUntil,
       dataset_id=@datasetID,
       device=@device,
-      skip_on_error=@skipOnError,
+      skip_on_error=@skipOnError
       WHERE ID=@ID`
       )
       .run(bool2int(flattened));
@@ -318,7 +318,7 @@ ipcMain.on(
       event,
       "/home/backend/voice_smith/training_run.py",
       ["--run_id", String(runID)],
-      true
+      false
     );
   }
 );

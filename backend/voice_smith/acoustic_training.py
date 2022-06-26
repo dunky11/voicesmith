@@ -100,7 +100,7 @@ def synth_iter(
                         speakers=speaker.unsqueeze(0),
                         p_control=1.0,
                         d_control=1.0,
-                        lang=lang.unsqueeze(0),
+                        langs=lang.unsqueeze(0),
                     )
 
                     wav_prediction = vocoder(y_pred)

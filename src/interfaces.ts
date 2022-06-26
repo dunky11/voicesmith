@@ -159,7 +159,8 @@ export interface CleaningRunInterface extends RunInterface {
   type: "cleaningRun";
   stage:
     | "not_started"
-    | "gen_file_embeddings"
+    | "copying_files"
+    | "transcribe"
     | "choose_samples"
     | "apply_changes"
     | "finished";
@@ -171,6 +172,7 @@ export interface CleaningRunConfigInterface {
   name: string;
   datasetID?: number;
   datasetName: string;
+  skipOnError: boolean;
 }
 
 export interface UsageStatsInterface {
@@ -325,6 +327,10 @@ export interface RunManagerInterface {
 
 export interface ImportSettingsInterface {
   language: SpeakerInterface["language"];
+}
+
+export interface NavigationSettingsInterface {
+  isDisabled: boolean;
 }
 
 export type PreprocessingRunType =

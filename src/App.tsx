@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, ReactElement } from "react";
 import { Route, Switch, useHistory } from "react-router-dom";
-import { Layout, Menu, Typography, notification, Divider } from "antd";
+import { Layout, Menu, Typography, Divider } from "antd";
 import {
   ShareAltOutlined,
   FundFilled,
@@ -83,9 +83,11 @@ export default function App(): ReactElement {
   const isMounted = useRef(false);
   const dispatch = useDispatch();
   const appInfo = useSelector((state: RootState) => state.appInfo);
+  const navIsDisabled = useSelector(
+    (state: RootState) => state.navigationSettings.isDisabled
+  );
   const [selectedKeys, setSelectedKeys] = useState<string[]>(["models"]);
   const [selectedModel, setSelectedModel] = useState(null);
-  const [navIsDisabled, setNavIsDisabled] = useState(false);
   const [serverIsReady, setServerIsReady] = useState(false);
 
   console.log(appInfo);
@@ -289,9 +291,7 @@ export default function App(): ReactElement {
                 path={TRAINING_RUNS_ROUTE.ROUTE}
               ></Route>
               <Route
-                render={() => (
-                  <Datasets setNavIsDisabled={setNavIsDisabled}></Datasets>
-                )}
+                render={() => <Datasets></Datasets>}
                 path={DATASETS_ROUTE.ROUTE}
               ></Route>
               <Route
@@ -303,9 +303,7 @@ export default function App(): ReactElement {
                 path={RUN_QUEUE_ROUTE.ROUTE}
               ></Route>
               <Route
-                render={() => (
-                  <Settings setNavIsDisabled={setNavIsDisabled}></Settings>
-                )}
+                render={() => <Settings></Settings>}
                 path={SETTINGS_ROUTE.ROUTE}
               ></Route>
               <Route

@@ -104,7 +104,7 @@ def process_utterance(
     normalize_loudness: bool,
     ignore_below_hz: Union[int, None],
 ) -> Union[None, Tuple[str, int]]:
-    audio_path = Path(in_dir) / lang / speaker / f"{basename}.wav"
+    audio_path = Path(in_dir) / lang / speaker / f"{basename}.flac"
     text_path = Path(in_dir) / lang / speaker / f"{basename}.txt"
     tg_path = Path(out_dir) / "textgrid" / lang / speaker / f"{basename}.TextGrid"
 
@@ -275,7 +275,7 @@ def extract_data(
     for speaker_path in in_dir.glob("*/*"):
         (out_dir / "data" / speaker_path.name).mkdir(exist_ok=True, parents=True)
         (out_dir / "wav" / speaker_path.name).mkdir(exist_ok=True, parents=True)
-    wav_paths = list(in_dir.glob("*/*/*.wav"))
+    wav_paths = list(in_dir.glob("*/*/*.flac"))
 
     def callback(index: int):
         if index % log_every == 0:

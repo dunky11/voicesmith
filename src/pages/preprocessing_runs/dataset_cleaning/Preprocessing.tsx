@@ -1,15 +1,11 @@
-import React, { ReactElement, useState } from "react";
+import React, { ReactElement } from "react";
 import { Tabs, Steps, Button, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../../app/store";
 import UsageStatsRow from "../../../components/usage_stats/UsageStatsRow";
 import LogPrinter from "../../../components/log_printer/LogPrinter";
-import {
-  CleaningRunInterface,
-  RunInterface,
-  UsageStatsInterface,
-} from "../../../interfaces";
+import { CleaningRunInterface, RunInterface } from "../../../interfaces";
 import { getStageIsRunning, getWouldContinueRun } from "../../../utils";
 import RunCard from "../../../components/cards/RunCard";
 import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
@@ -29,7 +25,7 @@ export default function Configuration({
     return state.runManager.queue[0];
   });
   const stageIsRunning = getStageIsRunning(
-    ["not_started", "gen_file_embeddings", "detect_outliers"],
+    ["not_started", "copying_files", "transcribe"],
     run.stage,
     running,
     "cleaningRun",
@@ -37,7 +33,7 @@ export default function Configuration({
   );
 
   const wouldContinueRun = getWouldContinueRun(
-    ["not_started", "gen_file_embeddings", "detect_outliers"],
+    ["not_started", "copying_files", "transcribe"],
     run.stage,
     running,
     "cleaningRun",
@@ -74,8 +70,10 @@ export default function Configuration({
     switch (run.stage) {
       case "not_started":
         return 0;
-      case "gen_file_embeddings":
+      case "copying_files":
         return 0;
+      case "transcribe":
+        return 1;
       case "choose_samples":
         return 1;
       case "apply_changes":
@@ -106,8 +104,8 @@ export default function Configuration({
           <Card title="Progress">
             <Steps direction="vertical" size="small" current={current}>
               <Steps.Step
-                title="Generating File Embeddings"
-                description="Generating an embedding vector for each file."
+                title="Copying Files"
+                description="Copy audio files into the correct folder."
                 icon={
                   current === 0 && stageIsRunning ? (
                     <LoadingOutlined />
@@ -115,8 +113,8 @@ export default function Configuration({
                 }
               />
               <Steps.Step
-                title="Detecting Outliers"
-                description="Detecting outliers in the dataset."
+                title="Transcribe"
+                description="Transcribe audio to calculate sample quality score."
                 icon={
                   current === 1 && stageIsRunning ? (
                     <LoadingOutlined />

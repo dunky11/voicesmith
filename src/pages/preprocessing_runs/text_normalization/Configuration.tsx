@@ -18,7 +18,7 @@ import {
 } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 import { useDispatch } from "react-redux";
-import { setIsRunning, addToQueue } from "../../../features/runManagerSlice";
+import { addToQueue } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
 const initialValues: TextNormalizationRunConfigInterface = {
@@ -36,7 +36,7 @@ export default function Configuration({
 }): ReactElement {
   const dispatch = useDispatch();
   const isMounted = useRef(false);
-  const [configIsLoaded, setConfigIsLoaded] = useState(false);
+  const [initialIsLoading, setInitialIsLoading] = useState(true);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
   const formRef = useRef<FormInstance | null>();
@@ -56,6 +56,8 @@ export default function Configuration({
   const onDefaults = () => {
     formRef.current?.setFieldsValue({
       ...initialValues,
+      datasetID: formRef.current.getFieldValue("datasetID"),
+      datasetName: formRef.current.getFieldValue("datasetName"),
       name: formRef.current.getFieldValue("name"),
     });
   };
@@ -105,8 +107,8 @@ export default function Configuration({
         if (!isMounted.current) {
           return;
         }
-        if (!configIsLoaded) {
-          setConfigIsLoaded(true);
+        if (!initialIsLoading) {
+          setInitialIsLoading(false);
         }
         formRef.current?.setFieldsValue(configuration);
       });
@@ -130,22 +132,24 @@ export default function Configuration({
     fetchConfiguration();
   }, []);
 
-  const disableNameEdit = !configIsLoaded;
-  const disableElseEdit = disableNameEdit || run.stage !== "not_started";
-
-  const disableNext = !configIsLoaded;
-  const disableDefaults = disableNext || run.stage !== "not_started";
+  const hasStarted = run.stage !== "not_started";
 
   return (
     <RunCard
       title="Configure the Text Normalization Run"
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button disabled={disableDefaults} onClick={onDefaults}>
+        <Button disabled={initialIsLoading} onClick={onDefaults}>
           Reset to Default
         </Button>,
-        <Button onClick={onSave}>Save</Button>,
-        <Button type="primary" disabled={disableNext} onClick={onNextClick}>
+        <Button disabled={initialIsLoading} onClick={onSave}>
+          Save
+        </Button>,
+        <Button
+          type="primary"
+          disabled={initialIsLoading}
+          onClick={onNextClick}
+        >
           {getNextButtonText()}
         </Button>,
       ]}
@@ -159,12 +163,12 @@ export default function Configuration({
         onFinish={onFinish}
       >
         <NameInput
-          disabled={disableNameEdit}
+          disabled={initialIsLoading}
           fetchNames={() => {
             return fetchNames(run.ID);
           }}
         />
-        <DatasetInput disabled={disableElseEdit} />
+        <DatasetInput disabled={initialIsLoading || hasStarted} />
       </Form>
     </RunCard>
   );

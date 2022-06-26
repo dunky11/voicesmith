@@ -10,6 +10,7 @@ import {
   Progress,
 } from "antd";
 import { IpcRendererEvent } from "electron";
+import { useDispatch } from "react-redux";
 import InfoButton from "./InfoButton";
 import {
   EDIT_DATASET_NAME_CHANNEL,
@@ -21,15 +22,15 @@ import {
 import { defaultPageOptions } from "../../config";
 import { DatasetInterface } from "../../interfaces";
 import { numberCompare, stringCompare } from "../../utils";
+import { setNavIsDisabled } from "../../features/navigationSettingsSlice";
 const { ipcRenderer } = window.require("electron");
 
 export default function DatasetSelection({
   setSelectedDatasetID,
-  setNavIsDisabled,
 }: {
   setSelectedDatasetID: (ID: number | null) => void;
-  setNavIsDisabled: (isDisabled: boolean) => void;
 }): ReactElement {
+  const dispatch = useDispatch();
   const isMounted = useRef(false);
   const [datasets, setDatasets] = useState<DatasetInterface[]>([]);
   const [isDisabled, setIsDisabled] = useState(false);
@@ -102,11 +103,11 @@ export default function DatasetSelection({
         return;
       }
       setIsDisabled(false);
-      setNavIsDisabled(false);
+      dispatch(setNavIsDisabled(false));
       setDirProgress(null);
     });
     setIsDisabled(true);
-    setNavIsDisabled(true);
+    dispatch(setNavIsDisabled(true));
     ipcRenderer.send(EXPORT_DATASET_CHANNEL.IN, exportedDatasets);
   };
 
@@ -121,12 +122,16 @@ export default function DatasetSelection({
       key: "name",
       render: (text: any, record: DatasetInterface) => (
         <Typography.Text
-          editable={{
-            tooltip: false,
-            onChange: (newName: string) => {
-              onDatasetNameEdit(record.ID, newName);
-            },
-          }}
+          editable={
+            isDisabled
+              ? null
+              : {
+                  tooltip: false,
+                  onChange: (newName: string) => {
+                    onDatasetNameEdit(record.ID, newName);
+                  },
+                }
+          }
           disabled={isDisabled}
         >
           {record.name}
@@ -154,7 +159,6 @@ export default function DatasetSelection({
       title: "",
       key: "action",
       render: (text: any, record: DatasetInterface) => (
-        // TODO find way to diable visually
         <Space size="middle">
           {isDisabled ? (
             <Typography.Text disabled>Select</Typography.Text>
@@ -242,12 +246,16 @@ export default function DatasetSelection({
                 key: ds.ID,
               };
             })}
-            rowSelection={{
-              selectedRowKeys,
-              onChange: (selectedRowKeys: any[]) => {
-                setSelectedRowKeys(selectedRowKeys);
-              },
-            }}
+            rowSelection={
+              isDisabled
+                ? null
+                : {
+                    selectedRowKeys,
+                    onChange: (selectedRowKeys: any[]) => {
+                      setSelectedRowKeys(selectedRowKeys);
+                    },
+                  }
+            }
           ></Table>
         </div>
       </Card>

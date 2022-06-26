@@ -91,6 +91,7 @@ class ConformerConfig:
 @dataclass
 class ReferenceEncoderConfig:
     bottleneck_size_p: int
+    bottleneck_size_u: int
     ref_enc_filters: List[int]
     ref_enc_size: int
     ref_enc_strides: List[int]
@@ -99,8 +100,6 @@ class ReferenceEncoderConfig:
     ref_attention_dropout: float
     token_num: int
     predictor_kernel_size: int
-
-
 
 
 @dataclass
@@ -113,26 +112,27 @@ class VarianceAdaptorConfig:
 
 @dataclass
 class AcousticModelConfig:
-    speaker_embed_dim: int = 384
+    speaker_embed_dim: int = 512
     lang_embed_dim: int = 128
     encoder: ConformerConfig = ConformerConfig(
-        n_layers=4,
-        n_heads=6,
-        n_hidden=384,
+        n_layers=6,
+        n_heads=8,
+        n_hidden=512,
         p_dropout=0.1,
         kernel_size_conv_mod=7,
         kernel_size_depthwise=7,
     )
     decoder: ConformerConfig = ConformerConfig(
         n_layers=6,
-        n_heads=6,
-        n_hidden=384,
+        n_heads=8,
+        n_hidden=512,
         p_dropout=0.1,
         kernel_size_conv_mod=11,
         kernel_size_depthwise=11,
     )
     reference_encoder: ReferenceEncoderConfig = ReferenceEncoderConfig(
         bottleneck_size_p=4,
+        bottleneck_size_u=256,
         ref_enc_filters=[32, 32, 64, 64, 128, 128],
         ref_enc_size=3,
         ref_enc_strides=[1, 2, 1, 2, 1],
@@ -143,7 +143,7 @@ class AcousticModelConfig:
         predictor_kernel_size=5,
     )
     variance_adaptor: VarianceAdaptorConfig = VarianceAdaptorConfig(
-        n_hidden=384, kernel_size=5, p_dropout=0.5, n_bins=256
+        n_hidden=512, kernel_size=5, p_dropout=0.5, n_bins=256
     )
 
 
@@ -235,3 +235,11 @@ class VocoderModelConfig:
 class SampleSplittingRunConfig:
     workers: int
     device: torch.device
+    skip_on_error: bool
+
+
+@dataclass
+class CleaningRunConfig:
+    workers: int
+    device: torch.device
+    skip_on_error: bool

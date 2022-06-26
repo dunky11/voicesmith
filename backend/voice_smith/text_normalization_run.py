@@ -61,7 +61,8 @@ def text_normalization_stage(
         (run_id,),
     )
     con.commit()
-    id_text_pairs = []
+    sample_ids = []
+    texts = []
     langs = []
     for (sample_id, text, lang) in cur.execute(
         """
@@ -73,7 +74,8 @@ def text_normalization_stage(
         """,
         (run_id,),
     ).fetchall():
-        id_text_pairs.append((sample_id, text))
+        sample_ids.append(sample_id)
+        texts.append(text)
         langs.append(lang)
 
     def callback(progress: float):
@@ -83,11 +85,12 @@ def text_normalization_stage(
             (progress, run_id),
         )
         con.commit()
- 
+
     normalizations = text_normalize(
-        id_text_pairs=id_text_pairs,
-        assets_path=assets_path,
+        sample_ids=sample_ids,
+        texts=texts,
         langs=langs,
+        assets_path=assets_path,
         progress_cb=callback,
     )
 

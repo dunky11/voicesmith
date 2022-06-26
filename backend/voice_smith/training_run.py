@@ -41,6 +41,8 @@ from voice_smith.config.globals import (
 
 warnings_to_stdout()
 
+# torch.backends.cudnn.benchmark = True
+
 
 def step_from_ckpt(ckpt: str):
     ckpt_path = Path(ckpt)
@@ -256,7 +258,7 @@ def preprocessing_stage(
                 names=names,
                 workers=p_config.workers,
                 progress_cb=progress_cb,
-                skip_on_error=skip_on_error
+                skip_on_error=skip_on_error,
             )
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",

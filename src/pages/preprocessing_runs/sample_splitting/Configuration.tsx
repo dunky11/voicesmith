@@ -15,12 +15,14 @@ import {
   FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES,
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES,
 } from "../../../channels";
+import MaximumWorkersInput from "../../../components/inputs/MaximumWorkersInput";
+import SkipOnErrorInput from "../../../components/inputs/SkipOnErrorInput";
 import DeviceInput from "../../../components/inputs/DeviceInput";
 import DatasetInput from "../../../components/inputs/DatasetInput";
 import NameInput from "../../../components/inputs/NameInput";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 import { fetchNames } from "../PreprocessingRuns";
-import { addToQueue, setIsRunning } from "../../../features/runManagerSlice";
+import { addToQueue } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
 const initialValues: SampleSplittingRunConfigInterface = {
@@ -29,7 +31,7 @@ const initialValues: SampleSplittingRunConfigInterface = {
   datasetID: null,
   datasetName: null,
   device: "CPU",
-  skipOnError: false,
+  skipOnError: true,
 };
 
 export default function Configuration({
@@ -42,7 +44,7 @@ export default function Configuration({
   const dispatch = useDispatch();
 
   const isMounted = useRef(false);
-  const [configIsLoaded, setConfigIsLoaded] = useState(false);
+  const [initialIsLoading, setInitialIsLoading] = useState(true);
   const history = useHistory();
   const navigateNextRef = useRef<boolean>(false);
   const formRef =
@@ -63,6 +65,8 @@ export default function Configuration({
   const onDefaults = () => {
     formRef.current?.setFieldsValue({
       ...initialValues,
+      datasetID: formRef.current.getFieldValue("datasetID"),
+      datasetName: formRef.current.getFieldValue("datasetName"),
       name: formRef.current.getFieldValue("name"),
     });
   };
@@ -83,8 +87,6 @@ export default function Configuration({
         ...formRef.current?.getFieldsValue(),
       },
     };
-
-    console.log(args);
 
     ipcRenderer
       .invoke(UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL.IN, args)
@@ -120,10 +122,9 @@ export default function Configuration({
         if (!isMounted.current) {
           return;
         }
-        if (!configIsLoaded) {
-          setConfigIsLoaded(true);
+        if (initialIsLoading) {
+          setInitialIsLoading(false);
         }
-        console.log(runs);
         formRef.current?.setFieldsValue(runs[0].configuration);
       });
   };
@@ -146,22 +147,24 @@ export default function Configuration({
     fetchConfiguration();
   }, []);
 
-  const disableNameEdit = !configIsLoaded;
-  const disableElseEdit = disableNameEdit || run.stage !== "not_started";
-
-  const disableNext = !configIsLoaded;
-  const disableDefaults = disableNext || run.stage != "not_started";
+  const hasStarted = run.stage !== "not_started";
 
   return (
     <RunCard
       title="Configure the Sample Splitting Run"
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
-        <Button disabled={disableDefaults} onClick={onDefaults}>
+        <Button disabled={initialIsLoading} onClick={onDefaults}>
           Reset to Default
         </Button>,
-        <Button onClick={onSave}>Save</Button>,
-        <Button type="primary" disabled={disableNext} onClick={onNextClick}>
+        <Button onClick={onSave} disabled={initialIsLoading}>
+          Save
+        </Button>,
+        <Button
+          type="primary"
+          disabled={initialIsLoading}
+          onClick={onNextClick}
+        >
           {getNextButtonText()}
         </Button>,
       ]}
@@ -175,31 +178,15 @@ export default function Configuration({
         onFinish={onFinish}
       >
         <NameInput
-          disabled={disableNameEdit}
+          disabled={initialIsLoading}
           fetchNames={() => {
             return fetchNames(run.ID);
           }}
         />
-        <Form.Item label="Maximum Number of Workers" name="maximumWorkers">
-          <Select style={{ width: 200 }}>
-            <Select.Option value={-1}>Auto</Select.Option>
-            {Array.from(Array(64 + 1).keys())
-              .slice(1)
-              .map((el) => (
-                <Select.Option key={el} value={el}>
-                  {el}
-                </Select.Option>
-              ))}
-          </Select>
-        </Form.Item>
-        <Form.Item label="On Error Ignore Sample" name="skipOnError">
-          <Select style={{ width: 200 }}>
-            <Select.Option value={true}>Yes</Select.Option>
-            <Select.Option value={false}>No</Select.Option>
-          </Select>
-        </Form.Item>
-        <DatasetInput disabled={disableElseEdit} />
-        <DeviceInput disabled={disableElseEdit} />
+        <MaximumWorkersInput disabled={initialIsLoading} />
+        <SkipOnErrorInput disabled={initialIsLoading} />
+        <DatasetInput disabled={initialIsLoading || hasStarted} />
+        <DeviceInput disabled={initialIsLoading} />
       </Form>
     </RunCard>
   );

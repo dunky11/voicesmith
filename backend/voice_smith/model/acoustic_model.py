@@ -19,7 +19,10 @@ from voice_smith.model.layers import (
 )
 from voice_smith.model.attention import ConformerMultiHeadedSelfAttention
 from voice_smith.model.position_encoding import positional_encoding
-from voice_smith.model.reference_encoder import PhonemeLevelProsodyEncoder
+from voice_smith.model.reference_encoder import (
+    PhonemeLevelProsodyEncoder,
+    UtteranceLevelProsodyEncoder,
+)
 from voice_smith.utils import tools
 from voice_smith.config.langs import languages
 
@@ -51,11 +54,24 @@ class AcousticModel(nn.Module):
         self.pitch_adaptor = PitchAdaptor(model_config, data_path=data_path)
         self.length_regulator = LengthAdaptor(model_config)
 
+        self.utterance_prosody_encoder = UtteranceLevelProsodyEncoder(
+            preprocess_config, model_config,
+        )
+        self.utterance_prosody_predictor = PhonemeProsodyPredictor(
+            model_config=model_config, phoneme_level=False
+        )
         self.phoneme_prosody_encoder = PhonemeLevelProsodyEncoder(
             preprocess_config, model_config,
         )
         self.phoneme_prosody_predictor = PhonemeProsodyPredictor(
             model_config=model_config, phoneme_level=True
+        )
+        self.u_bottle_out = nn.Linear(
+            model_config.reference_encoder.bottleneck_size_u,
+            model_config.encoder.n_hidden,
+        )
+        self.u_norm = nn.LayerNorm(
+            model_config.reference_encoder.bottleneck_size_u, elementwise_affine=False,
         )
         self.p_bottle_out = nn.Linear(
             model_config.reference_encoder.bottleneck_size_p,
@@ -142,6 +158,12 @@ class AcousticModel(nn.Module):
 
         x = self.encoder(x, src_mask, embeddings=embeddings, encoding=encoding)
 
+        u_prosody_ref = self.u_norm(
+            self.utterance_prosody_encoder(mels=mels, mel_lens=mel_lens)
+        )
+        u_prosody_pred = self.u_norm(
+            self.utterance_prosody_predictor(x=x, mask=src_mask,)
+        )
         p_prosody_ref = self.p_norm(
             self.phoneme_prosody_encoder(
                 x=x, src_mask=src_mask, mels=mels, mel_lens=mel_lens, encoding=encoding
@@ -151,8 +173,10 @@ class AcousticModel(nn.Module):
             self.phoneme_prosody_predictor(x=x, mask=src_mask,)
         )
         if use_ground_truth:
+            x = x + self.u_bottle_out(u_prosody_ref)
             x = x + self.p_bottle_out(p_prosody_ref)
         else:
+            x = x + self.u_bottle_out(u_prosody_pred)
             x = x + self.p_bottle_out(p_prosody_pred)
         x_res = x
         x, pitch_prediction, _, _ = self.pitch_adaptor.add_pitch_train(
@@ -197,9 +221,13 @@ class AcousticModel(nn.Module):
 
         x = self.encoder(x, src_mask, embeddings=embeddings, encoding=encoding)
 
+        u_prosody_pred = self.u_norm(
+            self.utterance_prosody_predictor(x=x, mask=src_mask,)
+        )
         p_prosody_pred = self.p_norm(
             self.phoneme_prosody_predictor(x=x, mask=src_mask,)
         )
+        x = x + self.u_bottle_out(u_prosody_pred).expand_as(x)
         x = x + self.p_bottle_out(p_prosody_pred).expand_as(x)
         x_res = x
         x = self.pitch_adaptor.add_pitch(x=x, src_mask=src_mask, control=p_control,)
@@ -282,6 +310,7 @@ class ConformerBlock(torch.nn.Module):
             padding=kernel_size_conv_mod // 2,
             embedding_dim=embedding_dim,
         )
+        self.ff = FeedForward(d_model=d_model, dropout=dropout, kernel_size=3)
         self.conformer_conv_1 = ConformerConvModule(
             d_model, kernel_size=kernel_size_conv_mod, dropout=dropout
         )
@@ -302,6 +331,7 @@ class ConformerBlock(torch.nn.Module):
         encoding: torch.Tensor,
     ) -> torch.Tensor:
         x = self.conditioning(x, embeddings=embeddings)
+        x = self.ff(x) + x
         x = self.conformer_conv_1(x) + x
         res = x
         x = self.ln(x)
@@ -310,17 +340,23 @@ class ConformerBlock(torch.nn.Module):
         )
         x = x + res
         x = x.masked_fill(mask.unsqueeze(-1), 0)
+
         x = self.conformer_conv_2(x) + x
         return x
 
 
 class FeedForward(nn.Module):
-    def __init__(self, d_model: int, dropout: float, expansion_factor: int = 4):
+    def __init__(
+        self, d_model: int, kernel_size: int, dropout: float, expansion_factor: int = 4
+    ):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
         self.ln = nn.LayerNorm(d_model)
         self.conv_1 = nn.Conv1d(
-            d_model, d_model * expansion_factor, kernel_size=3, padding=1
+            d_model,
+            d_model * expansion_factor,
+            kernel_size=kernel_size,
+            padding=kernel_size // 2,
         )
         self.act = nn.LeakyReLU(LRELU_SLOPE)
         self.conv_2 = nn.Conv1d(d_model * expansion_factor, d_model, kernel_size=1)

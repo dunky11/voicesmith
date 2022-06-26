@@ -7,13 +7,20 @@ export default function LanguageSelect({
   value,
   className,
   onChange,
+  disabled,
 }: {
   value: SpeakerInterface["language"];
   className: string | null;
   onChange: (lang: SpeakerInterface["language"]) => void;
+  disabled: boolean;
 }): ReactElement {
   return (
-    <Select value={value} className={className} onChange={onChange}>
+    <Select
+      disabled={disabled}
+      value={value}
+      className={className}
+      onChange={onChange}
+    >
       {LANGUAGES.map((el) => (
         <Select.Option value={el.iso6391} key={el.iso6391}>
           {el.name}
@@ -25,4 +32,5 @@ export default function LanguageSelect({
 
 LanguageSelect.defaultProps = {
   className: null,
+  disabled: false,
 };

@@ -69,7 +69,6 @@ export default function RunManager(): React.ReactElement {
             return;
           case "error":
             console.log("ERROR");
-            onRunFinishRef.current();
             notification["error"]({
               message: "Oops, an error occured, check logs for more info ...",
               description: message.errorMessage,

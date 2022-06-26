@@ -10,7 +10,6 @@ import {
   Breadcrumb,
   Popconfirm,
   Typography,
-  Tag,
 } from "antd";
 import { defaultPageOptions } from "../../config";
 import { RunInterface, PreprocessingRunType } from "../../interfaces";
@@ -288,8 +287,17 @@ export default function PreprocessingRunSelection({
                 createPreprocessingRun("sampleSplittingRun");
               }}
               disabled={isDisabled}
+              style={{ marginRight: 8 }}
             >
               New Sample Splitting Run
+            </Button>
+            <Button
+              onClick={() => {
+                createPreprocessingRun("dSCleaningRun");
+              }}
+              disabled={isDisabled}
+            >
+              New Cleaning Run
             </Button>
           </div>
           <Table

@@ -12,6 +12,7 @@ import {
 import { Link, useHistory } from "react-router-dom";
 import { IpcRendererEvent } from "electron";
 import { createUseStyles } from "react-jss";
+import { setNavIsDisabled } from "../../features/navigationSettingsSlice";
 import Speaker from "./Speaker";
 import InfoButton from "./InfoButton";
 import ImportSettingsDialog from "./ImportSettingsDialog";
@@ -32,7 +33,7 @@ import {
 } from "../../channels";
 import { DATASETS_ROUTE } from "../../routes";
 import LanguageSelect from "../../components/inputs/LanguageSelect";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../app/store";
 
 const { ipcRenderer } = window.require("electron");
@@ -46,12 +47,14 @@ export default function Dataset({
 }: {
   datasetID: number | null;
 }): ReactElement {
+  const dispatch = useDispatch();
   const classes = useStyles();
   const isMounted = useRef(false);
   const history = useHistory();
   const importSettings = useSelector((root: RootState) => root.importSettings);
   const [importSettingsDialogIsOpen, setImportSettingsDialogIsOpen] =
     useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isDisabled, setIsDisabled] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [dirProgress, setDirProgress] = useState<{
@@ -62,7 +65,7 @@ export default function Dataset({
     null
   );
   const [dataset, setDataset] = useState<DatasetInterface | null>(null);
-  const [hasLoaded, setHasLoaded] = useState<boolean>(false);
+  const [hasInitLoaded, setHasInitLoaded] = useState(false);
   const searchInput = useRef<InputRef>(null);
 
   let totalSampleCount = 0;
@@ -140,11 +143,13 @@ export default function Dataset({
       if (!isMounted.current) {
         return;
       }
-      setIsDisabled(false);
+      dispatch(setNavIsDisabled(false));
+      setIsLoading(false);
       setDirProgress(null);
       fetchDataset();
     });
-    setIsDisabled(true);
+    dispatch(setNavIsDisabled(true));
+    setIsLoading(true);
     ipcRenderer.send(PICK_SPEAKERS_CHANNEL.IN, datasetID, importSettings);
   };
 
@@ -159,12 +164,16 @@ export default function Dataset({
         key: "name",
         render: (text: any, record: SpeakerInterface) => (
           <Typography.Text
-            editable={{
-              tooltip: false,
-              onChange: (newName: string) => {
-                onSpeakerNameEdit(record, newName);
-              },
-            }}
+            editable={
+              isLoading || isDisabled
+                ? null
+                : {
+                    tooltip: false,
+                    onChange: (newName: string) => {
+                      onSpeakerNameEdit(record, newName);
+                    },
+                  }
+            }
           >
             {record.name}
           </Typography.Text>
@@ -196,6 +205,7 @@ export default function Dataset({
                 language: lang,
               });
             }}
+            disabled={isDisabled || isLoading}
           />
         ),
       },
@@ -221,13 +231,17 @@ export default function Dataset({
       key: "action",
       render: (text: any, record: any) => (
         <Space size="middle">
-          <a
-            onClick={() => {
-              setSelectedSpeakerID(record.ID);
-            }}
-          >
-            Select
-          </a>
+          {isLoading ? (
+            <Typography.Text disabled>Select</Typography.Text>
+          ) : (
+            <a
+              onClick={() => {
+                setSelectedSpeakerID(record.ID);
+              }}
+            >
+              Select
+            </a>
+          )}
         </Space>
       ),
     },
@@ -243,10 +257,11 @@ export default function Dataset({
         if (!isMounted.current) {
           return;
         }
-        if (!hasLoaded) {
-          setHasLoaded(true);
+        if (!hasInitLoaded) {
+          setHasInitLoaded(true);
         }
         setDataset(dataset);
+        setIsDisabled(dataset.referencedBy !== null);
       });
   };
 
@@ -282,118 +297,114 @@ export default function Dataset({
     };
   }, []);
 
-  return (
+  return selectedSpeakerID === null ? (
     <>
-      {selectedSpeakerID === null ? (
-        <>
-          <ImportSettingsDialog
-            open={importSettingsDialogIsOpen}
-            onOk={() => {
-              setImportSettingsDialogIsOpen(false);
-              onAddSpeakers();
+      <ImportSettingsDialog
+        open={importSettingsDialogIsOpen}
+        onOk={() => {
+          setImportSettingsDialogIsOpen(false);
+          onAddSpeakers();
+        }}
+        onClose={() => {
+          setImportSettingsDialogIsOpen(false);
+        }}
+      ></ImportSettingsDialog>
+      <Breadcrumb style={{ marginBottom: 8 }}>
+        <Breadcrumb.Item>
+          <Link to={DATASETS_ROUTE.SELECTION.ROUTE}>Datasets</Link>
+        </Breadcrumb.Item>
+        <Breadcrumb.Item>{dataset?.name}</Breadcrumb.Item>
+      </Breadcrumb>
+      <Card
+        title="Add Speakers to your Model"
+        actions={[
+          <div
+            key="next-button-wrapper"
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginRight: 24,
             }}
-            onClose={() => {
-              setImportSettingsDialogIsOpen(false);
-            }}
-          ></ImportSettingsDialog>
-          <Breadcrumb style={{ marginBottom: 8 }}>
-            <Breadcrumb.Item>
-              <Link to={DATASETS_ROUTE.SELECTION.ROUTE}>Datasets</Link>
-            </Breadcrumb.Item>
-            <Breadcrumb.Item>{dataset?.name}</Breadcrumb.Item>
-          </Breadcrumb>
-          <Card
-            title="Add Speakers to your Model"
-            actions={[
-              <div
-                key="next-button-wrapper"
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  marginRight: 24,
-                }}
-              >
-                <Button onClick={onBackClick}>Back</Button>
-              </div>,
-            ]}
           >
-            <div style={{ width: "100%" }}>
-              <div style={{ display: "flex", marginBottom: 16 }}>
-                <Button
-                  onClick={onAddEmptySpeakerClick}
-                  style={{ marginRight: 8 }}
-                  disabled={
-                    isDisabled || !hasLoaded || dataset?.referencedBy !== null
+            <Button onClick={onBackClick} disabled={isLoading}>
+              Back
+            </Button>
+          </div>,
+        ]}
+      >
+        <div style={{ width: "100%" }}>
+          <div style={{ display: "flex", marginBottom: 16 }}>
+            <Button
+              onClick={onAddEmptySpeakerClick}
+              style={{ marginRight: 8 }}
+              disabled={isDisabled || isLoading || !hasInitLoaded}
+            >
+              Add Empty Speaker
+            </Button>
+            <Button
+              onClick={() => {
+                setImportSettingsDialogIsOpen(true);
+              }}
+              style={{ marginRight: 8 }}
+              disabled={isDisabled || isLoading || !hasInitLoaded}
+              loading={dirProgress !== null}
+            >
+              Add Speakers From Folders
+            </Button>
+            <Button
+              onClick={onRemoveSpeakers}
+              disabled={
+                isDisabled ||
+                selectedRowKeys.length === 0 ||
+                isLoading ||
+                !hasInitLoaded
+              }
+              style={{ marginRight: 8 }}
+            >
+              Remove Selected
+            </Button>
+            <InfoButton></InfoButton>
+          </div>
+          {dirProgress !== null && (
+            <Progress
+              percent={(dirProgress.current / dirProgress.total) * 100}
+              style={{ borderRadius: 0 }}
+              showInfo={false}
+            ></Progress>
+          )}
+          <Table
+            size="small"
+            pagination={defaultPageOptions}
+            bordered
+            style={{ width: "100%" }}
+            columns={columns}
+            dataSource={dataset?.speakers.map((speaker: SpeakerInterface) => ({
+              ...speaker,
+              languageLong: ISO6391_TO_NAME[speaker.language],
+              key: speaker.ID,
+            }))}
+            rowSelection={
+              isLoading
+                ? null
+                : {
+                    selectedRowKeys,
+                    onChange: (selectedRowKeys: any[]) => {
+                      setSelectedRowKeys(selectedRowKeys);
+                    },
                   }
-                >
-                  Add Empty Speaker
-                </Button>
-                <Button
-                  onClick={() => {
-                    setImportSettingsDialogIsOpen(true);
-                  }}
-                  style={{ marginRight: 8 }}
-                  disabled={
-                    isDisabled || !hasLoaded || dataset?.referencedBy !== null
-                  }
-                  loading={dirProgress !== null}
-                >
-                  Add Speakers From Folders
-                </Button>
-                <Button
-                  onClick={onRemoveSpeakers}
-                  disabled={
-                    selectedRowKeys.length === 0 ||
-                    isDisabled ||
-                    !hasLoaded ||
-                    dataset?.referencedBy !== null
-                  }
-                  style={{ marginRight: 8 }}
-                >
-                  Remove Selected
-                </Button>
-                <InfoButton></InfoButton>
-              </div>
-              {dirProgress !== null && (
-                <Progress
-                  percent={(dirProgress.current / dirProgress.total) * 100}
-                  style={{ borderRadius: 0 }}
-                  showInfo={false}
-                ></Progress>
-              )}
-              <Table
-                size="small"
-                pagination={defaultPageOptions}
-                bordered
-                style={{ width: "100%" }}
-                columns={columns}
-                dataSource={dataset?.speakers.map(
-                  (speaker: SpeakerInterface) => ({
-                    ...speaker,
-                    languageLong: ISO6391_TO_NAME[speaker.language],
-                    key: speaker.ID,
-                  })
-                )}
-                rowSelection={{
-                  selectedRowKeys,
-                  onChange: (selectedRowKeys: any[]) => {
-                    setSelectedRowKeys(selectedRowKeys);
-                  },
-                }}
-              ></Table>
-            </div>
-          </Card>
-        </>
-      ) : (
-        <Speaker
-          datasetID={datasetID}
-          datasetName={dataset !== null ? dataset.name : null}
-          speaker={getSelectedSpeaker()}
-          setSelectedSpeakerID={setSelectedSpeakerID}
-          fetchDataset={fetchDataset}
-          referencedBy={dataset?.referencedBy}
-        ></Speaker>
-      )}
+            }
+          ></Table>
+        </div>
+      </Card>
     </>
+  ) : (
+    <Speaker
+      datasetID={datasetID}
+      datasetName={dataset !== null ? dataset.name : null}
+      speaker={getSelectedSpeaker()}
+      setSelectedSpeakerID={setSelectedSpeakerID}
+      fetchDataset={fetchDataset}
+      isDisabled={isDisabled}
+    ></Speaker>
   );
 }
