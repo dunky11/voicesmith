@@ -61,9 +61,14 @@ const createTables = (db: any) => {
         language TEXT NOT NULL DEFAULT "en",
         dataset_id INTEGER NOT NULL,
         UNIQUE(name, dataset_id),
-        INDEX(language),
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
     ); 
+    `
+  ).run();
+  db.prepare(
+    `
+    CREATE INDEX IF NOT EXISTS speaker_language_index
+    ON speaker(language)   
     `
   ).run();
   db.prepare(
