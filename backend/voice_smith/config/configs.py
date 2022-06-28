@@ -29,7 +29,7 @@ class PreprocessingConfig:
         mel_fmin=20,
         mel_fmax=11025,
     )
-    forced_alignment_batch_size: 200000
+    forced_alignment_batch_size: int = 200000
 
 
 @dataclass

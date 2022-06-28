@@ -315,12 +315,18 @@ def preprocessing_stage(
             for i, vocab_path in enumerate(vocab_paths):
                 lang = vocab_path.name.split(".")[0]
                 align(
+                    cur=cur,
+                    con=con,
+                    table_name="training_run",
+                    foreign_key_name="training_run_id",
+                    run_id=run_id,
                     environment_name=environment_name,
-                    in_path=str(Path(data_path) / "raw_data" / lang),
+                    data_path=data_path,
                     lexicon_path=str(vocab_path),
                     out_path=(Path(data_path) / "data" / "textgrid" / lang),
                     lang=lang,
                     n_workers=p_config.workers,
+                    batch_size=p_config.forced_alignment_batch_size,
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_gen_align_progress=? WHERE ID=?",
