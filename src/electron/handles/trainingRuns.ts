@@ -109,6 +109,7 @@ ipcMain.handle(
       vocoder_grad_accum_steps=@vocoderGradAccumSteps,
       vocoder_validate_every=@vocoderValidateEvery,
       only_train_speaker_emb_until=@onlyTrainSpeakerEmbUntil,
+      forced_alignment_batch_size=@forcedAlignmentBatchSize,
       dataset_id=@datasetID,
       device=@device,
       skip_on_error=@skipOnError
