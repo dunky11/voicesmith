@@ -2,11 +2,10 @@ import React, { useState, useRef, useEffect, ReactElement } from "react";
 import {
   Button,
   Form,
-  Input,
   Collapse,
   InputNumber,
   Checkbox,
-  Select,
+  Typography,
 } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
@@ -20,12 +19,15 @@ import {
 import { trainingRunInitialValues } from "../../config";
 import { notifySave } from "../../utils";
 import RunCard from "../../components/cards/RunCard";
+import TrainingStepsInput from "../../components/inputs/TrainingStepsInput";
+import LearningRateInput from "../../components/inputs/LearningRateInput";
 import SkipOnErrorInput from "../../components/inputs/SkipOnErrorInput";
 import DeviceInput from "../../components/inputs/DeviceInput";
 import DatasetInput from "../../components/inputs/DatasetInput";
 import NameInput from "../../components/inputs/NameInput";
 import MaximumWorkersInput from "../../components/inputs/MaximumWorkersInput";
 import AlignmentBatchSizeInput from "../../components/inputs/AlignmentBatchSizeInput";
+import HelpIcon from "../../components/help/HelpIcon";
 import {
   UPDATE_TRAINING_RUN_CHANNEL,
   FETCH_TRAINING_RUN_NAMES_CHANNEL,
@@ -187,7 +189,26 @@ export default function Configuration({
         <DeviceInput disabled={initialIsLoading} />
         <Collapse style={{ width: "100%" }}>
           <Collapse.Panel header="Preprocessing" key="preprocessing">
-            <Form.Item label="Validation Size" name="validationSize">
+            <Form.Item
+              label={
+                <Typography.Text>
+                  Validation Size
+                  <HelpIcon
+                    content={
+                      <Typography>
+                        Percentage of samples in the dataset that will be
+                        randomly chosen and put into the validation dataset. The
+                        validation dataset is used for calculating the
+                        validation losses. Calculating the validation losses is
+                        important to measure the level of overfitting.
+                      </Typography>
+                    }
+                    style={{ marginLeft: 8 }}
+                  />
+                </Typography.Text>
+              }
+              name="validationSize"
+            >
               <InputNumber
                 disabled={initialIsLoading}
                 step={0.01}
@@ -213,7 +234,20 @@ export default function Configuration({
                   },
                 }),
               ]}
-              label="Minimum Seconds"
+              label={
+                <Typography.Text>
+                  Minimum Seconds
+                  <HelpIcon
+                    content={
+                      <Typography>
+                        Audio files with a duration less than minimum seconds
+                        will not be preprocessed and ignored during training.
+                      </Typography>
+                    }
+                    style={{ marginLeft: 8 }}
+                  />
+                </Typography.Text>
+              }
               name="minSeconds"
               dependencies={["maxSeconds"]}
             >
@@ -224,7 +258,24 @@ export default function Configuration({
               ></InputNumber>
             </Form.Item>
             <Form.Item
-              label="Maximum Seconds"
+              label={
+                <Typography.Text>
+                  Maximum Seconds
+                  <HelpIcon
+                    content={
+                      <Typography>
+                        Audio files with a duration longer than maximum seconds
+                        will not be preprocessed and ignored during training.
+                        Note that the length of the largest audio in the dataset
+                        is proportional to the maximum amount of RAM/VRAM used
+                        during training. If you encounter out of memory issues
+                        reducing this value may be an option.
+                      </Typography>
+                    }
+                    style={{ marginLeft: 8 }}
+                  />
+                </Typography.Text>
+              }
               rules={[
                 ({ getFieldValue }) => ({
                   validator(_, value) {
@@ -251,41 +302,33 @@ export default function Configuration({
             </Form.Item>
             <Form.Item name="useAudioNormalization" valuePropName="checked">
               <Checkbox disabled={initialIsLoading}>
-                Apply Audio Normalization
+                <Typography.Text>
+                  Apply Audio Normalization
+                  <HelpIcon
+                    content={
+                      <Typography>
+                        Apply peak normalization where each audio is divided by
+                        its highest absolute PCM value so the loudness in each
+                        audio is roughly the same. Normalizing loudness can
+                        improve training especially when the dataset comes from
+                        multiple sources.
+                      </Typography>
+                    }
+                    style={{ marginLeft: 8 }}
+                  />
+                </Typography.Text>
               </Checkbox>
             </Form.Item>
           </Collapse.Panel>
           <Collapse.Panel header="Acoustic Model" key="acoustic model">
-            <Form.Item
-              rules={[
-                () => ({
-                  validator(_, value) {
-                    if (value === 0) {
-                      return Promise.reject(
-                        new Error("Learning rate must be greater than zero")
-                      );
-                    }
-                    return Promise.resolve();
-                  },
-                }),
-              ]}
-              label="Learning Rate"
+            <LearningRateInput
               name="acousticLearningRate"
-            >
-              <InputNumber
-                disabled={initialIsLoading}
-                step={0.001}
-                min={0}
-              ></InputNumber>
-            </Form.Item>
-            <Form.Item label="Training Steps" name="acousticTrainingIterations">
-              <InputNumber
-                precision={0}
-                disabled={initialIsLoading}
-                step={1}
-                min={0}
-              ></InputNumber>
-            </Form.Item>
+              disabled={initialIsLoading}
+            />
+            <TrainingStepsInput
+              disabled={initialIsLoading}
+              name="acousticTrainingIterations"
+            />
             <Form.Item label="Batch Size" name="acousticBatchSize">
               <InputNumber
                 precision={0}
@@ -342,41 +385,15 @@ export default function Configuration({
               ></InputNumber>
             </Form.Item>
           </Collapse.Panel>
-
           <Collapse.Panel header="Vocoder" key="vocoder">
-            <Form.Item
-              rules={[
-                () => ({
-                  validator(_, value) {
-                    if (value === 0) {
-                      return Promise.reject(
-                        new Error("Learning rate must be greater than zero")
-                      );
-                    }
-                    return Promise.resolve();
-                  },
-                }),
-              ]}
-              label="Learning Rate"
+            <LearningRateInput
               name="vocoderLearningRate"
-            >
-              <InputNumber
-                disabled={initialIsLoading}
-                step={0.001}
-                min={0}
-              ></InputNumber>
-            </Form.Item>
-            <Form.Item
-              label="Training Iterations"
+              disabled={initialIsLoading}
+            />
+            <TrainingStepsInput
+              disabled={initialIsLoading}
               name="vocoderTrainingIterations"
-            >
-              <InputNumber
-                precision={0}
-                disabled={initialIsLoading}
-                step={1}
-                min={0}
-              ></InputNumber>
-            </Form.Item>
+            />
             <Form.Item label="Batch Size" name="vocoderBatchSize">
               <InputNumber
                 precision={0}

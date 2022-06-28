@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
-import { Switch, useHistory, Route, Link } from "react-router-dom";
-import { Steps, Breadcrumb, Row, Col, Card } from "antd";
+import { Switch, useHistory, Route } from "react-router-dom";
+import { Steps, Row, Col, Card, Breadcrumb } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
+import BreadcrumbItem from "../../../components/breadcrumb/BreadcrumbItem";
 import { RootState } from "../../../app/store";
 import {
   RunInterface,
@@ -95,13 +96,13 @@ export default function TextNormalization({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>
-          <Link to="/preprocessing-runs/run-selection">Preprocessing Runs</Link>
-        </Breadcrumb.Item>
+        <BreadcrumbItem to={PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE}>
+          Preprocessing Runs
+        </BreadcrumbItem>
         {preprocessingRun && (
-          <Breadcrumb.Item>{preprocessingRun.name}</Breadcrumb.Item>
+          <BreadcrumbItem>{preprocessingRun.name}</BreadcrumbItem>
         )}
-        <Breadcrumb.Item>{stepToTitle[current]}</Breadcrumb.Item>
+        <BreadcrumbItem>{stepToTitle[current]}</BreadcrumbItem>
       </Breadcrumb>
       <Row gutter={[0, 100]}>
         <Col className="gutter-row" span={4}>
