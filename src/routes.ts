@@ -98,5 +98,6 @@ export const RUN_QUEUE_ROUTE = {
 };
 
 export const DOCUMENTATION_ROUTE = {
-  ROUTE: "/documentation",
+  INTODUCTION: { ROUTE: "/introduction" },
+  DATASETS: { ROUTE: "/" },
 };

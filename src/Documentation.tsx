@@ -1,44 +1,12 @@
 import React, { ReactElement, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { useHistory } from "react-router-dom";
-import { Layout, Menu, Breadcrumb, Typography, Divider } from "antd";
-import type { MenuProps } from "antd";
+import { useHistory, Route, Switch } from "react-router-dom";
+import { Layout, Menu, Typography, Divider } from "antd";
 import { createUseStyles } from "react-jss";
-import {
-  LaptopOutlined,
-  NotificationOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
 import { RootState } from "./app/store";
 import { DOCUMENTATION_ROUTE } from "./routes";
 import DocumentationModal from "./components/modals/DocumentationModal";
-
-const items1: MenuProps["items"] = ["1", "2", "3"].map((key) => ({
-  key,
-  label: `nav ${key}`,
-}));
-
-const items2: MenuProps["items"] = [
-  UserOutlined,
-  LaptopOutlined,
-  NotificationOutlined,
-].map((icon, index) => {
-  const key = String(index + 1);
-
-  return {
-    key: `sub${key}`,
-    icon: React.createElement(icon),
-    label: `subnav ${key}`,
-
-    children: new Array(4).fill(null).map((_, j) => {
-      const subKey = index * 4 + j + 1;
-      return {
-        key: subKey,
-        label: `option${subKey}`,
-      };
-    }),
-  };
-});
+import Introduction from "./pages/documentation/Introduction";
 
 const useStyles = createUseStyles({
   logoWrapper: {
@@ -64,6 +32,35 @@ const useStyles = createUseStyles({
   },
 });
 
+interface DocumentationMenuItemInterface {
+  key: string;
+  icon: ReactElement;
+  label: string;
+  render?: ReactElement;
+  children?: { key: string; label: string; render: ReactElement }[];
+}
+
+const menuItems: DocumentationMenuItemInterface[] = [
+  {
+    key: DOCUMENTATION_ROUTE.INTODUCTION.ROUTE,
+    icon: null,
+    label: "Introduction",
+    render: <Introduction />,
+  },
+  {
+    key: "sub1",
+    icon: null,
+    label: "sub1",
+    children: [
+      {
+        key: DOCUMENTATION_ROUTE.DATASETS.ROUTE,
+        label: "World",
+        render: <div>Hellp World</div>,
+      },
+    ],
+  },
+];
+
 export default function Documentation(): ReactElement {
   const page = useSelector(
     (root: RootState) => root.documentationManager.route
@@ -72,9 +69,47 @@ export default function Documentation(): ReactElement {
   const appInfo = useSelector((state: RootState) => state.appInfo);
   const classes = useStyles();
 
+  const onMenuSelect = ({ key }: { key: string }) => {
+    console.log("KEY CALLED");
+    console.log(key);
+    history.push("/introduction");
+  };
+
+  const renderMenuItems = (): ReactElement[] => {
+    const out: ReactElement[] = [];
+    for (let i = 0; i < menuItems.length; i++) {
+      if (Object.prototype.hasOwnProperty.call(menuItems[i], "render")) {
+        out.push(
+          <Route
+            key={menuItems[i].key}
+            render={() => menuItems[i].render}
+            path={menuItems[i].key}
+            exact
+          />
+        );
+      } else {
+        for (let j = 0; j < menuItems[i].children.length; j++) {
+          out.push(
+            <Route
+              key={menuItems[i].children[j].key}
+              render={() => menuItems[i].children[j].render}
+              path={menuItems[i].children[j].key}
+              exact
+            />
+          );
+        }
+      }
+    }
+    return out;
+  };
+
+  /**
   useEffect(() => {
     history.push(page);
   }, [page]);
+  */
+
+  console.log(history);
 
   return (
     <DocumentationModal>
@@ -95,16 +130,12 @@ export default function Documentation(): ReactElement {
               defaultSelectedKeys={["1"]}
               defaultOpenKeys={["sub1"]}
               style={{ height: "100%", borderRight: 0 }}
-              items={items2}
+              onSelect={onMenuSelect}
+              items={menuItems}
             />
           </div>
         </Layout.Sider>
         <Layout style={{ padding: "0 24px 24px" }}>
-          <Breadcrumb style={{ margin: "16px 0" }}>
-            <Breadcrumb.Item>Home</Breadcrumb.Item>
-            <Breadcrumb.Item>List</Breadcrumb.Item>
-            <Breadcrumb.Item>App</Breadcrumb.Item>
-          </Breadcrumb>
           <Layout.Content
             style={{
               padding: 24,
@@ -112,7 +143,15 @@ export default function Documentation(): ReactElement {
               minHeight: 280,
             }}
           >
-            Content
+            <Typography>Test</Typography>
+            <Switch>
+              <Route
+                render={() => <div>Introduction</div>}
+                exact
+                path="/introduction"
+              ></Route>
+              <Route render={() => <div>Test</div>} path="/"></Route>
+            </Switch>
           </Layout.Content>
         </Layout>
       </Layout>

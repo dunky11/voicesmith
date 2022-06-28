@@ -86,7 +86,10 @@ def get_acoustic_configs(
 ) -> Tuple[PreprocessingConfig, AcousticModelConfig, AcousticFinetuningConfig]:
     row = cur.execute(
         """
-        SELECT min_seconds, max_seconds, maximum_workers, use_audio_normalization, validation_size, acoustic_learning_rate, acoustic_training_iterations, acoustic_batch_size, acoustic_grad_accum_steps, acoustic_validate_every, only_train_speaker_emb_until 
+        SELECT min_seconds, max_seconds, maximum_workers, use_audio_normalization, 
+        validation_size, acoustic_learning_rate, acoustic_training_iterations, 
+        acoustic_batch_size, acoustic_grad_accum_steps, acoustic_validate_every, 
+        only_train_speaker_emb_until, forced_alignment_batch_size
         FROM training_run WHERE ID=?
         """,
         (run_id,),
@@ -103,6 +106,7 @@ def get_acoustic_configs(
         grad_acc_step,
         acoustic_validate_every,
         only_train_speaker_until,
+        forced_alignment_batch_size,
     ) = row
     p_config: PreprocessingConfig = PreprocessingConfig()
     m_config: AcousticModelConfig = AcousticModelConfig()
@@ -112,6 +116,7 @@ def get_acoustic_configs(
     p_config.max_seconds = max_seconds
     p_config.use_audio_normalization = use_audio_normalization == 1
     p_config.workers = get_workers(maximum_workers)
+    p_config.forced_alignment_batch_size = forced_alignment_batch_size
     t_config.batch_size = batch_size
     t_config.grad_acc_step = grad_acc_step
     t_config.train_steps = acoustic_training_iterations

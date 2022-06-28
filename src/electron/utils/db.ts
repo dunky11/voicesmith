@@ -49,7 +49,6 @@ const createTables = (db: any) => {
     ` 
     CREATE TABLE IF NOT EXISTS sample_to_align (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        was_aligned BOOLEAN DEFAULT 0,
         sample_id INTEGER UNIQUE NOT NULL,
         training_run_id INTEGER DEFAULT NULL,
         sample_splitting_run_id INTEGER DEFAULT NULL,
