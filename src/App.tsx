@@ -7,10 +7,12 @@ import {
   DatabaseOutlined,
   ClearOutlined,
   SettingOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import { createUseStyles } from "react-jss";
 import { useDispatch, useSelector } from "react-redux";
 import { editAppInfo } from "./features/appInfoSlice";
+import { setIsOpen } from "./features/documentationManagerSlice";
 import { RootState } from "./app/store";
 import MainLoading from "./pages/main_loading/MainLoading";
 import Models from "./pages/models/Models";
@@ -35,7 +37,6 @@ import {
   GET_APP_INFO_CHANNEL,
 } from "./channels";
 import RunManager from "./components/run_management/RunManager";
-import { app } from "electron";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -72,6 +73,7 @@ const useStyles = createUseStyles({
   },
   navIcon: { marginRight: 4, fontSize: 16 },
   divider: { borderColor: "#27272A" },
+  smallDivider: { borderColor: "#27272A", marginTop: 8, marginBottom: 8 },
   leftLayout: { minHeight: "100%" },
   contentLayout: {},
   content: { margin: "24px !important" },
@@ -256,6 +258,25 @@ export default function App(): ReactElement {
                 className={classes.navItem}
               >
                 Settings
+              </Menu.Item>
+            </Menu>
+            <Divider className={classes.smallDivider} />
+            <Menu
+              theme="dark"
+              selectedKeys={selectedKeys}
+              mode="inline"
+              className={classes.navMenu}
+              disabled={!serverIsReady || navIsDisabled}
+            >
+              <Menu.Item
+                onClick={() => {
+                  dispatch(setIsOpen(true));
+                }}
+                key="open-documentation"
+                icon={<BookOutlined className={classes.navIcon} />}
+                className={classes.navItem}
+              >
+                Documentation
               </Menu.Item>
             </Menu>
           </div>

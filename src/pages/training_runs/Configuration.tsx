@@ -27,6 +27,10 @@ import DatasetInput from "../../components/inputs/DatasetInput";
 import NameInput from "../../components/inputs/NameInput";
 import MaximumWorkersInput from "../../components/inputs/MaximumWorkersInput";
 import AlignmentBatchSizeInput from "../../components/inputs/AlignmentBatchSizeInput";
+import BatchSizeInput from "../../components/inputs/BatchSizeInput";
+import GradientAccumulationStepsInput from "../../components/inputs/GradientAccumulationStepsInput";
+import RunValidationEveryInput from "../../components/inputs/RunValidationEveryInput";
+import TrainOnlySpeakerEmbedsUntilInput from "../../components/inputs/TrainOnlySpeakerEmbedsUntilInput";
 import HelpIcon from "../../components/help/HelpIcon";
 import {
   UPDATE_TRAINING_RUN_CHANNEL,
@@ -326,44 +330,25 @@ export default function Configuration({
               disabled={initialIsLoading}
             />
             <TrainingStepsInput
-              disabled={initialIsLoading}
               name="acousticTrainingIterations"
+              disabled={initialIsLoading}
             />
-            <Form.Item label="Batch Size" name="acousticBatchSize">
-              <InputNumber
-                precision={0}
-                disabled={initialIsLoading}
-                step={1}
-                min={1}
-              ></InputNumber>
-            </Form.Item>
-            <Form.Item
-              label="Gradient Accumulation Steps"
+            <BatchSizeInput
+              name="acousticBatchSize"
+              disabled={initialIsLoading}
+            />
+            <GradientAccumulationStepsInput
               name="acousticGradAccumSteps"
-            >
-              <InputNumber
-                precision={0}
-                disabled={initialIsLoading}
-                step={1}
-                min={1}
-              ></InputNumber>
-            </Form.Item>
-            <Form.Item
-              label="Run Validation Every"
+              disabled={initialIsLoading}
+            />
+            <RunValidationEveryInput
               name="acousticValidateEvery"
-            >
-              <InputNumber
-                precision={0}
-                disabled={initialIsLoading}
-                step={10}
-                min={0}
-                addonAfter="steps"
-              ></InputNumber>
-            </Form.Item>
-            <Form.Item
+              disabled={initialIsLoading}
+            />
+            <TrainOnlySpeakerEmbedsUntilInput
               rules={[
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
+                ({ getFieldValue }: { getFieldValue: (name: any) => any }) => ({
+                  validator(_: any, value: any) {
                     if (value > getFieldValue("acousticTrainingIterations")) {
                       return Promise.reject(
                         new Error("Cannot be smaller than training steps")
@@ -373,17 +358,8 @@ export default function Configuration({
                   },
                 }),
               ]}
-              label="Train Only Speaker Embeds Until"
               name="onlyTrainSpeakerEmbUntil"
-            >
-              <InputNumber
-                precision={0}
-                disabled={initialIsLoading}
-                step={10}
-                min={0}
-                addonAfter="steps"
-              ></InputNumber>
-            </Form.Item>
+            />
           </Collapse.Panel>
           <Collapse.Panel header="Vocoder" key="vocoder">
             <LearningRateInput
@@ -394,34 +370,18 @@ export default function Configuration({
               disabled={initialIsLoading}
               name="vocoderTrainingIterations"
             />
-            <Form.Item label="Batch Size" name="vocoderBatchSize">
-              <InputNumber
-                precision={0}
-                disabled={initialIsLoading}
-                step={1}
-                min={1}
-              ></InputNumber>
-            </Form.Item>
-            <Form.Item
-              label="Gradient Accumulation Steps"
+            <BatchSizeInput
+              name="vocoderBatchSize"
+              disabled={initialIsLoading}
+            />
+            <GradientAccumulationStepsInput
               name="vocoderGradAccumSteps"
-            >
-              <InputNumber
-                precision={0}
-                disabled={initialIsLoading}
-                step={1}
-                min={1}
-              ></InputNumber>
-            </Form.Item>
-            <Form.Item label="Run Validation Every" name="vocoderValidateEvery">
-              <InputNumber
-                precision={0}
-                disabled={initialIsLoading}
-                step={10}
-                min={0}
-                addonAfter="steps"
-              ></InputNumber>
-            </Form.Item>
+              disabled={initialIsLoading}
+            />
+            <RunValidationEveryInput
+              name="vocoderValidateEvery"
+              disabled={initialIsLoading}
+            />
           </Collapse.Panel>
         </Collapse>
       </Form>

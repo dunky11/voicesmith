@@ -340,6 +340,11 @@ export interface NavigationSettingsInterface {
   isDisabled: boolean;
 }
 
+export interface DocumentationManagerInterface {
+  isOpen: boolean;
+  route: string;
+}
+
 export type PreprocessingRunType =
   | TextNormalizationRunInterface
   | SampleSplittingRunInterface

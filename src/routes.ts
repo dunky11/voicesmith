@@ -96,3 +96,7 @@ export const SETTINGS_ROUTE = {
 export const RUN_QUEUE_ROUTE = {
   ROUTE: "/run-queue",
 };
+
+export const DOCUMENTATION_ROUTE = {
+  ROUTE: "/documentation",
+};
