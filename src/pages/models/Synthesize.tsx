@@ -15,7 +15,7 @@ import {
   Typography,
 } from "antd";
 import { FormInstance } from "rc-field-form";
-import { Link } from "react-router-dom";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import LogPrinter from "../../components/log_printer/LogPrinter";
 import AudioBottomBar from "../../components/audio_player/AudioBottomBar";
 import { createUseStyles } from "react-jss";
@@ -210,10 +210,10 @@ export default function Synthesize({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>
-          <Link to={MODELS_ROUTE.SELECTION.ROUTE}>Models</Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>Synthesize</Breadcrumb.Item>
+        <BreadcrumbItem to={MODELS_ROUTE.SELECTION.ROUTE}>
+          Models
+        </BreadcrumbItem>
+        <BreadcrumbItem>Synthesize</BreadcrumbItem>
       </Breadcrumb>
       <Row gutter={[16, 24]}>
         <Col span={8}>

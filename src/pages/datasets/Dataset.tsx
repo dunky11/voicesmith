@@ -9,9 +9,10 @@ import {
   Breadcrumb,
   InputRef,
 } from "antd";
-import { Link, useHistory } from "react-router-dom";
+import { useHistory } from "react-router-dom";
 import { IpcRendererEvent } from "electron";
 import { createUseStyles } from "react-jss";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { setNavIsDisabled } from "../../features/navigationSettingsSlice";
 import Speaker from "./Speaker";
 import InfoButton from "./InfoButton";
@@ -310,10 +311,10 @@ export default function Dataset({
         }}
       ></ImportSettingsDialog>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>
-          <Link to={DATASETS_ROUTE.SELECTION.ROUTE}>Datasets</Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{dataset?.name}</Breadcrumb.Item>
+        <BreadcrumbItem to={DATASETS_ROUTE.SELECTION.ROUTE}>
+          Datasets
+        </BreadcrumbItem>
+        <BreadcrumbItem>{dataset?.name}</BreadcrumbItem>
       </Breadcrumb>
       <Card
         title="Add Speakers to your Model"

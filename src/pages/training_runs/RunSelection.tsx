@@ -9,6 +9,7 @@ import {
   Typography,
 } from "antd";
 import { useSelector, useDispatch } from "react-redux";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import { POLL_LOGFILE_INTERVALL, defaultPageOptions } from "../../config";
 import { useInterval, stringCompare, getStateTag } from "../../utils";
@@ -207,7 +208,7 @@ export default function RunSelection({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>Training Runs</Breadcrumb.Item>
+        <BreadcrumbItem>Training Runs</BreadcrumbItem>
       </Breadcrumb>
       <Card
         title={`Your Models in Training`}

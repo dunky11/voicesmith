@@ -1,5 +1,4 @@
 import React, { ReactElement, useEffect, useRef, useState } from "react";
-import { SyncOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../app/store";
 import {
@@ -11,6 +10,7 @@ import {
   Popconfirm,
   Typography,
 } from "antd";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { defaultPageOptions } from "../../config";
 import { RunInterface, PreprocessingRunType } from "../../interfaces";
 import {
@@ -265,7 +265,7 @@ export default function PreprocessingRunSelection({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>Preprocessing Runs</Breadcrumb.Item>
+        <BreadcrumbItem>Preprocessing Runs</BreadcrumbItem>
       </Breadcrumb>
       <Card
         title={`Your Preprocessing Runs`}

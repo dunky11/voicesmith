@@ -1,6 +1,7 @@
 import React, { ReactElement, useEffect, useRef, useState } from "react";
 import { Breadcrumb, Form, Input, FormInstance, Button, Row, Col } from "antd";
 import { useDispatch, useSelector } from "react-redux";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { RootState } from "../../app/store";
 import RunCard from "../../components/cards/RunCard";
 import { RunInterface, SettingsInterface } from "../../interfaces";
@@ -100,7 +101,7 @@ export default function Settings(): ReactElement {
   return (
     <>
       <Breadcrumb className={classes.breadcrumb}>
-        <Breadcrumb.Item>Settings</Breadcrumb.Item>
+        <BreadcrumbItem>Settings</BreadcrumbItem>
       </Breadcrumb>
       <Row>
         <Col span={12}>

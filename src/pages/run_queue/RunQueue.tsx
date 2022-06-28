@@ -1,8 +1,8 @@
 import React, { ReactElement } from "react";
-import { Breadcrumb, Table, Space, Typography, Button, Tag } from "antd";
+import { Breadcrumb, Table, Space, Typography, Button } from "antd";
 import { createUseStyles } from "react-jss";
-import { SyncOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { getStateTag, getTypeTag } from "../../utils";
 import { RootState } from "../../app/store";
 import RunCard from "../../components/cards/RunCard";
@@ -118,7 +118,7 @@ export default function RunQueue(): ReactElement {
   return (
     <>
       <Breadcrumb className={classes.breadcrumb}>
-        <Breadcrumb.Item>Run Queue</Breadcrumb.Item>
+        <BreadcrumbItem>Run Queue</BreadcrumbItem>
       </Breadcrumb>
       <RunCard title="Run Queue" disableFullHeight>
         <Button

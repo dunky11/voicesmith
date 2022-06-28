@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
-import { Switch, useHistory, Route, Link } from "react-router-dom";
+import { Switch, useHistory, Route } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import AcousticModelFinetuning from "./AcousticModelFinetuning";
 import Configuration from "./Configuration";
 import Preprocessing from "./Preprocessing";
@@ -100,12 +101,10 @@ export default function CreateModel({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>
-          <Link to={TRAINING_RUNS_ROUTE.RUN_SELECTION.ROUTE}>
-            Training Runs
-          </Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{stepToTitle[current]}</Breadcrumb.Item>
+        <BreadcrumbItem to={TRAINING_RUNS_ROUTE.RUN_SELECTION.ROUTE}>
+          Training Runs
+        </BreadcrumbItem>
+        <BreadcrumbItem>{stepToTitle[current]}</BreadcrumbItem>
       </Breadcrumb>
       <Row gutter={[0, 100]}>
         <Col span={4}>

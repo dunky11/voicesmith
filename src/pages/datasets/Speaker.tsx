@@ -8,7 +8,7 @@ import {
   Typography,
   InputRef,
 } from "antd";
-import { Link } from "react-router-dom";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { defaultPageOptions } from "../../config";
 import AudioBottomBar from "../../components/audio_player/AudioBottomBar";
 import { stringCompare, getSearchableColumn } from "../../utils";
@@ -217,13 +217,16 @@ export default function Speaker({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>
-          <Link to={DATASETS_ROUTE.SELECTION.ROUTE}>Datasets</Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item onClick={onSpeakerBackClick}>
-          <Link to={DATASETS_ROUTE.EDIT.ROUTE}>{datasetName}</Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{speaker?.name}</Breadcrumb.Item>
+        <BreadcrumbItem to={DATASETS_ROUTE.SELECTION.ROUTE}>
+          Datasets
+        </BreadcrumbItem>
+        <BreadcrumbItem
+          to={DATASETS_ROUTE.EDIT.ROUTE}
+          onClick={onSpeakerBackClick}
+        >
+          {datasetName}
+        </BreadcrumbItem>
+        <BreadcrumbItem>{speaker?.name}</BreadcrumbItem>
       </Breadcrumb>
       <Card
         title={`Samples of speaker '${speaker?.name}'`}

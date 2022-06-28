@@ -1,5 +1,4 @@
 import React, { ReactElement, useEffect, useRef, useState } from "react";
-import { useHistory, Link } from "react-router-dom";
 import {
   Card,
   Popconfirm,
@@ -11,6 +10,7 @@ import {
   Typography,
   Modal,
 } from "antd";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { defaultPageOptions } from "../../config";
 import { ModelInterface, ModelSpeakerInterface } from "../../interfaces";
 import { stringCompare } from "../../utils";
@@ -155,7 +155,7 @@ export default function Models({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>Models</Breadcrumb.Item>
+        <BreadcrumbItem>Models</BreadcrumbItem>
       </Breadcrumb>
       <Modal
         title="Confirm Deletion"

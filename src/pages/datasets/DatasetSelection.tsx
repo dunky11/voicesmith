@@ -11,6 +11,7 @@ import {
 } from "antd";
 import { IpcRendererEvent } from "electron";
 import { useDispatch } from "react-redux";
+import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import InfoButton from "./InfoButton";
 import {
   EDIT_DATASET_NAME_CHANNEL,
@@ -204,7 +205,7 @@ export default function DatasetSelection({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>Datasets</Breadcrumb.Item>
+        <BreadcrumbItem>Datasets</BreadcrumbItem>
       </Breadcrumb>
       <Card
         title="Your Datasets"

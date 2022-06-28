@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
-import { Switch, useHistory, Route, Link } from "react-router-dom";
+import { Switch, useHistory, Route } from "react-router-dom";
 import { Steps, Breadcrumb, Row, Col, Card } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
+import BreadcrumbItem from "../../../components/breadcrumb/BreadcrumbItem";
 import { RootState } from "../../../app/store";
 import { RunInterface, SampleSplittingRunInterface } from "../../../interfaces";
 import { useInterval } from "../../../utils";
@@ -93,13 +94,11 @@ export default function SampleSplitting({
   return (
     <>
       <Breadcrumb style={{ marginBottom: 8 }}>
-        <Breadcrumb.Item>
-          <Link to={PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE}>
-            Preprocessing Runs
-          </Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{preprocessingRun.name}</Breadcrumb.Item>
-        <Breadcrumb.Item>{stepToTitle[current]}</Breadcrumb.Item>
+        <BreadcrumbItem to={PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE}>
+          Preprocessing Runs
+        </BreadcrumbItem>
+        <BreadcrumbItem>{preprocessingRun.name}</BreadcrumbItem>
+        <BreadcrumbItem>{stepToTitle[current]}</BreadcrumbItem>
       </Breadcrumb>
       <Row gutter={[0, 100]}>
         <Col span={4}>
