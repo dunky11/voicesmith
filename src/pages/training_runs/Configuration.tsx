@@ -25,6 +25,7 @@ import DeviceInput from "../../components/inputs/DeviceInput";
 import DatasetInput from "../../components/inputs/DatasetInput";
 import NameInput from "../../components/inputs/NameInput";
 import MaximumWorkersInput from "../../components/inputs/MaximumWorkersInput";
+import AlignmentBatchSizeInput from "../../components/inputs/AlignmentBatchSizeInput";
 import {
   UPDATE_TRAINING_RUN_CHANNEL,
   FETCH_TRAINING_RUN_NAMES_CHANNEL,
@@ -195,6 +196,7 @@ export default function Configuration({
                 addonAfter="%"
               ></InputNumber>
             </Form.Item>
+            <AlignmentBatchSizeInput disabled={initialIsLoading} />
             <MaximumWorkersInput disabled={initialIsLoading} />
             <Form.Item
               rules={[

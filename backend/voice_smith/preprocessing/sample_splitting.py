@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import List, Union, Literal, Dict
+from typing import List, Union, Literal
+import sqlite3
 import tgt
 from pathlib import Path
 import torch
@@ -20,6 +21,57 @@ class SampleSplit:
     text: str
     lang: str
     splits: List[Split]
+
+
+def insert_samples_to_align(
+    cur: sqlite3.Cursor,
+    con: sqlite3.Connection,
+    sample_ids: List[int],
+    foreign_key_name: str,
+    run_id: int,
+):
+    for sample_id in sample_ids:
+        cur.execute(
+            f"""
+            INSERT OR IGNORE INTO sample_to_align(sample_id, {foreign_key_name}) VALUES (?, ?)
+            """,
+            (sample_id, run_id),
+        )
+    con.commit()
+
+
+def mark_samples_as_aligned(
+    cur: sqlite3.Cursor,
+    con: sqlite3.Connection,
+    sample_ids: List[int],
+    foreign_key_name: str,
+    run_id: int,
+):
+    for sample_id in sample_ids:
+        cur.execute(
+            f"""
+            UPDATE sample_to_align SET was_aligned=1 WHERE {foreign_key_name}=?
+            """,
+            (sample_id, run_id),
+        )
+    con.commit()
+
+
+def copy_for_alignment(
+    cur: sqlite3.Cursor,
+    con: sqlite3.Connection,
+    lang: str,
+    foreign_key_name: str,
+    run_id: int,
+):
+    for sample_id in sample_ids:
+        cur.execute(
+            f"""
+            UPDATE sample_to_align SET was_aligned=1 WHERE {foreign_key_name}=?
+            """,
+            (sample_id, run_id),
+        )
+    con.commit()
 
 
 def get_splits(sentences_word, sentences_full, words_tier):

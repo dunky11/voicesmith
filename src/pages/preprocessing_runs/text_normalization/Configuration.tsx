@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, ReactElement } from "react";
-import { Button, Form, Input, Select } from "antd";
+import { Button, Form } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
+import { textNormalizationRunInitialValues } from "../../../config";
 import {
-  RunInterface,
   TextNormalizationRunInterface,
   TextNormalizationRunConfigInterface,
 } from "../../../interfaces";
@@ -20,12 +20,6 @@ import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 import { useDispatch } from "react-redux";
 import { addToQueue } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
-
-const initialValues: TextNormalizationRunConfigInterface = {
-  name: "",
-  datasetID: null,
-  datasetName: null,
-};
 
 export default function Configuration({
   onStepChange,
@@ -55,7 +49,7 @@ export default function Configuration({
 
   const onDefaults = () => {
     formRef.current?.setFieldsValue({
-      ...initialValues,
+      ...textNormalizationRunInitialValues,
       datasetID: formRef.current.getFieldValue("datasetID"),
       datasetName: formRef.current.getFieldValue("datasetName"),
       name: formRef.current.getFieldValue("name"),
@@ -72,7 +66,7 @@ export default function Configuration({
 
   const onFinish = () => {
     const values: TextNormalizationRunConfigInterface = {
-      ...initialValues,
+      ...textNormalizationRunInitialValues,
       ...formRef.current?.getFieldsValue(),
     };
 
@@ -159,7 +153,7 @@ export default function Configuration({
         ref={(node) => {
           formRef.current = node;
         }}
-        initialValues={initialValues}
+        initialValues={textNormalizationRunInitialValues}
         onFinish={onFinish}
       >
         <NameInput

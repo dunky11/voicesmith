@@ -1,6 +1,11 @@
 import { ipcMain, IpcMainInvokeEvent } from "electron";
 import path from "path";
 import {
+  cleaningRunInitialValues,
+  sampleSplittingRunInitialValues,
+  textNormalizationRunInitialValues,
+} from "../../config";
+import {
   CREATE_PREPROCESSING_RUN_CHANNEL,
   FETCH_PREPROCESSING_RUNS_CHANNEL,
   EDIT_PREPROCESSING_RUN_NAME_CHANNEL,
@@ -30,6 +35,7 @@ ipcMain.handle(
             "INSERT INTO cleaning_run (name, maximum_workers) VALUES (@name, -1)"
           )
           .run({
+            ...cleaningRunInitialValues,
             name,
           });
         break;
@@ -37,6 +43,7 @@ ipcMain.handle(
         DB.getInstance()
           .prepare("INSERT INTO text_normalization_run (name) VALUES (@name)")
           .run({
+            ...textNormalizationRunInitialValues,
             name,
           });
         break;
@@ -46,6 +53,7 @@ ipcMain.handle(
             "INSERT INTO sample_splitting_run (name, maximum_workers) VALUES (@name, -1)"
           )
           .run({
+            ...sampleSplittingRunInitialValues,
             name,
           });
         break;

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, ReactElement } from "react";
-import { Button, Form, Select } from "antd";
+import { Button, Form } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import { useDispatch } from "react-redux";
+import { sampleSplittingRunInitialValues } from "../../../config";
 import {
   SampleSplittingRunConfigInterface,
   SampleSplittingRunInterface,
@@ -15,6 +16,7 @@ import {
   FETCH_SAMPLE_SPLITTING_RUNS_CHANNEL_TYPES,
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES,
 } from "../../../channels";
+import AlignmentBatchSizeInput from "../../../components/inputs/AlignmentBatchSizeInput";
 import MaximumWorkersInput from "../../../components/inputs/MaximumWorkersInput";
 import SkipOnErrorInput from "../../../components/inputs/SkipOnErrorInput";
 import DeviceInput from "../../../components/inputs/DeviceInput";
@@ -24,15 +26,6 @@ import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 import { fetchNames } from "../PreprocessingRuns";
 import { addToQueue } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
-
-const initialValues: SampleSplittingRunConfigInterface = {
-  name: "",
-  maximumWorkers: -1,
-  datasetID: null,
-  datasetName: null,
-  device: "CPU",
-  skipOnError: true,
-};
 
 export default function Configuration({
   onStepChange,
@@ -64,7 +57,7 @@ export default function Configuration({
 
   const onDefaults = () => {
     formRef.current?.setFieldsValue({
-      ...initialValues,
+      ...sampleSplittingRunInitialValues,
       datasetID: formRef.current.getFieldValue("datasetID"),
       datasetName: formRef.current.getFieldValue("datasetName"),
       name: formRef.current.getFieldValue("name"),
@@ -83,7 +76,7 @@ export default function Configuration({
     const args: UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES["IN"]["ARGS"] = {
       ...run,
       configuration: {
-        ...initialValues,
+        ...sampleSplittingRunInitialValues,
         ...formRef.current?.getFieldsValue(),
       },
     };
@@ -174,7 +167,7 @@ export default function Configuration({
         ref={(node) => {
           formRef.current = node;
         }}
-        initialValues={initialValues}
+        initialValues={sampleSplittingRunInitialValues}
         onFinish={onFinish}
       >
         <NameInput
@@ -185,6 +178,7 @@ export default function Configuration({
         />
         <MaximumWorkersInput disabled={initialIsLoading} />
         <SkipOnErrorInput disabled={initialIsLoading} />
+        <AlignmentBatchSizeInput disabled={initialIsLoading} />
         <DatasetInput disabled={initialIsLoading || hasStarted} />
         <DeviceInput disabled={initialIsLoading} />
       </Form>

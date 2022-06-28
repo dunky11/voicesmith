@@ -152,6 +152,7 @@ export interface TrainingRunConfigInterface {
   datasetID: number | null;
   datasetName: string | null;
   skipOnError: boolean;
+  forcedAlignmentBatchSize: number;
 }
 
 export interface CleaningRunInterface extends RunInterface {
@@ -240,6 +241,7 @@ export interface SampleSplittingRunConfigInterface {
   datasetName: string | null;
   skipOnError: boolean;
   maximumWorkers: number;
+  forcedAlignmentBatchSize: number;
 }
 
 export interface FileInterface {

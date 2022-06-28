@@ -20,7 +20,6 @@ export default function TrainingRuns(): ReactElement {
   };
 
   const removeTrainingRun = (run: TrainingRunInterface) => {
-    console.log("REMOVE TRAINING RUN");
     if (selectedTrainingRun !== null && run.ID === selectedTrainingRun.ID) {
       trainingRunToRm.current = run;
       setSelectedTrainingRun(null);

@@ -1,5 +1,10 @@
-import { TrainingRunConfigInterface, SpeakerInterface } from "./interfaces";
-
+import {
+  TrainingRunConfigInterface,
+  SpeakerInterface,
+  CleaningRunConfigInterface,
+  TextNormalizationRunConfigInterface,
+  SampleSplittingRunConfigInterface,
+} from "./interfaces";
 export const SERVER_URL = "http://localhost:12118";
 export const POLL_LOGFILE_INTERVALL = 1000;
 export const POLL_NULL_INTERVALL = 50;
@@ -103,7 +108,35 @@ export const trainingRunInitialValues: TrainingRunConfigInterface = {
   datasetID: null,
   datasetName: null,
   skipOnError: true,
+  forcedAlignmentBatchSize: 200000,
 };
+
+export const cleaningRunInitialValues: CleaningRunConfigInterface = {
+  name: "",
+  datasetID: null,
+  datasetName: null,
+  skipOnError: true,
+  device: "CPU",
+  maximumWorkers: -1,
+};
+
+export const textNormalizationRunInitialValues: TextNormalizationRunConfigInterface =
+  {
+    name: "",
+    datasetID: null,
+    datasetName: null,
+  };
+
+export const sampleSplittingRunInitialValues: SampleSplittingRunConfigInterface =
+  {
+    name: "",
+    maximumWorkers: -1,
+    datasetID: null,
+    datasetName: null,
+    device: "CPU",
+    skipOnError: true,
+    forcedAlignmentBatchSize: 200000,
+  };
 
 export const defaultPageOptions = {
   defaultPageSize: 100,

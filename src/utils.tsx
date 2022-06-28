@@ -5,7 +5,7 @@ import React, {
   useRef,
   ReactElement,
 } from "react";
-import { InputRef, notification, Tag, Input, Space, Button } from "antd";
+import { notification, Tag, Input, Space, Button } from "antd";
 import { SyncOutlined, SearchOutlined } from "@ant-design/icons";
 import type { FilterConfirmProps } from "antd/lib/table/interface";
 import type { ColumnType } from "antd/lib/table";

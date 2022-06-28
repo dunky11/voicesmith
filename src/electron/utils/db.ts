@@ -38,10 +38,31 @@ const createTables = (db: any) => {
         save_model_progress FLOAT NOT NULL DEFAULT 0.0,
         only_train_speaker_emb_until INTEGER NOT NULL,
         skip_on_error BOOLEAN DEFAULT 1,
+        forced_alignment_batch_size INTEGER NOT NULL DEFAULT 200000,
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID) ON DELETE SET NULL,
         UNIQUE(name)
     );
+    `
+  ).run();
+  db.prepare(
+    ` 
+    CREATE TABLE IF NOT EXISTS sample_to_align (
+        ID INTEGER PRIMARY KEY AUTOINCREMENT,
+        was_aligned BOOLEAN DEFAULT 0,
+        sample_id INTEGER UNIQUE NOT NULL,
+        training_run_id INTEGER DEFAULT NULL,
+        sample_splitting_run_id INTEGER DEFAULT NULL,
+        FOREIGN KEY (sample_id) REFERENCES sample(ID) ON DELETE CASCADE,
+        FOREIGN KEY (training_run_id) REFERENCES training_run(ID) ON DELETE CASCADE,
+        FOREIGN KEY (sample_splitting_run_id) REFERENCES sample_splitting_run(ID) ON DELETE CASCADE
+    );
+    `
+  ).run();
+  db.prepare(
+    `
+    CREATE INDEX IF NOT EXISTS sample_to_align_was_aligned_index
+    ON sample_to_align(was_aligned)   
     `
   ).run();
   db.prepare(
@@ -271,6 +292,7 @@ const createTables = (db: any) => {
         applying_changes_progress FLOAT NOT NULL DEFAULT 0.0,
         device TEXT NOT NULL DEFAULT "CPU",
         skip_on_error BOOLEAN DEFAULT 1,
+        forced_alignment_batch_size INTEGER NOT NULL DEFAULT 200000,
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
     ); 

@@ -156,7 +156,8 @@ ipcMain.handle(
       dataset_id AS datasetID,
       dataset.name AS datasetName,
       device,
-      skip_on_error AS skipOnError
+      skip_on_error AS skipOnError,
+      forced_alignment_batch_size AS forcedAlignmentBatchSize
     FROM training_run
     LEFT JOIN dataset ON training_run.dataset_id = dataset.ID 
     ${ID === null ? "" : "WHERE training_run.ID=@ID"}`);
@@ -254,6 +255,7 @@ ipcMain.handle(
             datasetID: el.datasetID,
             datasetName: el.datasetName,
             skipOnError: el.skipOnError === 1,
+            forcedAlignmentBatchSize: el.forcedAlignmentBatchSize,
           },
           canStart: el.datasetID !== null,
         };

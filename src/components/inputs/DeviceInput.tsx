@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
 import { Form, Select, Alert, Typography } from "antd";
 import { SERVER_URL } from "../../config";
+import HelpIcon from "../help/HelpIcon";
 const { shell } = window.require("electron");
 
 export default function DeviceInput({
@@ -36,7 +37,25 @@ export default function DeviceInput({
 
   return (
     <>
-      <Form.Item label="Device" name="device">
+      <Form.Item
+        label={
+          <Typography.Text>
+            Device
+            <HelpIcon
+              content={
+                <Typography>
+                  Select if you want to use the CPU or GPU for ressource hungry
+                  computations. It is highly advised to set this to GPU if
+                  possible. If the GPU option is disabled your graphics card may
+                  not be supported by CUDA.
+                </Typography>
+              }
+              style={{ marginLeft: 8 }}
+            />
+          </Typography.Text>
+        }
+        name="device"
+      >
         <Select disabled={disabled}>
           <Select.Option value="CPU">CPU</Select.Option>
           <Select.Option value="GPU" disabled={!cudaIsAvailable}>
