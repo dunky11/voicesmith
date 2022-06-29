@@ -53,7 +53,7 @@ ipcMain.on(
     }
     startRun(
       event,
-      "/home/backend/voice_smith/cleaning_run.py",
+      "./backend/voice_smith/cleaning_run.py",
       ["--run_id", String(runID)],
       false
     );

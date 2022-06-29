@@ -10,6 +10,7 @@ import psutil
 import shutil
 import warnings, sys
 import multiprocessing as mp
+from tqdm import tqdm
 
 
 def warnings_to_stdout():
@@ -194,21 +195,23 @@ def iter_logger(
     callback_every: int = 1,
     cb: Union[Callable, None] = None,
 ) -> Iterator:
-    last_time = time.time()
-    for i, el in enumerate(iterable):
-        if i % print_every == 0 and i != 0:
-            message = f"{i if start == None else i + start}"
-            if total != None:
-                message += f"/{total}"
-            this_time = time.time()
-            message += f", {round(print_every / (this_time - last_time), 2)}it/s"
-            last_time = this_time
-            print(message, flush=True)
-
-        if cb != None and i % callback_every == 0:
+    for i, it in enumerate(
+        tqdm(iterable, initial=0 if start is None else start, total=total, leave=True)
+    ):
+        if i % callback_every == 0 and cb is not None:
             cb(i)
+        print("\n", flush=True)
+        yield it
 
-        yield el
+    """class tqdm_logger(base_tqdm):
+        def update(self, n=1):
+            super(base_tqdm, self).update(n)
+            if n % callback_every == 0 and cb != None:
+                cb(n)
+
+    return tqdm_logger(
+        iterable, initial=start, total=total, leave=True, file=sys.stdout
+    )"""
 
 
 def bytes_to_gb(bytes: float) -> float:

@@ -47,6 +47,13 @@ def copy_sample(base_path: str, out_dir: str) -> None:
     speaker_name = base_path.parent.name
     audio_in_path = f"{str(base_path)}.flac"
     txt_in_path = f"{str(base_path)}.txt"
+    if not Path(audio_in_path).exists():
+        print(audio_in_path + "does not exist", flush=True)
+    if not Path(txt_in_path).exists():
+        print(txt_in_path + "does not exist", flush=True)
+    if not Path(audio_in_path).exists() or not Path(txt_in_path).exists():
+
+        return
     out_dir_file = Path(out_dir) / speaker_name
     out_dir_file.mkdir(exist_ok=True, parents=True)
     audio_out_path = out_dir_file / f"{base_path.name}.flac"
@@ -102,6 +109,8 @@ def align(
         sample_ids, base_paths = get_batch(
             cur, table_name, lang, foreign_key_name, run_id, batch_size, data_path
         )
+        print(len(sample_ids))
+        print(len(base_paths))
         if len(sample_ids) == 0:
             break
         copy_batch(base_paths=base_paths, out_dir=tmp_dir, n_workers=n_workers)

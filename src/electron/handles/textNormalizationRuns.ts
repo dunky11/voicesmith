@@ -24,7 +24,7 @@ ipcMain.on(
   (event: IpcMainEvent, runID: number) => {
     startRun(
       event,
-      "/home/backend/voice_smith/text_normalization_run.py",
+      "./backend/voice_smith/text_normalization_run.py",
       ["--run_id", String(runID)],
       false
     );

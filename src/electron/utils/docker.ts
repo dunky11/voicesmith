@@ -38,18 +38,9 @@ export const removeContainer = async (): Promise<void> => {
   });
 };
 
-export const removeImage = async (): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    childProcess.exec(`docker image rm ${DOCKER_IMAGE_NAME}`, () => {
-      resolve();
-    });
-  });
-};
-
 export const resetDocker = async () => {
   await stopContainer();
   await removeContainer();
-  await removeImage();
 };
 
 export const spawnCondaCmd = (
@@ -59,9 +50,17 @@ export const spawnCondaCmd = (
   onExit: ((code: number) => void) | null
 ): ChildProcessWithoutNullStreams => {
   console.log(
-    ["conda", "run", "-n", CONDA_ENV_NAME, "--no-capture-output", ...args].join(
-      " "
-    )
+    [
+      "docker",
+      "exec",
+      DOCKER_CONTAINER_NAME,
+      "conda",
+      "run",
+      "-n",
+      CONDA_ENV_NAME,
+      "--no-capture-output",
+      ...args,
+    ].join(" ")
   );
   const proc = childProcess.spawn("docker", [
     "exec",
@@ -180,19 +179,15 @@ export const createContainer = async (
       "--name",
       DOCKER_CONTAINER_NAME,
       "--mount",
-      `type=bind,source=${CONDA_PATH},target=/home/backend`,
+      `type=bind,source=${CONDA_PATH},target=/home/voice_smith/backend`,
       "--mount",
-      `type=bind,source=${ASSETS_PATH},target=/home/assets`,
+      `type=bind,source=${path.dirname(DB_PATH)},target=/home/voice_smith/db`,
       "--mount",
-      `type=bind,source=${path.dirname(DB_PATH)},target=/home/db`,
-      "--mount",
-      `type=bind,source=${UserDataPath().getPath()},target=/home/data`,
+      `type=bind,source=${UserDataPath().getPath()},target=/home/voice_smith/data`,
       "--ulimit",
       "stack=67108864",
       "-p",
       `${PORT}:80`,
-      "-u",
-      "$(id -u):$(id -g)",
       ...(withGPU ? ["--gpus", "all"] : []),
       DOCKER_IMAGE_NAME,
     ],
@@ -205,28 +200,11 @@ export const installEnvironment = async (
   onData: ((data: string) => void) | null,
   onError: ((data: string) => void) | null
 ): Promise<void> => {
-  await spawnDockerCmdPromise(
-    [
-      "exec",
-      DOCKER_CONTAINER_NAME,
-      "conda",
-      "env",
-      "update",
-      "-f",
-      "./backend/environment.yml",
-      "--prune",
-    ],
-    onData,
-    onError
-  );
+  /** 
   await spawnDockerCmdPromise(
     ["exec", DOCKER_CONTAINER_NAME, "conda", "init", "bash"],
     onData,
     onError
   );
-  await spawnCondaCmdPromise(
-    ["mfa", "models", "download", "acoustic", "english_us_arpa"],
-    onData,
-    onError
-  );
+  */
 };

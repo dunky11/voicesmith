@@ -24,7 +24,7 @@ ipcMain.on(
   (event: IpcMainEvent, runID: number) => {
     startRun(
       event,
-      "/home/backend/voice_smith/sample_splitting_run.py",
+      "./backend/voice_smith/sample_splitting_run.py",
       ["--run_id", String(runID)],
       false
     );
@@ -95,26 +95,25 @@ ipcMain.handle(
     event: IpcMainInvokeEvent,
     run: UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES["IN"]["ARGS"]
   ): UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL_TYPES["IN"]["OUT"] => {
+    const config = { ...run.configuration };
+    const temp = { ...run };
+    delete temp.configuration;
+    const flattened = {
+      ...temp,
+      ...config,
+    };
     DB.getInstance()
       .prepare(
         `
         UPDATE sample_splitting_run 
           SET name=@name, dataset_id=@datasetID, 
           maximum_workers=@maximumWorkers, 
-          device=@device, skip_on_error=@skipOnError 
+          device=@device, skip_on_error=@skipOnError,
+          forced_alignment_batch_size=@forcedAlignmentBatchSize
         WHERE ID=@ID
         `
       )
-      .run(
-        bool2int({
-          name: run.configuration.name,
-          datasetID: run.configuration.datasetID,
-          maximumWorkers: run.configuration.maximumWorkers,
-          ID: run.ID,
-          device: run.configuration.device,
-          skipOnError: run.configuration.skipOnError,
-        })
-      );
+      .run(bool2int(flattened));
   }
 );
 
@@ -134,7 +133,7 @@ ipcMain.handle(
       sample.audio_path AS audioPath,
       dataset.ID as datasetID,
       speaker.ID as speakerID,
-      speaker.name AS speakerName
+      speaker.name AS speakerName,
       FROM sample_splitting_run_split
       INNER JOIN sample_splitting_run_sample ON sample_splitting_run_split.sample_splitting_run_sample_id = sample_splitting_run_sample.ID
       INNER JOIN sample ON sample_splitting_run_sample.sample_id = sample.ID

@@ -13,8 +13,7 @@ def copy_sample(
     audio_src: str, text_src: str, text: str, out_dir: str, skip_on_error: bool
 ) -> None:
     if not Path(audio_src).exists():
-        print(f"Audio file {audio_src} doesn't exist, skipping ...")
-        return
+        raise Exception(f"File {audio_src} does not exist ...")
     out_path = Path(out_dir)
     out_path.mkdir(exist_ok=True, parents=True)
     audio_out_path = out_path / (Path(audio_src).stem + ".flac")

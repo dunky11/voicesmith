@@ -237,6 +237,7 @@ class SampleSplittingRunConfig:
     workers: int
     device: torch.device
     skip_on_error: bool
+    forced_alignment_batch_size: int
 
 
 @dataclass

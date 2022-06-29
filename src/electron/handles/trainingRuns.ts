@@ -319,7 +319,7 @@ ipcMain.on(
 
     startRun(
       event,
-      "/home/backend/voice_smith/training_run.py",
+      "./backend/voice_smith/training_run.py",
       ["--run_id", String(runID)],
       false
     );

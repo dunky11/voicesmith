@@ -33,16 +33,19 @@ warnings_to_stdout()
 def get_config(cur: sqlite3.Cursor, run_id: int) -> SampleSplittingRunConfig:
     row = cur.execute(
         """
-        SELECT device, maximum_workers, skip_on_error FROM sample_splitting_run WHERE ID=?
+        SELECT device, maximum_workers, skip_on_error, forced_alignment_batch_size FROM sample_splitting_run WHERE ID=?
         """,
         (run_id,),
     ).fetchone()
-    (device, maximum_workers, skip_on_error) = row
+    (device, maximum_workers, skip_on_error, forced_alignment_batch_size) = row
     device = get_device(device)
     workers = get_workers(maximum_workers)
     skip_on_error = bool(skip_on_error)
     return SampleSplittingRunConfig(
-        workers=workers, device=device, skip_on_error=skip_on_error
+        workers=workers,
+        device=device,
+        skip_on_error=skip_on_error,
+        forced_alignment_batch_size=forced_alignment_batch_size,
     )
 
 
@@ -242,12 +245,18 @@ def gen_alignments_stage(
     for i, vocab_path in enumerate(vocab_paths):
         lang = vocab_path.name.split(".")[0]
         align(
+            cur=cur,
+            con=con,
+            table_name="sample_splitting_run",
+            foreign_key_name="sample_splitting_run_id",
+            run_id=run_id,
             environment_name=environment_name,
-            in_path=str(Path(data_path) / "raw_data" / lang),
+            data_path=data_path,
             lexicon_path=str(Path(data_path) / "data" / "vocabs" / f"{lang}.txt"),
             out_path=(str(Path(data_path) / "data" / "textgrid")),
             n_workers=p_config.workers,
             lang=lang,
+            batch_size=p_config.forced_alignment_batch_size,
         )
         cur.execute(
             "UPDATE sample_splitting_run SET gen_align_progress=? WHERE ID=?",
