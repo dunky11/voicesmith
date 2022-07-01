@@ -200,7 +200,7 @@ def iter_logger(
     ):
         if i % callback_every == 0 and cb is not None:
             cb(i)
-        print("\n", flush=True)
+        # print("\n", flush=True)
         yield it
 
     """class tqdm_logger(base_tqdm):

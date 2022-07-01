@@ -89,7 +89,7 @@ def get_acoustic_configs(
         SELECT min_seconds, max_seconds, maximum_workers, use_audio_normalization, 
         validation_size, acoustic_learning_rate, acoustic_training_iterations, 
         acoustic_batch_size, acoustic_grad_accum_steps, acoustic_validate_every, 
-        only_train_speaker_emb_until, forced_alignment_batch_size
+        only_train_speaker_emb_until, forced_alignment_batch_size, skip_on_error
         FROM training_run WHERE ID=?
         """,
         (run_id,),
@@ -107,6 +107,7 @@ def get_acoustic_configs(
         acoustic_validate_every,
         only_train_speaker_until,
         forced_alignment_batch_size,
+        skip_on_error,
     ) = row
     p_config: PreprocessingConfig = PreprocessingConfig()
     m_config: AcousticModelConfig = AcousticModelConfig()
@@ -117,6 +118,7 @@ def get_acoustic_configs(
     p_config.use_audio_normalization = use_audio_normalization == 1
     p_config.workers = get_workers(maximum_workers)
     p_config.forced_alignment_batch_size = forced_alignment_batch_size
+    p_config.skip_on_error = skip_on_error == 1
     t_config.batch_size = batch_size
     t_config.grad_acc_step = grad_acc_step
     t_config.train_steps = acoustic_training_iterations
@@ -179,6 +181,7 @@ def preprocessing_stage(
     assets_path: str,
     environment_name: str,
     training_runs_path: str,
+    log_console: bool,
     **kwargs,
 ) -> bool:
     preprocessing_stage = None
@@ -188,7 +191,10 @@ def preprocessing_stage(
             "SELECT preprocessing_stage FROM training_run WHERE ID=?", (run_id,),
         ).fetchone()[0]
         if preprocessing_stage == "not_started":
-            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            set_stream_location(
+                str(Path(data_path) / "logs" / "preprocessing.txt"),
+                log_console=log_console,
+            )
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='copying_files' WHERE ID=?",
                 (run_id,),
@@ -196,12 +202,11 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "copying_files":
-            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            set_stream_location(
+                str(Path(data_path) / "logs" / "preprocessing.txt"),
+                log_console=log_console,
+            )
             txt_paths, texts, audio_paths, names, langs = [], [], [], [], []
-            row = cur.execute(
-                "SELECT skip_on_error FROM training_run WHERE ID=?", (run_id,),
-            ).fetchone()
-            skip_on_error = bool(row[0])
             for (
                 txt_path,
                 text,
@@ -249,7 +254,7 @@ def preprocessing_stage(
                 names=names,
                 workers=p_config.workers,
                 progress_cb=progress_cb,
-                skip_on_error=skip_on_error,
+                skip_on_error=p_config.skip_on_error,
             )
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",
@@ -258,7 +263,10 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "gen_vocab":
-            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            set_stream_location(
+                str(Path(data_path) / "logs" / "preprocessing.txt"),
+                log_console=log_console,
+            )
             vocab_path.mkdir(exist_ok=True, parents=True)
             p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
 
@@ -309,7 +317,9 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "gen_alignments":
-            set_stream_location(str(data_path / "logs" / "preprocessing.txt"))
+            set_stream_location(
+                str(data_path / "logs" / "preprocessing.txt"), log_console=log_console
+            )
             p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
             vocab_paths = list(vocab_path.iterdir())
             for i, vocab_path in enumerate(vocab_paths):
@@ -340,7 +350,10 @@ def preprocessing_stage(
             con.commit()
 
         elif preprocessing_stage == "extract_data":
-            set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+            set_stream_location(
+                str(Path(data_path) / "logs" / "preprocessing.txt"),
+                log_console=log_console,
+            )
             row = cur.execute(
                 "SELECT validation_size FROM training_run WHERE ID=?", (run_id,),
             ).fetchone()
@@ -359,8 +372,8 @@ def preprocessing_stage(
                 (run_id,),
             )
             con.commit()
-            if (Path(data_path) / "raw_data").exists():
-                shutil.rmtree(Path(data_path) / "raw_data")
+            """if (Path(data_path) / "raw_data").exists():
+                shutil.rmtree(Path(data_path) / "raw_data")"""
     return False
 
 
@@ -771,9 +784,11 @@ def save_model_stage(
 
 
 def before_stage(
-    data_path: str, stage_name: str, **kwargs,
+    data_path: str, stage_name: str, log_console: bool, **kwargs,
 ):
-    set_stream_location(str(Path(data_path) / "logs" / f"{stage_name}.txt"))
+    set_stream_location(
+        str(Path(data_path) / "logs" / f"{stage_name}.txt"), log_console=log_console
+    )
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
@@ -783,7 +798,7 @@ def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
     return row[0]
 
 
-def continue_training_run(run_id: int):
+def continue_training_run(run_id: int, log_console: bool):
     con = get_con(DB_PATH)
     cur = con.cursor()
     save_current_pid(con=con, cur=cur)
@@ -827,12 +842,14 @@ def continue_training_run(run_id: int):
         environment_name=ENVIRONMENT_NAME,
         training_runs_path=TRAINING_RUNS_PATH,
         models_path=MODELS_PATH,
+        log_console=log_console,
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", type=int, required=True)
+    parser.add_argument("--log_console", action="store_true")
     args = parser.parse_args()
-    continue_training_run(run_id=args.run_id)
+    continue_training_run(run_id=args.run_id, log_console=args.log_console)
 

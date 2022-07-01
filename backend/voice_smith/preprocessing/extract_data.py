@@ -26,11 +26,6 @@ from voice_smith.utils.tools import warnings_to_stdout
 warnings_to_stdout()
 
 
-def get_lexicon(assets_path) -> Dict[str, List[str]]:
-    with open(Path(assets_path) / "lexicon.json", "r", encoding="utf-8") as f:
-        lexicon = json.load(f)
-    return lexicon
-
 
 def get_alignment(
     phones_tier, words_tier, text: str, sampling_rate: int, hop_length: int
@@ -103,10 +98,17 @@ def process_utterance(
     max_seconds: float,
     normalize_loudness: bool,
     ignore_below_hz: Union[int, None],
+    skip_on_error: bool
 ) -> Union[None, Tuple[str, int]]:
     audio_path = Path(in_dir) / lang / speaker / f"{basename}.flac"
     text_path = Path(in_dir) / lang / speaker / f"{basename}.txt"
     tg_path = Path(out_dir) / "textgrid" / lang / speaker / f"{basename}.TextGrid"
+
+    data_out_path = Path(out_dir) / "data" / speaker / f"{basename}.pt"
+    wav_out_path = Path(out_dir) / "wav" / speaker / f"{basename}.pt"
+
+    if wav_out_path.exists():
+        return "|".join([basename, speaker])
 
     min_samples = int(sampling_rate * min_seconds)
     max_samples = int(sampling_rate * max_seconds)
@@ -139,8 +141,14 @@ def process_utterance(
 
     if start >= end:
         return
-
-    wav, sr = safe_load(str(audio_path), sr=None)
+    
+    try:
+        wav, sr = safe_load(str(audio_path), sr=None)
+    except Exception as e:
+        if skip_on_error:
+            print(e)
+            return
+        raise e
 
     if not isinstance(wav, np.ndarray):
         return
@@ -214,19 +222,18 @@ def process_utterance(
             "phones": phones,
             "raw_text": raw_text,
             "durations": torch.LongTensor(durations),
+            "pitch_is_normalized": False
         },
-        Path(out_dir) / "data" / speaker / f"{basename}.pt",
+        data_out_path,
     )
 
     torch.save(
         {"wav": torch.from_numpy(wav).float(),},
-        Path(out_dir) / "wav" / speaker / f"{basename}.pt",
+        wav_out_path,
     )
 
-    return (
-        "|".join([basename, speaker]),
-        mel_spectrogram.shape[1],
-    )
+    return "|".join([basename, speaker])
+    
 
 
 def extract_data(
@@ -269,7 +276,6 @@ def extract_data(
 
     out = []
     speaker_names = []
-    n_frames_total = 0
     speakers = {speaker.name: i for i, speaker in enumerate(in_dir.glob("*/*"))}
 
     for speaker_path in in_dir.glob("*/*"):
@@ -301,17 +307,16 @@ def extract_data(
             min_seconds=min_seconds,
             max_seconds=max_seconds,
             normalize_loudness=use_audio_normalization,
+            skip_on_error=preprocess_config.skip_on_error
         )
         for wav_path in iter_logger(
             wav_paths, total=len(wav_paths), cb=callback, print_every=log_every
         )
     )
 
-    for ret in rets:
-        if ret is None:
+    for line in rets:
+        if line is None:
             continue
-        line, n_frames = ret
-        n_frames_total += n_frames
         out.append(line)
         speaker_names.append(line.split("|")[1])
 
@@ -355,15 +360,6 @@ def extract_data(
 
     with open(out_dir / "symbol2id.json", "w", encoding="utf-8") as f:
         f.write(json.dumps(symbol2id))
-
-    with open(out_dir / "lexicon.json", "w", encoding="utf-8") as f:
-        f.write(json.dumps(get_lexicon(assets_path)))
-
-    print(
-        "Total time: {} hours".format(
-            n_frames_total * hop_length / sampling_rate / 3600
-        )
-    )
 
     logger = get_logger()
     logger.query(
@@ -456,7 +452,10 @@ def normalize_pitch(
         data["pitch"] = (data["pitch"] - mean) / std
         min_value = min(data["pitch"])
         max_value = max(data["pitch"])
-        torch.save(data, path)
+        if "pitch_is_normalized" in data and data["pitch_is_normalized"]:
+            pass
+        else:
+            torch.save({ **data, "pitch_is_normalized": True }, path)
         return min_value, max_value
 
     def callback(index):

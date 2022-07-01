@@ -3,15 +3,13 @@ import math
 import numpy as np
 import torch.nn.functional as F
 from typing import Tuple, List, Union, Optional
-import torchaudio.functional as audio_F
-import torchaudio
+import librosa
+import soundfile as sf
 from voice_smith.utils.librosa import mel as librosa_mel_fn
-
-torchaudio.set_audio_backend("soundfile")
 
 
 def save_audio(file_path: str, audio: torch.Tensor, sr: int):
-    torchaudio.save(file_path, audio.unsqueeze(0), sr)
+    sf.write(file_path, audio.unsqueeze(0).numpy(), sr)
 
 
 def stereo_to_mono(audio: np.ndarray) -> np.ndarray:
@@ -27,13 +25,7 @@ def get_mel_from_wav(audio: np.ndarray, to_mel: torch.nn.Module) -> np.ndarray:
 
 
 def resample(wav: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
-    # Some audios are corrupted and contain uneven sampling rates
-    # resample will silently crash on them, so even out sampling rate.
-    is_odd = orig_sr % 2 == 1
-    if is_odd:
-        orig_sr -= 1
-
-    wav = audio_F.resample(torch.FloatTensor(wav), orig_sr, target_sr).numpy()
+    wav = librosa.resample(wav, orig_sr=orig_sr, target_sr=target_sr)
     return wav
 
 
@@ -41,23 +33,16 @@ def safe_load(
     path: str, sr: Union[int, None], verbose: bool = True
 ) -> Tuple[np.ndarray, int]:
     try:
-        audio, sr_actual = torchaudio.load(
-            filepath=path,
-        )
-    
-        audio = audio.numpy()
-        if audio.shape[0] > 1:
-            audio = stereo_to_mono(audio)
-        if sr != None and sr != sr_actual:
-            audio = resample(wav=audio, orig_sr=sr_actual, target_sr=sr)
-            sr_actual = sr
+        audio, sr_actual = librosa.load(path, sr=sr)
+
     except Exception as e:
         import sys
-        raise type(e)(f"The following error happened loading the file {path} ... \n" + str(e)).with_traceback(sys.exc_info()[2])
 
-    audio = audio.squeeze(0)
+        raise type(e)(
+            f"The following error happened loading the file {path} ... \n" + str(e)
+        ).with_traceback(sys.exc_info()[2])
+
     return audio, sr_actual
-
 
 
 class MelSpec2MFCC(torch.nn.Module):

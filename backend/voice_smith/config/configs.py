@@ -30,7 +30,7 @@ class PreprocessingConfig:
         mel_fmax=11025,
     )
     forced_alignment_batch_size: int = 200000
-
+    skip_on_error: bool = True
 
 @dataclass
 class AcousticTrainingOptimizerConfig:

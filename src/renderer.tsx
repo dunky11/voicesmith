@@ -1,4 +1,4 @@
-import "antd/dist/antd.css";
+import "antd/dist/antd.variable.min.css";
 import React from "react";
 import ReactDOM from "react-dom";
 import { HashRouter } from "react-router-dom";
@@ -8,6 +8,14 @@ import Documentation from "./Documentation";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import "./global.css";
+
+import { ConfigProvider } from "antd";
+
+ConfigProvider.config({
+  theme: {
+    primaryColor: "#25b864",
+  },
+});
 
 const Routers = () => {
   return (

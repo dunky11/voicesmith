@@ -103,14 +103,6 @@ export default function Documentation(): ReactElement {
     return out;
   };
 
-  /**
-  useEffect(() => {
-    history.push(page);
-  }, [page]);
-  */
-
-  console.log(history);
-
   return (
     <DocumentationModal>
       <Layout>
@@ -147,10 +139,8 @@ export default function Documentation(): ReactElement {
             <Switch>
               <Route
                 render={() => <div>Introduction</div>}
-                exact
                 path="/introduction"
               ></Route>
-              <Route render={() => <div>Test</div>} path="/"></Route>
             </Switch>
           </Layout.Content>
         </Layout>

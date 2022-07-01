@@ -27,9 +27,12 @@ class DualLogger(object):
         pass
 
 
-def set_stream_location(location: str) -> None:
-    sys.stdout = open(location, "w", encoding="utf-8")
-    sys.stderr = sys.stdout
+def set_stream_location(location: str, log_console: bool) -> None:
+    if log_console:
+        pass
+    else:
+        sys.stdout = open(location, "w", encoding="utf-8")
+        sys.stderr = sys.stdout
 
 
 class Logger:

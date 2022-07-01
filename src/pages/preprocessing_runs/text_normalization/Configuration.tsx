@@ -101,7 +101,7 @@ export default function Configuration({
         if (!isMounted.current) {
           return;
         }
-        if (!initialIsLoading) {
+        if (initialIsLoading) {
           setInitialIsLoading(false);
         }
         formRef.current?.setFieldsValue(configuration);

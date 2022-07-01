@@ -64,7 +64,9 @@ def copy_files(
             skip_on_error,
         )
         for audio_path, txt_path, text, name, lang in iter_logger(
-            zip(audio_paths, txt_paths, texts, names, langs), cb=callback
+            zip(audio_paths, txt_paths, texts, names, langs),
+            cb=callback,
+            total=len(txt_paths),
         )
     )
     progress_cb(1.0)
