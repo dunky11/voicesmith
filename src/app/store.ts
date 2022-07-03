@@ -4,7 +4,6 @@ import runManager from "../features/runManagerSlice";
 import useStats from "../features/usageStatsSlice";
 import importSettings from "../features/importSettings";
 import navigationSettings from "../features/navigationSettingsSlice";
-import documentationManager from "../features/documentationManagerSlice";
 
 export const store = configureStore({
   reducer: {
@@ -13,7 +12,6 @@ export const store = configureStore({
     useStats,
     importSettings,
     navigationSettings,
-    documentationManager,
   },
 });
 

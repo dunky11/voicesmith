@@ -12,7 +12,6 @@ import {
 import { createUseStyles } from "react-jss";
 import { useDispatch, useSelector } from "react-redux";
 import { editAppInfo } from "./features/appInfoSlice";
-import { setIsOpen } from "./features/documentationManagerSlice";
 import { RootState } from "./app/store";
 import MainLoading from "./pages/main_loading/MainLoading";
 import Models from "./pages/models/Models";
@@ -38,7 +37,7 @@ import {
 } from "./channels";
 import RunManager from "./components/run_management/RunManager";
 
-const { ipcRenderer } = window.require("electron");
+const { ipcRenderer, shell } = window.require("electron");
 
 const useStyles = createUseStyles({
   logoWrapper: {
@@ -270,7 +269,7 @@ export default function App(): ReactElement {
             >
               <Menu.Item
                 onClick={() => {
-                  dispatch(setIsOpen(true));
+                  shell.openExternal("https://docs.voicesmith.io");
                 }}
                 key="open-documentation"
                 icon={<BookOutlined className={classes.navIcon} />}

@@ -4,7 +4,6 @@ import ReactDOM from "react-dom";
 import { HashRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { store } from "./app/store";
-import Documentation from "./Documentation";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import "./global.css";
@@ -17,23 +16,12 @@ ConfigProvider.config({
   },
 });
 
-const Routers = () => {
-  return (
-    <>
-      <HashRouter>
-        <App />
-      </HashRouter>
-      <HashRouter>
-        <Documentation />
-      </HashRouter>
-    </>
-  );
-};
-
 ReactDOM.render(
   <React.StrictMode>
     <Provider store={store}>
-      <Routers />
+      <HashRouter>
+        <App />
+      </HashRouter>
     </Provider>
   </React.StrictMode>,
   document.getElementById("root")
