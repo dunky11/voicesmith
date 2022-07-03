@@ -19,6 +19,7 @@ export default function Configuration({
 
   return (
     <PreprocessingSteps
+      title="Configuration"
       onBack={onBack}
       onNext={onNext}
       stage={run.stage}

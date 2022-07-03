@@ -12,10 +12,10 @@ import {
 import { useHistory } from "react-router-dom";
 import { IpcRendererEvent } from "electron";
 import { createUseStyles } from "react-jss";
+import HelpIcon from "../../components/help/HelpIcon";
 import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { setNavIsDisabled } from "../../features/navigationSettingsSlice";
 import Speaker from "./Speaker";
-import InfoButton from "./InfoButton";
 import ImportSettingsDialog from "./ImportSettingsDialog";
 import { defaultPageOptions } from "../../config";
 import {
@@ -317,7 +317,15 @@ export default function Dataset({
         <BreadcrumbItem>{dataset?.name}</BreadcrumbItem>
       </Breadcrumb>
       <Card
-        title="Add Speakers to your Model"
+        title={
+          <div>
+            Add Speakers to your Model
+            <HelpIcon
+              style={{ marginLeft: 8 }}
+              docsUrl="/usage/dataset-importing"
+            />
+          </div>
+        }
         actions={[
           <div
             key="next-button-wrapper"
@@ -360,11 +368,9 @@ export default function Dataset({
                 isLoading ||
                 !hasInitLoaded
               }
-              style={{ marginRight: 8 }}
             >
               Remove Selected
             </Button>
-            <InfoButton></InfoButton>
           </div>
           {dirProgress !== null && (
             <Progress

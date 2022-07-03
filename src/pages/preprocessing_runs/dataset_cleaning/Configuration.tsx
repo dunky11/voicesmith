@@ -124,7 +124,7 @@ export default function Configuration({
 
   return (
     <RunConfiguration
-      title="Configure the Cleaning Run"
+      title="Configuration"
       forms={
         <>
           <MaximumWorkersInput disabled={initialIsLoading} />

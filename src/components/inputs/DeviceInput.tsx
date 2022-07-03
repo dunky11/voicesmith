@@ -6,8 +6,10 @@ const { shell } = window.require("electron");
 
 export default function DeviceInput({
   disabled,
+  docsUrl,
 }: {
   disabled: boolean;
+  docsUrl: string | null;
 }): ReactElement {
   const [cudaIsAvailable, setCudaIsAvailable] = useState(false);
   const [hasFetchedCuda, setHasFetchedCuda] = useState(false);
@@ -41,17 +43,9 @@ export default function DeviceInput({
         label={
           <Typography.Text>
             Device
-            <HelpIcon
-              content={
-                <Typography>
-                  Select if you want to use the CPU or GPU for ressource hungry
-                  computations. It is highly advised to set this to GPU if
-                  possible. If the GPU option is disabled your graphics card may
-                  not be supported by CUDA.
-                </Typography>
-              }
-              style={{ marginLeft: 8 }}
-            />
+            {docsUrl && (
+              <HelpIcon docsUrl={docsUrl} style={{ marginLeft: 8 }} />
+            )}
           </Typography.Text>
         }
         name="device"
@@ -90,4 +84,5 @@ export default function DeviceInput({
 
 DeviceInput.defaultProps = {
   disabled: false,
+  docsUrl: null,
 };

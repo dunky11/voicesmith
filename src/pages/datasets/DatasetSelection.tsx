@@ -12,7 +12,7 @@ import {
 import { IpcRendererEvent } from "electron";
 import { useDispatch } from "react-redux";
 import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
-import InfoButton from "./InfoButton";
+import HelpIcon from "../../components/help/HelpIcon";
 import {
   EDIT_DATASET_NAME_CHANNEL,
   FETCH_DATASETS_CHANNEL,
@@ -208,7 +208,15 @@ export default function DatasetSelection({
         <BreadcrumbItem>Datasets</BreadcrumbItem>
       </Breadcrumb>
       <Card
-        title="Your Datasets"
+        title={
+          <div>
+            Your Datasets
+            <HelpIcon
+              style={{ marginLeft: 8 }}
+              docsUrl="/usage/dataset-importing"
+            />
+          </div>
+        }
         bodyStyle={{ display: "flex", width: "100%" }}
       >
         <div style={{ width: "100%" }}>
@@ -227,7 +235,6 @@ export default function DatasetSelection({
             >
               Create Empty Dataset
             </Button>
-            <InfoButton />
           </div>
           {dirProgress !== null && (
             <Progress

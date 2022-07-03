@@ -22,6 +22,8 @@ interface Stage {
 }
 
 export default function ProcessingSteps({
+  title,
+  docsUrl,
   onBack,
   onNext,
   stage,
@@ -31,6 +33,8 @@ export default function ProcessingSteps({
   currentStages,
   nextStages,
 }: {
+  title: string;
+  docsUrl: string | null;
   onBack: () => void;
   onNext: (() => void) | null;
   stage: string;
@@ -120,6 +124,8 @@ export default function ProcessingSteps({
   return (
     <RunCard
       buttons={[<Button onClick={onBack}>Back</Button>, renderNextButton()]}
+      title={title}
+      docsUrl={docsUrl}
     >
       <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">
@@ -155,3 +161,7 @@ export default function ProcessingSteps({
     </RunCard>
   );
 }
+
+ProcessingSteps.defaultProps = {
+  docsUrl: null,
+};

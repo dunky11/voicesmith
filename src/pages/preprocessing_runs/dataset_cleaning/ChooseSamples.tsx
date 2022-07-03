@@ -148,7 +148,7 @@ export default function ChooseSamples({
   return (
     <>
       <RunCard
-        title={`The following samples will be removed ... (${noisySamples.length} total)`}
+        title={`Choose Samples (${noisySamples.length} total)`}
         buttons={[
           <Button onClick={onBackClick}>Back</Button>,
           <Button onClick={onFinish} type="primary">

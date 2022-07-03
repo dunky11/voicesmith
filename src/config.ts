@@ -142,3 +142,5 @@ export const defaultPageOptions = {
   defaultPageSize: 100,
   pageSizeOptions: [50, 100, 250, 1000],
 };
+
+export const documentationUrl = "https://docs.voicesmith.io";

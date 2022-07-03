@@ -5,25 +5,18 @@ import HelpIcon from "../help/HelpIcon";
 export default function GradientAccumulationStepsInput({
   disabled,
   name,
+  docsUrl,
 }: {
   disabled: boolean;
   name: string;
+  docsUrl: string | null;
 }): ReactElement {
   return (
     <Form.Item
       label={
         <Typography.Text>
           Gradient Accumulation Steps
-          <HelpIcon
-            content={
-              <Typography>
-                Number of times samples are fed through the model per step. A
-                higher values means potentially more stable training but will
-                also increase the time spend on each step.
-              </Typography>
-            }
-            style={{ marginLeft: 8 }}
-          />
+          {docsUrl && <HelpIcon docsUrl={docsUrl} style={{ marginLeft: 8 }} />}
         </Typography.Text>
       }
       name={name}
@@ -35,4 +28,5 @@ export default function GradientAccumulationStepsInput({
 
 GradientAccumulationStepsInput.defaultProps = {
   disabled: false,
+  docsUrl: null,
 };

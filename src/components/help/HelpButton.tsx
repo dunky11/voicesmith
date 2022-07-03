@@ -1,68 +1,33 @@
-import React, { ReactElement, useState } from "react";
-import { Modal, Button } from "antd";
-import { QuestionCircleOutlined } from "@ant-design/icons";
-import { createUseStyles } from "react-jss";
-
-const useStyles = createUseStyles({
-  wrapper: {
-    height: "calc(100vh - 20px)",
-    top: "20px",
-    "& .ant-modal-content": {
-      height: "100%",
-      display: "flex",
-      flexDirection: "column",
-    },
-  },
-});
+import React, { ReactElement } from "react";
+import { Button } from "antd";
+import { QuestionOutlined } from "@ant-design/icons";
+import { documentationUrl } from "../../config";
+const { shell } = window.require("electron");
 
 export default function HelpButton({
-  buttonText,
   children,
-  style,
+  docsUrl,
+  ...rest
 }: {
-  modalTitle: string;
-  buttonText: string;
-  children: React.ReactNode;
-  style: { [Key: string]: string | number };
+  children: ReactElement | string;
+  docsUrl: string;
+  [x: string]: any;
 }): ReactElement {
-  const classes = useStyles();
-  const [visible, setVisible] = useState(false);
   return (
-    <>
+    <div style={{ display: "flex" }}>
       <Button
-        style={style}
-        onClick={() => setVisible(true)}
-        icon={<QuestionCircleOutlined />}
-      >
-        {buttonText}
-      </Button>
-      <Modal
-        visible={visible}
-        onOk={() => setVisible(false)}
-        onCancel={() => setVisible(false)}
-        width={1000}
-        bodyStyle={{ overflowY: "scroll", paddingBottom: 24 }}
-        className={classes.wrapper}
-        footer={[
-          <Button
-            key="Ok"
-            type="primary"
-            onClick={() => {
-              setVisible(false);
-            }}
-          >
-            Ok
-          </Button>,
-        ]}
+        {...rest}
+        style={{
+          borderTopRightRadius: 0,
+          borderBottomRightRadius: 0,
+        }}
+        icon={<QuestionOutlined />}
+        onClick={() => {
+          shell.openExternal(`${documentationUrl}${docsUrl}`);
+        }}
       >
         {children}
-      </Modal>
-    </>
+      </Button>
+    </div>
   );
 }
-
-HelpButton.defaultProps = {
-  buttonText: "Help",
-  style: {},
-  children: [],
-};

@@ -16,6 +16,7 @@ export default function RunConfiguration({
   initialValues,
   onFinish,
   fetchNames,
+  docsUrl,
 }: {
   title: string;
   forms: ReactElement;
@@ -29,10 +30,12 @@ export default function RunConfiguration({
   initialValues: { [key: string]: any };
   onFinish: (values: any) => void;
   fetchNames: () => Promise<string[]>;
-}) {
+  docsUrl: string | null;
+}): ReactElement {
   return (
     <RunCard
       title={title}
+      docsUrl={docsUrl}
       buttons={[
         <Button onClick={onBack}>Back</Button>,
         <Button disabled={isDisabled} onClick={onDefaults}>
@@ -58,3 +61,7 @@ export default function RunConfiguration({
     </RunCard>
   );
 }
+
+RunConfiguration.defaultProps = {
+  docsUrl: null,
+};

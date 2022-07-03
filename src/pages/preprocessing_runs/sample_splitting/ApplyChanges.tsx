@@ -15,6 +15,8 @@ export default function ApplyChanges({
 
   return (
     <ProcessingSteps
+      title="Apply Changes"
+      docsUrl="/usage/sample-splitting/apply-changes"
       onBack={onBack}
       onNext={null}
       stage={run.stage}

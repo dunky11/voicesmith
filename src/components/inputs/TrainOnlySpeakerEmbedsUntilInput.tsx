@@ -6,10 +6,12 @@ export default function TrainOnlySpeakerEmbedsUntilInput({
   disabled,
   name,
   rules,
+  docsUrl,
 }: {
   disabled: boolean;
   name: string;
   rules: any[];
+  docsUrl: string | null;
 }): ReactElement {
   return (
     <Form.Item
@@ -17,10 +19,7 @@ export default function TrainOnlySpeakerEmbedsUntilInput({
       label={
         <Typography.Text>
           Train Only Speaker Embeds Until
-          <HelpIcon
-            content={<Typography></Typography>}
-            style={{ marginLeft: 8 }}
-          />
+          {docsUrl && <HelpIcon docsUrl={docsUrl} style={{ marginLeft: 8 }} />}
         </Typography.Text>
       }
       name={name}
@@ -33,4 +32,5 @@ export default function TrainOnlySpeakerEmbedsUntilInput({
 TrainOnlySpeakerEmbedsUntilInput.defaultProps = {
   disabled: false,
   rules: [],
+  docsUrl: null,
 };

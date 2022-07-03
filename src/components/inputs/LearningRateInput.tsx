@@ -5,25 +5,18 @@ import HelpIcon from "../help/HelpIcon";
 export default function LearningRateInput({
   disabled,
   name,
+  docsUrl,
 }: {
   disabled: boolean;
   name: string;
+  docsUrl: string | null;
 }): ReactElement {
   return (
     <Form.Item
       label={
         <Typography.Text>
           Learning Rate
-          <HelpIcon
-            content={
-              <Typography>
-                Learning rate to use during training. A higher rate means faster
-                but more unstable training. Usually set to a very small value
-                less than one but higher than zero.
-              </Typography>
-            }
-            style={{ marginLeft: 8 }}
-          />
+          {docsUrl && <HelpIcon docsUrl={docsUrl} style={{ marginLeft: 8 }} />}
         </Typography.Text>
       }
       name={name}
@@ -47,4 +40,5 @@ export default function LearningRateInput({
 
 LearningRateInput.defaultProps = {
   disabled: false,
+  docsUrl: null,
 };

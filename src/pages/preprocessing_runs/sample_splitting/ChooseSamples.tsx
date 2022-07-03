@@ -213,7 +213,8 @@ export default function ChooseSamples({
   return (
     <>
       <RunCard
-        title={`The following samples will be split ... (${samples.length} total)`}
+        title={`Choose Samples (${samples.length} total)`}
+        docsUrl="/usage/sample-splitting-run#choose-samples"
         buttons={[
           <Button onClick={onBackClick}>Back</Button>,
           <Button onClick={onNext} type="primary">

@@ -19,6 +19,8 @@ export default function Preprocessing({
 
   return (
     <PreprocessingSteps
+      title="Preprocessing"
+      docsUrl="/usage/text-normalization#preprocessing"
       onBack={onBack}
       onNext={onNext}
       stage={run.stage}

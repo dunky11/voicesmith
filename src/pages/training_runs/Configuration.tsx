@@ -152,11 +152,21 @@ export default function Configuration({
       initialValues={trainingRunInitialValues}
       onFinish={onFinish}
       fetchNames={fetchNames}
+      docsUrl="/usage/training"
       forms={
         <>
-          <SkipOnErrorInput disabled={initialIsLoading} />
-          <DatasetInput disabled={initialIsLoading || hasStarted} />
-          <DeviceInput disabled={initialIsLoading} />
+          <SkipOnErrorInput
+            disabled={initialIsLoading}
+            docsUrl="/usage/training#configuration"
+          />
+          <DatasetInput
+            disabled={initialIsLoading || hasStarted}
+            docsUrl="/usage/training#configuration"
+          />
+          <DeviceInput
+            disabled={initialIsLoading}
+            docsUrl="/usage/training#configuration"
+          />
           <Collapse style={{ width: "100%" }}>
             <Collapse.Panel header="Preprocessing" key="preprocessing">
               <Form.Item
@@ -164,15 +174,7 @@ export default function Configuration({
                   <Typography.Text>
                     Validation Size
                     <HelpIcon
-                      content={
-                        <Typography>
-                          Percentage of samples in the dataset that will be
-                          randomly chosen and put into the validation dataset.
-                          The validation dataset is used for calculating the
-                          validation losses. Calculating the validation losses
-                          is important to measure the level of overfitting.
-                        </Typography>
-                      }
+                      docsUrl="/usage/training#preprocessing-configuration"
                       style={{ marginLeft: 8 }}
                     />
                   </Typography.Text>
@@ -187,8 +189,14 @@ export default function Configuration({
                   addonAfter="%"
                 ></InputNumber>
               </Form.Item>
-              <AlignmentBatchSizeInput disabled={initialIsLoading} />
-              <MaximumWorkersInput disabled={initialIsLoading} />
+              <AlignmentBatchSizeInput
+                docsUrl="/usage/training#preprocessing-configuration"
+                disabled={initialIsLoading}
+              />
+              <MaximumWorkersInput
+                docsUrl="/usage/training#preprocessing-configuration"
+                disabled={initialIsLoading}
+              />
               <Form.Item
                 rules={[
                   ({ getFieldValue }) => ({
@@ -208,12 +216,7 @@ export default function Configuration({
                   <Typography.Text>
                     Minimum Seconds
                     <HelpIcon
-                      content={
-                        <Typography>
-                          Audio files with a duration less than minimum seconds
-                          will not be preprocessed and ignored during training.
-                        </Typography>
-                      }
+                      docsUrl="/usage/training#preprocessing-configuration"
                       style={{ marginLeft: 8 }}
                     />
                   </Typography.Text>
@@ -232,16 +235,7 @@ export default function Configuration({
                   <Typography.Text>
                     Maximum Seconds
                     <HelpIcon
-                      content={
-                        <Typography>
-                          Audio files with a duration longer than maximum
-                          seconds will not be preprocessed and ignored during
-                          training. Note that the length of the largest audio in
-                          the dataset is proportional to the maximum amount of
-                          RAM/VRAM used during training. If you encounter out of
-                          memory issues reducing this value may be an option.
-                        </Typography>
-                      }
+                      docsUrl="/usage/training#preprocessing-configuration"
                       style={{ marginLeft: 8 }}
                     />
                   </Typography.Text>
@@ -275,15 +269,7 @@ export default function Configuration({
                   <Typography.Text>
                     Apply Audio Normalization
                     <HelpIcon
-                      content={
-                        <Typography>
-                          Apply peak normalization where each audio is divided
-                          by its highest absolute PCM value so the loudness in
-                          each audio is roughly the same. Normalizing loudness
-                          can improve training especially when the dataset comes
-                          from multiple sources.
-                        </Typography>
-                      }
+                      docsUrl="/usage/training#preprocessing-configuration"
                       style={{ marginLeft: 8 }}
                     />
                   </Typography.Text>
@@ -294,22 +280,27 @@ export default function Configuration({
               <LearningRateInput
                 name="acousticLearningRate"
                 disabled={initialIsLoading}
+                docsUrl="/usage/training#acoustic-model-configuration"
               />
               <TrainingStepsInput
                 name="acousticTrainingIterations"
                 disabled={initialIsLoading}
+                docsUrl="/usage/training#acoustic-model-configuration"
               />
               <BatchSizeInput
                 name="acousticBatchSize"
                 disabled={initialIsLoading}
+                docsUrl="/usage/training#acoustic-model-configuration"
               />
               <GradientAccumulationStepsInput
                 name="acousticGradAccumSteps"
                 disabled={initialIsLoading}
+                docsUrl="/usage/training#acoustic-model-configuration"
               />
               <RunValidationEveryInput
                 name="acousticValidateEvery"
                 disabled={initialIsLoading}
+                docsUrl="/usage/training#acoustic-model-configuration"
               />
               <TrainOnlySpeakerEmbedsUntilInput
                 rules={[
@@ -329,28 +320,34 @@ export default function Configuration({
                   }),
                 ]}
                 name="onlyTrainSpeakerEmbUntil"
+                docsUrl="/usage/training#acoustic-model-configuration"
               />
             </Collapse.Panel>
             <Collapse.Panel header="Vocoder" key="vocoder">
               <LearningRateInput
                 name="vocoderLearningRate"
                 disabled={initialIsLoading}
+                docsUrl="/usage/training#vocoder-model-configuration"
               />
               <TrainingStepsInput
                 disabled={initialIsLoading}
                 name="vocoderTrainingIterations"
+                docsUrl="/usage/training#vocoder-model-configuration"
               />
               <BatchSizeInput
                 name="vocoderBatchSize"
                 disabled={initialIsLoading}
+                docsUrl="/usage/training#vocoder-model-configuration"
               />
               <GradientAccumulationStepsInput
                 name="vocoderGradAccumSteps"
                 disabled={initialIsLoading}
+                docsUrl="/usage/training#vocoder-model-configuration"
               />
               <RunValidationEveryInput
                 name="vocoderValidateEvery"
                 disabled={initialIsLoading}
+                docsUrl="/usage/training#vocoder-model-configuration"
               />
             </Collapse.Panel>
           </Collapse>

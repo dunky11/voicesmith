@@ -9,6 +9,7 @@ import {
   Typography,
 } from "antd";
 import { useSelector, useDispatch } from "react-redux";
+import HelpIcon from "../../components/help/HelpIcon";
 import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { RunInterface, TrainingRunInterface } from "../../interfaces";
 import { POLL_LOGFILE_INTERVALL, defaultPageOptions } from "../../config";
@@ -211,7 +212,12 @@ export default function RunSelection({
         <BreadcrumbItem>Training Runs</BreadcrumbItem>
       </Breadcrumb>
       <Card
-        title={`Your Models in Training`}
+        title={
+          <div>
+            Your Models in Training
+            <HelpIcon style={{ marginLeft: 8 }} docsUrl="/usage/training" />
+          </div>
+        }
         bodyStyle={{ display: "flex", width: "100%" }}
         className="dataset-card-wrapper"
       >

@@ -85,6 +85,8 @@ export default function VocoderFineTuning({
           {getNextButtonText()}
         </Button>,
       ]}
+      title="Vocoder Fine-Tuning"
+      docsUrl="/usage/training#vocoder-fine-tuning"
     >
       <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">

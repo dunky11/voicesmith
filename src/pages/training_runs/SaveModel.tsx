@@ -15,6 +15,8 @@ export default function SaveModel({
 
   return (
     <PreprocessingSteps
+      title="Save Model"
+      docsUrl="/usage/training#save-model"
       onBack={onBack}
       onNext={null}
       stage={run.stage}

@@ -80,6 +80,8 @@ export default function AcousticModelFinetuning({
 
   return (
     <RunCard
+      title="Acoustic Model Fine-Tuning"
+      docsUrl="/usage/training#acoustic-model-fine-tuning"
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
         <Button

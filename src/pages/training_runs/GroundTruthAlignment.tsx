@@ -79,6 +79,8 @@ export default function GroundTruthAlignment({
           {getNextButtonText()}
         </Button>,
       ]}
+      title="Generate Ground Truth Alignments"
+      docsUrl="/usage/training#generate-ground-truth-alignments"
     >
       <Tabs defaultActiveKey="Overview">
         <Tabs.TabPane tab="Overview" key="overview">

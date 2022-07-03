@@ -5,25 +5,18 @@ import HelpIcon from "../help/HelpIcon";
 export default function TrainingStepsInput({
   disabled,
   name,
+  docsUrl,
 }: {
   disabled: boolean;
   name: string;
+  docsUrl: string | null;
 }): ReactElement {
   return (
     <Form.Item
       label={
         <Typography.Text>
           Training Steps
-          <HelpIcon
-            content={
-              <Typography>
-                Number of times the model will be updated. A higher value means
-                more time spend on training, a potentially better model, but
-                also more risk of overfitting.
-              </Typography>
-            }
-            style={{ marginLeft: 8 }}
-          />
+          {docsUrl && <HelpIcon docsUrl={docsUrl} style={{ marginLeft: 8 }} />}
         </Typography.Text>
       }
       name={name}
@@ -35,4 +28,5 @@ export default function TrainingStepsInput({
 
 TrainingStepsInput.defaultProps = {
   disabled: false,
+  docsUrl: null,
 };

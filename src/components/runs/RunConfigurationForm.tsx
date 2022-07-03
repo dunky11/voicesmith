@@ -17,7 +17,7 @@ export default function RunConfigurationForm({
   fetchNames: () => Promise<string[]>;
   isDisabled: boolean;
   children: ReactElement;
-}) {
+}): ReactElement {
   return (
     <Form
       layout="vertical"

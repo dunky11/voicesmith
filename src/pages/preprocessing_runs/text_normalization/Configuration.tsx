@@ -121,7 +121,8 @@ export default function Configuration({
 
   return (
     <RunConfiguration
-      title="Configure the Text Normalization Run"
+      title="Configuration"
+      docsUrl="/usage/text-normalization#configuration"
       forms={<DatasetInput disabled={initialIsLoading || hasStarted} />}
       hasStarted={run.stage !== "not_started"}
       isDisabled={initialIsLoading}

@@ -135,7 +135,8 @@ export default function Configuration({
 
   return (
     <RunConfiguration
-      title="Configure the Sample Splitting Run"
+      title="Configuration"
+      docsUrl="/usage/sample-splitting#configuration"
       forms={
         <>
           <DatasetInput disabled={initialIsLoading || hasStarted} />

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, ReactElement } from "react";
-import { Form, Select } from "antd";
+import { Form, Select, Typography } from "antd";
+import HelpIcon from "../help/HelpIcon";
 import { DatasetInterface } from "../../interfaces";
 import { FETCH_DATASET_CANDIDATES_CHANNEL } from "../../channels";
 
@@ -7,8 +8,10 @@ const { ipcRenderer } = window.require("electron");
 
 export default function DatasetInput({
   disabled,
+  docsUrl,
 }: {
   disabled: boolean;
+  docsUrl: string | null;
 }): ReactElement {
   const isMounted = useRef(false);
   const [datasets, setDatasets] = useState<DatasetInterface[]>([]);
@@ -45,7 +48,12 @@ export default function DatasetInput({
           },
         }),
       ]}
-      label="Dataset"
+      label={
+        <Typography.Text>
+          Dataset
+          {docsUrl && <HelpIcon docsUrl={docsUrl} style={{ marginLeft: 8 }} />}
+        </Typography.Text>
+      }
       name="datasetID"
     >
       <Select disabled={disabled}>
@@ -65,4 +73,5 @@ export default function DatasetInput({
 
 DatasetInput.defaultProps = {
   disabled: false,
+  docsUrl: null,
 };

@@ -5,26 +5,18 @@ import HelpIcon from "../help/HelpIcon";
 export default function RunValidationEveryInput({
   disabled,
   name,
+  docsUrl,
 }: {
   disabled: boolean;
   name: string;
+  docsUrl: string | null;
 }): ReactElement {
   return (
     <Form.Item
       label={
         <Typography.Text>
           Run Validation Every
-          <HelpIcon
-            content={
-              <Typography>
-                How many steps to take before calculating the validation losses
-                on the validation dataset. A higher value means less time spend
-                on training but will also make it harder to measure the level of
-                overfitting.
-              </Typography>
-            }
-            style={{ marginLeft: 8 }}
-          />
+          {docsUrl && <HelpIcon docsUrl={docsUrl} style={{ marginLeft: 8 }} />}
         </Typography.Text>
       }
       name={name}
@@ -36,4 +28,5 @@ export default function RunValidationEveryInput({
 
 RunValidationEveryInput.defaultProps = {
   disabled: false,
+  docsUrl: null,
 };

@@ -1,30 +1,25 @@
 import React, { ReactElement } from "react";
-import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Popover } from "antd";
+import { Button } from "antd";
+import { QuestionOutlined } from "@ant-design/icons";
+import { documentationUrl } from "../../config";
+const { shell } = window.require("electron");
 
 export default function HelpIcon({
-  title,
-  content,
-  style,
-  className,
+  docsUrl,
+  ...props
 }: {
-  title: string | null;
-  content: ReactElement;
-  style: { [key: string]: any } | null;
-  className: string | null;
+  docsUrl: string;
+  [x: string]: any;
 }): ReactElement {
   return (
-    <Popover
-      title={title}
-      content={<div style={{ maxWidth: 300 }}>{content}</div>}
-    >
-      <QuestionCircleOutlined style={style} className={className} />
-    </Popover>
+    <Button
+      {...props}
+      size="small"
+      onClick={() => {
+        shell.openExternal(`${documentationUrl}${docsUrl}`);
+      }}
+      shape="circle"
+      icon={<QuestionOutlined />}
+    />
   );
 }
-
-HelpIcon.defaultProps = {
-  title: null,
-  className: null,
-  style: null,
-};

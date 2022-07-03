@@ -71,6 +71,7 @@ export default function ApplyChanges({
   // TODO progress for apply changes
   return (
     <RunCard
+      title="Apply Changes"
       buttons={[
         <Button onClick={onBackClick}>Back</Button>,
         run.stage !== "finished" && (

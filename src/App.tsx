@@ -8,6 +8,7 @@ import {
   ClearOutlined,
   SettingOutlined,
   BookOutlined,
+  OrderedListOutlined,
 } from "@ant-design/icons";
 import { createUseStyles } from "react-jss";
 import { useDispatch, useSelector } from "react-redux";
@@ -243,7 +244,7 @@ export default function App(): ReactElement {
                   onNavigationSelect({ key: "run-queue" });
                 }}
                 key="run-queue"
-                icon={<ClearOutlined className={classes.navIcon} />}
+                icon={<OrderedListOutlined className={classes.navIcon} />}
                 className={classes.navItem}
               >
                 Run Queue

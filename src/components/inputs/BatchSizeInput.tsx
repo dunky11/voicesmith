@@ -5,25 +5,18 @@ import HelpIcon from "../help/HelpIcon";
 export default function BatchSizeInput({
   disabled,
   name,
+  docsUrl,
 }: {
   disabled: boolean;
   name: string;
+  docsUrl: string | null;
 }): ReactElement {
   return (
     <Form.Item
       label={
         <Typography.Text>
           Batch Size
-          <HelpIcon
-            content={
-              <Typography>
-                Number of samples to be fed through the model at once. A smaller
-                value means less RAM/VRAM usage but potentially more training
-                steps needed for the model to converge.
-              </Typography>
-            }
-            style={{ marginLeft: 8 }}
-          />
+          {docsUrl && <HelpIcon docsUrl={docsUrl} style={{ marginLeft: 8 }} />}
         </Typography.Text>
       }
       name={name}
@@ -35,4 +28,5 @@ export default function BatchSizeInput({
 
 BatchSizeInput.defaultProps = {
   disabled: false,
+  docsUrl: null,
 };
