@@ -29,6 +29,22 @@ from voice_smith.config.globals import (
 
 warnings_to_stdout()
 
+@dataclass
+class ApplyChangesSplit:
+    full_audio_path: str
+    text: str
+    split_idx: int
+
+
+@dataclass
+class ApplyChangesInfo:
+    sample_id: int
+    sample_splitting_run_sample_id: int
+    speaker_id: int
+    old_sample_txt_path: str
+    old_sample_audio_path: str
+    old_sample_full_audio_path: str
+    splits: List[ApplyChangesSplit]
 
 def get_config(cur: sqlite3.Cursor, run_id: int) -> SampleSplittingRunConfig:
     row = cur.execute(
@@ -84,7 +100,7 @@ def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
     return stage
 
 
-def not_started_stage(
+def not_started_stage( 
     cur: sqlite3.Cursor, con: sqlite3.Connection, run_id: int, data_path: str, **kwargs
 ) -> bool:
     data_path = Path(data_path)
@@ -310,14 +326,19 @@ def creating_splits_stage(
         sample_ids.append(sample_id)
         texts.append(text)
         textgrid_paths.append(
-            (Path(data_path) / "data" / "textgrid")
+            Path(data_path) 
+            / "data" 
+            / "textgrid"
             / speaker_name
             / f"{Path(audio_path).stem}.TextGrid"
         )
         langs.append(lang)
 
     splits = sample_splitting(
-        ids=sample_ids, texts=texts, textgrid_paths=textgrid_paths, languages=langs,
+        ids=sample_ids, 
+        texts=texts, 
+        textgrid_paths=textgrid_paths, 
+        languages=langs,
     )
     run_sample_id_to_split = {}
     for split in splits:
@@ -388,22 +409,7 @@ def creating_splits_stage(
     return True
 
 
-@dataclass
-class ApplyChangesSplit:
-    full_audio_path: str
-    text: str
-    split_idx: int
 
-
-@dataclass
-class ApplyChangesInfo:
-    sample_id: int
-    sample_splitting_run_sample_id: int
-    speaker_id: int
-    old_sample_txt_path: str
-    old_sample_audio_path: str
-    old_sample_full_audio_path: str
-    splits: List[ApplyChangesSplit]
 
 
 def apply_changes_stage(
