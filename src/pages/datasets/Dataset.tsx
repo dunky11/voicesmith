@@ -12,6 +12,7 @@ import {
 import { useHistory } from "react-router-dom";
 import { IpcRendererEvent } from "electron";
 import { createUseStyles } from "react-jss";
+import { useDispatch, useSelector } from "react-redux";
 import HelpIcon from "../../components/help/HelpIcon";
 import BreadcrumbItem from "../../components/breadcrumb/BreadcrumbItem";
 import { setNavIsDisabled } from "../../features/navigationSettingsSlice";
@@ -34,7 +35,6 @@ import {
 } from "../../channels";
 import { DATASETS_ROUTE } from "../../routes";
 import LanguageSelect from "../../components/inputs/LanguageSelect";
-import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../app/store";
 
 const { ipcRenderer } = window.require("electron");

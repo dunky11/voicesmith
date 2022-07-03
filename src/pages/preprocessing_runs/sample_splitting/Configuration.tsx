@@ -139,12 +139,26 @@ export default function Configuration({
       docsUrl="/usage/sample-splitting#configuration"
       forms={
         <>
-          <DatasetInput disabled={initialIsLoading || hasStarted} />
-          <MaximumWorkersInput disabled={initialIsLoading} />
-          <SkipOnErrorInput disabled={initialIsLoading} />
-          <AlignmentBatchSizeInput disabled={initialIsLoading} />
-          <DatasetInput disabled={initialIsLoading || hasStarted} />
-          <DeviceInput disabled={initialIsLoading} />
+          <DatasetInput
+            disabled={initialIsLoading || hasStarted}
+            docsUrl="/usage/sample-splitting#configuration"
+          />
+          <DeviceInput
+            disabled={initialIsLoading}
+            docsUrl="/usage/sample-splitting#configuration"
+          />
+          <MaximumWorkersInput
+            disabled={initialIsLoading}
+            docsUrl="/usage/sample-splitting#configuration"
+          />
+          <SkipOnErrorInput
+            disabled={initialIsLoading}
+            docsUrl="/usage/sample-splitting#configuration"
+          />
+          <AlignmentBatchSizeInput
+            disabled={initialIsLoading}
+            docsUrl="/usage/sample-splitting#configuration"
+          />
         </>
       }
       hasStarted={run.stage !== "not_started"}

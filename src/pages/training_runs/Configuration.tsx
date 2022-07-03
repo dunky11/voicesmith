@@ -142,7 +142,7 @@ export default function Configuration({
   return (
     <RunConfiguration
       title="Configure the Training Run"
-      hasStarted={run.stage !== "not_started"}
+      hasStarted={hasStarted}
       isDisabled={initialIsLoading}
       onBack={onBack}
       onDefaults={onDefaults}
@@ -155,15 +155,19 @@ export default function Configuration({
       docsUrl="/usage/training"
       forms={
         <>
-          <SkipOnErrorInput
-            disabled={initialIsLoading}
-            docsUrl="/usage/training#configuration"
-          />
           <DatasetInput
             disabled={initialIsLoading || hasStarted}
             docsUrl="/usage/training#configuration"
           />
           <DeviceInput
+            disabled={initialIsLoading}
+            docsUrl="/usage/training#configuration"
+          />
+          <MaximumWorkersInput
+            disabled={initialIsLoading}
+            docsUrl="/usage/training#configuration"
+          />
+          <SkipOnErrorInput
             disabled={initialIsLoading}
             docsUrl="/usage/training#configuration"
           />
@@ -190,10 +194,6 @@ export default function Configuration({
                 ></InputNumber>
               </Form.Item>
               <AlignmentBatchSizeInput
-                docsUrl="/usage/training#preprocessing-configuration"
-                disabled={initialIsLoading}
-              />
-              <MaximumWorkersInput
                 docsUrl="/usage/training#preprocessing-configuration"
                 disabled={initialIsLoading}
               />

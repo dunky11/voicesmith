@@ -127,10 +127,10 @@ export default function Configuration({
       title="Configuration"
       forms={
         <>
-          <MaximumWorkersInput disabled={initialIsLoading} />
-          <DeviceInput disabled={initialIsLoading} />
-          <SkipOnErrorInput disabled={initialIsLoading} />
           <DatasetInput disabled={hasStarted || initialIsLoading} />
+          <DeviceInput disabled={initialIsLoading} />
+          <MaximumWorkersInput disabled={initialIsLoading} />
+          <SkipOnErrorInput disabled={initialIsLoading} />
         </>
       }
       hasStarted={run.stage !== "not_started"}

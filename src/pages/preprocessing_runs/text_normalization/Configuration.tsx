@@ -123,8 +123,13 @@ export default function Configuration({
     <RunConfiguration
       title="Configuration"
       docsUrl="/usage/text-normalization#configuration"
-      forms={<DatasetInput disabled={initialIsLoading || hasStarted} />}
-      hasStarted={run.stage !== "not_started"}
+      forms={
+        <DatasetInput
+          disabled={initialIsLoading || hasStarted}
+          docsUrl="/usage/text-normalization#configuration"
+        />
+      }
+      hasStarted={hasStarted}
       isDisabled={initialIsLoading}
       onBack={onBack}
       onDefaults={onDefaults}
