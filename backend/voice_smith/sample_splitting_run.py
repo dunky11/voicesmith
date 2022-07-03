@@ -71,16 +71,16 @@ def get_log_file_name(stage_name: str) -> str:
 
 
 def before_stage(
-    data_path: str, stage_name: str, **kwargs,
+    data_path: str, stage_name: str, log_console: bool, **kwargs,
 ):
-    set_stream_location(str(Path(data_path) / "logs" / get_log_file_name(stage_name)))
+    set_stream_location(str(Path(data_path) / "logs" / get_log_file_name(stage_name)), log_console=log_console)
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
     row = cur.execute(
         "SELECT stage FROM sample_splitting_run WHERE ID=?", (run_id,),
     ).fetchone()
-    stage = row[0]
+    stage = row[0] 
     return stage
 
 
@@ -511,7 +511,7 @@ def apply_changes_stage(
     return True
 
 
-def continue_sample_splitting_run(run_id: int,):
+def continue_sample_splitting_run(run_id: int, log_console: bool):
     con = get_con(DB_PATH)
     cur = con.cursor()
     save_current_pid(con=con, cur=cur)
@@ -557,13 +557,15 @@ def continue_sample_splitting_run(run_id: int,):
         datasets_path=DATASETS_PATH,
         splits_path=splits_path,
         vocab_path=vocab_path,
+        log_console=log_console
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", type=int, required=True)
+    parser.add_argument("--log_console", action="store_true")
     args = parser.parse_args()
 
-    continue_sample_splitting_run(run_id=args.run_id,)
+    continue_sample_splitting_run(run_id=args.run_id, log_console=args.log_console)
 

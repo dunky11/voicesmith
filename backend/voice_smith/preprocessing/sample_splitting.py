@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Union, Literal
+from typing import List, Union, Literal, Any
 import sqlite3
 import tgt
 from pathlib import Path
@@ -22,6 +22,8 @@ class SampleSplit:
     lang: str
     splits: List[Split]
 
+def flatten(nested_list: List[List[Any]]):
+    return [x for sublist in nested_list for x in sublist]
 
 def get_splits(sentences_word, sentences_full, words_tier):
     assert len(sentences_word) == len(sentences_full)
@@ -29,41 +31,21 @@ def get_splits(sentences_word, sentences_full, words_tier):
     splits: List[Split] = []
     continue_search = True
     end_time = None
+
+    if len(words_tier) != len(flatten(sentences_word)):
+        # The tokenizers used by MFA and us may be out of sync
+        return splits
+
+    word_idx = 0
     for i, (sentence_word, sentence_full) in enumerate(
         zip(sentences_word, sentences_full)
     ):
-        if word_idx > len(words_tier) - 1:
-            break
-        if i == 0 or end_time is None:
-            start_time = 0
-        else:
-            start_time = words_tier[word_idx].start_time
-        for word_sent in sentence_word:
-            if word_idx >= len(words_tier):
-                break
-
-            word, end_time = words_tier[word_idx].text, words_tier[word_idx].end_time
-            if word_sent.lower() != word.lower():
-                continue_search = False
-
-            if not continue_search:
-                break
-
-            word_idx += 1
-
-        if not continue_search:
-            break
-
-        if end_time is None:
-            continue
-
-        if i == len(sentences_word) - 1:
-            end_time = words_tier.end_time
-
+        start_time = words_tier[word_idx].start_time
+        end_time = words_tier[word_idx + len(sentence_word) - 1].end_time
+        word_idx += len(sentence_word)
         splits.append(
             Split(text=sentence_full, from_msecs=start_time, to_msecs=end_time)
         )
-
     return splits
 
 

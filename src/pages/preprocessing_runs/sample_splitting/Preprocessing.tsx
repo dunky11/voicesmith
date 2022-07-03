@@ -19,7 +19,7 @@ export default function Preprocessing({
 
   return (
     <PreprocessingSteps
-      title="preprocessing"
+      title="Preprocessing"
       docsUrl="/usage/sample-splitting#preprocessing"
       onBack={onBack}
       onNext={onNext}

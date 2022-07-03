@@ -133,7 +133,7 @@ ipcMain.handle(
       sample.audio_path AS audioPath,
       dataset.ID as datasetID,
       speaker.ID as speakerID,
-      speaker.name AS speakerName,
+      speaker.name AS speakerName
       FROM sample_splitting_run_split
       INNER JOIN sample_splitting_run_sample ON sample_splitting_run_split.sample_splitting_run_sample_id = sample_splitting_run_sample.ID
       INNER JOIN sample ON sample_splitting_run_sample.sample_id = sample.ID

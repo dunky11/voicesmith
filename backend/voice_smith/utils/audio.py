@@ -9,7 +9,7 @@ from voice_smith.utils.librosa import mel as librosa_mel_fn
 
 
 def save_audio(file_path: str, audio: torch.Tensor, sr: int):
-    sf.write(file_path, audio.unsqueeze(0).numpy(), sr)
+    sf.write(file_path, audio.numpy(), sr)
 
 
 def stereo_to_mono(audio: np.ndarray) -> np.ndarray:
