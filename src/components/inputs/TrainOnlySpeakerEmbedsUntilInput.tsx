@@ -16,16 +16,9 @@ export default function TrainOnlySpeakerEmbedsUntilInput({
       rules={rules}
       label={
         <Typography.Text>
-          Run Validation Every
+          Train Only Speaker Embeds Until
           <HelpIcon
-            content={
-              <Typography>
-                How many steps to take before calculating the validation losses
-                on the validation dataset. A higher value means less time spend
-                on training but will also make it harder to measure the level of
-                overfitting.
-              </Typography>
-            }
+            content={<Typography></Typography>}
             style={{ marginLeft: 8 }}
           />
         </Typography.Text>

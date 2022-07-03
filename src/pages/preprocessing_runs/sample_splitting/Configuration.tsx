@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, ReactElement } from "react";
-import { Button, Form } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import { useDispatch } from "react-redux";
@@ -8,7 +7,6 @@ import {
   SampleSplittingRunConfigInterface,
   SampleSplittingRunInterface,
 } from "../../../interfaces";
-import RunCard from "../../../components/cards/RunCard";
 import { notifySave } from "../../../utils";
 import {
   UPDATE_SAMPLE_SPLITTING_RUN_CHANNEL,
@@ -21,7 +19,7 @@ import MaximumWorkersInput from "../../../components/inputs/MaximumWorkersInput"
 import SkipOnErrorInput from "../../../components/inputs/SkipOnErrorInput";
 import DeviceInput from "../../../components/inputs/DeviceInput";
 import DatasetInput from "../../../components/inputs/DatasetInput";
-import NameInput from "../../../components/inputs/NameInput";
+import RunConfiguration from "../../../components/runs/RunConfiguration";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
 import { fetchNames } from "../PreprocessingRuns";
 import { addToQueue } from "../../../features/runManagerSlice";
@@ -43,11 +41,11 @@ export default function Configuration({
   const formRef =
     useRef<FormInstance<SampleSplittingRunConfigInterface> | null>();
 
-  const onBackClick = () => {
+  const onBack = () => {
     history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
   };
 
-  const onNextClick = () => {
+  const onNext = () => {
     if (formRef.current === null) {
       return;
     }
@@ -122,13 +120,6 @@ export default function Configuration({
       });
   };
 
-  const getNextButtonText = () => {
-    if (run.stage === "not_started") {
-      return "Save and Start Run";
-    }
-    return "Save and Next";
-  };
-
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -143,45 +134,28 @@ export default function Configuration({
   const hasStarted = run.stage !== "not_started";
 
   return (
-    <RunCard
+    <RunConfiguration
       title="Configure the Sample Splitting Run"
-      buttons={[
-        <Button onClick={onBackClick}>Back</Button>,
-        <Button disabled={initialIsLoading} onClick={onDefaults}>
-          Reset to Default
-        </Button>,
-        <Button onClick={onSave} disabled={initialIsLoading}>
-          Save
-        </Button>,
-        <Button
-          type="primary"
-          disabled={initialIsLoading}
-          onClick={onNextClick}
-        >
-          {getNextButtonText()}
-        </Button>,
-      ]}
-    >
-      <Form
-        layout="vertical"
-        ref={(node) => {
-          formRef.current = node;
-        }}
-        initialValues={sampleSplittingRunInitialValues}
-        onFinish={onFinish}
-      >
-        <NameInput
-          disabled={initialIsLoading}
-          fetchNames={() => {
-            return fetchNames(run.ID);
-          }}
-        />
-        <MaximumWorkersInput disabled={initialIsLoading} />
-        <SkipOnErrorInput disabled={initialIsLoading} />
-        <AlignmentBatchSizeInput disabled={initialIsLoading} />
-        <DatasetInput disabled={initialIsLoading || hasStarted} />
-        <DeviceInput disabled={initialIsLoading} />
-      </Form>
-    </RunCard>
+      forms={
+        <>
+          <DatasetInput disabled={initialIsLoading || hasStarted} />
+          <MaximumWorkersInput disabled={initialIsLoading} />
+          <SkipOnErrorInput disabled={initialIsLoading} />
+          <AlignmentBatchSizeInput disabled={initialIsLoading} />
+          <DatasetInput disabled={initialIsLoading || hasStarted} />
+          <DeviceInput disabled={initialIsLoading} />
+        </>
+      }
+      hasStarted={run.stage !== "not_started"}
+      isDisabled={initialIsLoading}
+      onBack={onBack}
+      onDefaults={onDefaults}
+      onSave={onSave}
+      onNext={onNext}
+      formRef={formRef}
+      initialValues={sampleSplittingRunInitialValues}
+      onFinish={onFinish}
+      fetchNames={() => fetchNames(run.ID)}
+    />
   );
 }

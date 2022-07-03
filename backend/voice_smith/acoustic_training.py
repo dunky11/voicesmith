@@ -199,6 +199,7 @@ def train_iter(
         "mel_loss": torch.FloatTensor([0.0]).to(device),
         "ssim_loss": torch.FloatTensor([0.0]).to(device),
         "duration_loss": torch.FloatTensor([0.0]).to(device),
+        "u_prosody_loss": torch.FloatTensor([0.0]).to(device),
         "p_prosody_loss": torch.FloatTensor([0.0]).to(device),
         "pitch_loss": torch.FloatTensor([0.0]).to(device),
     }
@@ -245,6 +246,7 @@ def train_iter(
             mel_loss,
             ssim_loss,
             duration_loss,
+            u_prosody_loss,
             p_prosody_loss,
             pitch_loss,
         ) = criterion(
@@ -253,6 +255,8 @@ def train_iter(
             mel_targets=mels,
             mel_predictions=y_pred,
             log_duration_predictions=log_duration_prediction,
+            u_prosody_ref=outputs["u_prosody_ref"],
+            u_prosody_pred=outputs["u_prosody_pred"],
             p_prosody_ref=p_prosody_ref,
             p_prosody_pred=p_prosody_pred,
             pitch_predictions=pitch_prediction,
@@ -265,6 +269,7 @@ def train_iter(
         losses["mel_loss"] += mel_loss * batch_size
         losses["ssim_loss"] += ssim_loss * batch_size
         losses["duration_loss"] += duration_loss * batch_size
+        losses["u_prosody_loss"] += u_prosody_loss * batch_size
         losses["p_prosody_loss"] += p_prosody_loss * batch_size
         losses["pitch_loss"] += pitch_loss * batch_size
         total_batch_size += batch_size
@@ -284,6 +289,7 @@ def train_iter(
         losses["mel_loss"] /= total_batch_size
         losses["ssim_loss"] /= total_batch_size
         losses["duration_loss"] /= total_batch_size
+        losses["u_prosody_loss"] /= total_batch_size
         losses["p_prosody_loss"] /= total_batch_size
         losses["pitch_loss"] /= total_batch_size
 
@@ -328,6 +334,7 @@ def eval_iter(
         "mel_loss": torch.FloatTensor([0.0]).to(device),
         "ssim_loss": torch.FloatTensor([0.0]).to(device),
         "duration_loss": torch.FloatTensor([0.0]).to(device),
+        "u_prosody_loss": torch.FloatTensor([0.0]).to(device),
         "p_prosody_loss": torch.FloatTensor([0.0]).to(device),
         "pitch_loss": torch.FloatTensor([0.0]).to(device),
     }
@@ -374,6 +381,7 @@ def eval_iter(
                     mel_loss,
                     ssim_loss,
                     duration_loss,
+                    u_prosody_loss,
                     p_prosody_loss,
                     pitch_loss,
                 ) = criterion(
@@ -382,6 +390,8 @@ def eval_iter(
                     mel_targets=mels,
                     mel_predictions=y_pred,
                     log_duration_predictions=log_duration_prediction,
+                    u_prosody_ref=outputs["u_prosody_ref"],
+                    u_prosody_pred=outputs["u_prosody_ref"],
                     p_prosody_ref=p_prosody_ref,
                     p_prosody_pred=p_prosody_pred,
                     pitch_predictions=pitch_prediction,
@@ -394,6 +404,7 @@ def eval_iter(
                 losses["mel_loss"] += mel_loss * batch_size
                 losses["ssim_loss"] += ssim_loss * batch_size
                 losses["duration_loss"] += duration_loss * batch_size
+                losses["u_prosody_loss"] += u_prosody_loss * batch_size
                 losses["p_prosody_loss"] += p_prosody_loss * batch_size
                 losses["pitch_loss"] += pitch_loss * batch_size
                 len_ds += batch_size
@@ -447,6 +458,7 @@ def eval_iter(
     losses["mel_loss"] /= len_ds
     losses["ssim_loss"] /= len_ds
     losses["duration_loss"] /= len_ds
+    losses["u_prosody_loss"] /= len_ds
     losses["p_prosody_loss"] /= len_ds
     losses["pitch_loss"] /= len_ds
     losses["mcd_dtw"] = sum(mcds) / len(mcds)

@@ -32,6 +32,7 @@ class PreprocessingConfig:
     forced_alignment_batch_size: int = 200000
     skip_on_error: bool = True
 
+
 @dataclass
 class AcousticTrainingOptimizerConfig:
     learning_rate: float
@@ -64,8 +65,8 @@ class AcousticFinetuningConfig:
 
 @dataclass
 class AcousticPretrainingConfig:
-    batch_size = 5
-    grad_acc_step = 3
+    batch_size = 4
+    grad_acc_step = 4
     train_steps = 500000
     log_step = 20
     synth_step = 250
@@ -75,7 +76,7 @@ class AcousticPretrainingConfig:
     mcd_gen_max_samples = 400
     only_train_speaker_until = 0
     optimizer_config: AcousticTrainingOptimizerConfig = AcousticTrainingOptimizerConfig(
-        learning_rate=0.051, weight_decay=0.1, lr_decay=0.99999
+        learning_rate=0.0002, weight_decay=0.0, lr_decay=1.0
     )
 
 

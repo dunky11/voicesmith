@@ -1,15 +1,14 @@
 import React, { useState, useRef, useEffect, ReactElement } from "react";
-import { Button, Form } from "antd";
 import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
+import { useDispatch } from "react-redux";
+import RunConfiguration from "../../../components/runs/RunConfiguration";
 import { textNormalizationRunInitialValues } from "../../../config";
 import {
   TextNormalizationRunInterface,
   TextNormalizationRunConfigInterface,
 } from "../../../interfaces";
-import RunCard from "../../../components/cards/RunCard";
 import DatasetInput from "../../../components/inputs/DatasetInput";
-import NameInput from "../../../components/inputs/NameInput";
 import { fetchNames } from "../PreprocessingRuns";
 import { notifySave } from "../../../utils";
 import {
@@ -17,7 +16,6 @@ import {
   FETCH_TEXT_NORMALIZATION_RUN_CONFIG_CHANNEL,
 } from "../../../channels";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
-import { useDispatch } from "react-redux";
 import { addToQueue } from "../../../features/runManagerSlice";
 const { ipcRenderer } = window.require("electron");
 
@@ -35,11 +33,11 @@ export default function Configuration({
   const navigateNextRef = useRef<boolean>(false);
   const formRef = useRef<FormInstance | null>();
 
-  const onBackClick = () => {
+  const onBack = () => {
     history.push(PREPROCESSING_RUNS_ROUTE.RUN_SELECTION.ROUTE);
   };
 
-  const onNextClick = () => {
+  const onNext = () => {
     if (formRef.current === null) {
       return;
     }
@@ -108,13 +106,6 @@ export default function Configuration({
       });
   };
 
-  const getNextButtonText = () => {
-    if (run.stage === "not_started") {
-      return "Save and Start Run";
-    }
-    return "Save and Next";
-  };
-
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -129,41 +120,19 @@ export default function Configuration({
   const hasStarted = run.stage !== "not_started";
 
   return (
-    <RunCard
+    <RunConfiguration
       title="Configure the Text Normalization Run"
-      buttons={[
-        <Button onClick={onBackClick}>Back</Button>,
-        <Button disabled={initialIsLoading} onClick={onDefaults}>
-          Reset to Default
-        </Button>,
-        <Button disabled={initialIsLoading} onClick={onSave}>
-          Save
-        </Button>,
-        <Button
-          type="primary"
-          disabled={initialIsLoading}
-          onClick={onNextClick}
-        >
-          {getNextButtonText()}
-        </Button>,
-      ]}
-    >
-      <Form
-        layout="vertical"
-        ref={(node) => {
-          formRef.current = node;
-        }}
-        initialValues={textNormalizationRunInitialValues}
-        onFinish={onFinish}
-      >
-        <NameInput
-          disabled={initialIsLoading}
-          fetchNames={() => {
-            return fetchNames(run.ID);
-          }}
-        />
-        <DatasetInput disabled={initialIsLoading || hasStarted} />
-      </Form>
-    </RunCard>
+      forms={<DatasetInput disabled={initialIsLoading || hasStarted} />}
+      hasStarted={run.stage !== "not_started"}
+      isDisabled={initialIsLoading}
+      onBack={onBack}
+      onDefaults={onDefaults}
+      onSave={onSave}
+      onNext={onNext}
+      formRef={formRef}
+      initialValues={textNormalizationRunInitialValues}
+      onFinish={onFinish}
+      fetchNames={() => fetchNames(run.ID)}
+    />
   );
 }

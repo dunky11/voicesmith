@@ -133,6 +133,14 @@ class AcousticModel(nn.Module):
         for par in self.parameters():
             par.requires_grad = True
 
+    def average_utterance_prosody(
+        self, u_prosody_pred: torch.Tensor, src_mask: torch.Tensor
+    ) -> torch.Tensor:
+        lengths = ((~src_mask) * 1.0).sum(1)
+        u_prosody_pred = u_prosody_pred.sum(1, keepdim=True) / lengths.view(-1, 1, 1)
+
+        return u_prosody_pred
+
     def forward_train(
         self,
         x: torch.Tensor,
@@ -162,8 +170,12 @@ class AcousticModel(nn.Module):
             self.utterance_prosody_encoder(mels=mels, mel_lens=mel_lens)
         )
         u_prosody_pred = self.u_norm(
-            self.utterance_prosody_predictor(x=x, mask=src_mask,)
+            self.average_utterance_prosody(
+                u_prosody_pred=self.utterance_prosody_predictor(x=x, mask=src_mask),
+                src_mask=src_mask,
+            )
         )
+
         p_prosody_ref = self.p_norm(
             self.phoneme_prosody_encoder(
                 x=x, src_mask=src_mask, mels=mels, mel_lens=mel_lens, encoding=encoding
@@ -198,6 +210,8 @@ class AcousticModel(nn.Module):
             "y_pred": x,
             "pitch_prediction": pitch_prediction,
             "log_duration_prediction": log_duration_prediction,
+            "u_prosody_pred": u_prosody_pred,
+            "u_prosody_ref": u_prosody_ref,
             "p_prosody_pred": p_prosody_pred,
             "p_prosody_ref": p_prosody_ref,
         }
@@ -222,7 +236,10 @@ class AcousticModel(nn.Module):
         x = self.encoder(x, src_mask, embeddings=embeddings, encoding=encoding)
 
         u_prosody_pred = self.u_norm(
-            self.utterance_prosody_predictor(x=x, mask=src_mask,)
+            self.average_utterance_prosody(
+                u_prosody_pred=self.utterance_prosody_predictor(x=x, mask=src_mask),
+                src_mask=src_mask,
+            )
         )
         p_prosody_pred = self.p_norm(
             self.phoneme_prosody_predictor(x=x, mask=src_mask,)

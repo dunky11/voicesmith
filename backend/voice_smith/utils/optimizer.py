@@ -4,6 +4,7 @@ from typing import Iterable, Dict, Any, Union
 from voice_smith.config.configs import (
     AcousticFinetuningConfig,
     AcousticPretrainingConfig,
+    AcousticModelConfig,
 )
 
 
@@ -12,6 +13,7 @@ class ScheduledOptimPretraining:
         self,
         parameters: Iterable,
         train_config: AcousticPretrainingConfig,
+        model_config: AcousticModelConfig,
         current_step: int,
     ):
         self._optimizer = torch.optim.Adam(
@@ -23,7 +25,7 @@ class ScheduledOptimPretraining:
         self.anneal_steps = train_config.optimizer_config.anneal_steps
         self.anneal_rate = train_config.optimizer_config.anneal_rate
         self.current_step = current_step
-        self.init_lr = train_config.optimizer_config.learning_rate
+        self.init_lr = model_config.encoder.n_hidden ** -0.5
 
     def step_and_update_lr(self, step: int) -> None:
         self._update_learning_rate(step)
@@ -82,7 +84,7 @@ class ScheduledOptimFinetuning:
         self._optimizer.load_state_dict(state_dict)
 
     def _get_lr_scale(self) -> float:
-        lr_scale = self.lr_decay**self.current_step
+        lr_scale = self.lr_decay ** self.current_step
         return lr_scale
 
     def _update_learning_rate(self, step: int) -> None:

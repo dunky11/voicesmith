@@ -22,12 +22,15 @@ class FastSpeech2LossGen(nn.Module):
         mel_targets: torch.Tensor,
         mel_predictions: torch.Tensor,
         log_duration_predictions: torch.Tensor,
+        u_prosody_ref: torch.Tensor,
+        u_prosody_pred: torch.Tensor,
         p_prosody_ref: torch.Tensor,
         p_prosody_pred: torch.Tensor,
         durations: torch.Tensor,
         pitch_predictions: torch.Tensor,
         p_targets: torch.Tensor,
     ) -> Tuple[
+        torch.Tensor,
         torch.Tensor,
         torch.Tensor,
         torch.Tensor,
@@ -78,6 +81,9 @@ class FastSpeech2LossGen(nn.Module):
             p_prosody_pred.masked_select(~src_masks.unsqueeze(1)),
         )
 
+        u_prosody_ref = u_prosody_ref.detach()
+        u_prosody_loss = 0.5 * self.mae_loss(u_prosody_ref, u_prosody_pred)
+
         duration_loss = self.mse_loss(log_duration_predictions, log_duration_targets)
 
         pitch_predictions = pitch_predictions.masked_select(~src_masks)
@@ -85,13 +91,21 @@ class FastSpeech2LossGen(nn.Module):
 
         pitch_loss = self.mse_loss(pitch_predictions, p_targets)
 
-        total_loss = mel_loss + duration_loss + p_prosody_loss + ssim_loss + pitch_loss
+        total_loss = (
+            mel_loss
+            + duration_loss
+            + u_prosody_loss
+            + p_prosody_loss
+            + ssim_loss
+            + pitch_loss
+        )
 
         return (
             total_loss,
             mel_loss,
             ssim_loss,
             duration_loss,
+            u_prosody_loss,
             p_prosody_loss,
             pitch_loss,
         )
