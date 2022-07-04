@@ -14,6 +14,7 @@ from voice_smith.utils.tokenization import (
     SentenceTokenizer,
     BertTokenizer,
 )
+from voice_smith.g2p.dp.utils.infer import batched_predict
 
 
 def strip_invalid_symbols(text: str, pad_symbol: str, valid_symbols: List[str]) -> str:
@@ -79,67 +80,46 @@ def is_phone(text: str) -> bool:
 
 def synthesize(
     text: str,
+    lang: str,
     talking_speed: float,
     speaker_id: int,
     model_type: str,
     g2p: G2p,
     symbol2id: Dict[str, int],
-    lexicon: Dict[str, List[str]],
+    lang2id: Dict[str, int],
     text_normalizer: EnglishTextNormalizer,
-    bert_tokenizer: BertTokenizer,
     acoustic_model: ScriptModule,
-    style_predictor: ScriptModule,
     vocoder: ScriptModule,
 ) -> Tuple[np.ndarray, int]:
     text = text.strip()
     text = remove_cont_whitespaces(text)
-    word_tokenizer = WordTokenizer(lang="en", remove_punct=False)
-    sentence_tokenizer = SentenceTokenizer(lang="en")
+    word_tokenizer = WordTokenizer(lang=lang, remove_punct=False)
+    sentence_tokenizer = SentenceTokenizer(lang=lang)
     if model_type == "Delighful_FreGANv1_v0.0":
         waves = []
         for sentence in sentence_tokenizer.tokenize(text):
-            style_sentences = []
             symbol_ids = []
-            for subsentence, context in split_context_marker(sentence):
-                for subsubsentence in split_phone_marker(subsentence):
-                    if is_phone_marker(subsubsentence):
-                        for phone in subsubsentence.strip().split(" "):
-                            if f"{phone}" in symbol2id:
-                                symbol_ids.append(symbol2id[f"{phone}"])
-                            style_sentences.append(context)
-                    else:
-                        subsubsentence = text_normalizer(subsubsentence)
-                        style_sentences.append(text_normalizer(context))
-                        for word in word_tokenizer.tokenize(subsubsentence):
-                            word = word.lower()
-                            if word.strip() == "":
-                                continue
-                            elif word in [".", "?", "!"]:
-                                symbol_ids.append(symbol2id[word])
-                            elif word in [",", ";"]:
-                                symbol_ids.append(symbol2id["SILENCE"])
-                            elif word in lexicon:
-                                for phone in lexicon[word]:
-                                    symbol_ids.append(symbol2id[phone])
-                                symbol_ids.append(symbol2id["BLANK"])
-                            else:
-                                for phone in g2p(word):
-                                    symbol_ids.append(symbol2id[phone])
-                                symbol_ids.append(symbol2id["BLANK"])
-
-            sentence_style = " ".join(style_sentences)
-
-            encoding = bert_tokenizer([sentence_style])
+            # sentence = text_normalizer(sentence)
+            for word in word_tokenizer.tokenize(sentence):
+                word = word.lower()
+                if word.strip() == "":
+                    continue
+                elif word in [".", "?", "!"]:
+                    symbol_ids.append(symbol2id[word])
+                elif word in [",", ";"]:
+                    symbol_ids.append(symbol2id["SILENCE"])
+                else:
+                    for phone in batched_predict(g2p, [word], [lang])[0]:
+                        symbol_ids.append(symbol2id[phone])
+                    symbol_ids.append(symbol2id["BLANK"])
 
             symbol_ids = torch.LongTensor([symbol_ids])
             speaker_ids = torch.LongTensor([speaker_id])
+            lang_ids = torch.LongTensor([lang2id[lang]])
 
             with torch.no_grad():
-                style_embeds = style_predictor(
-                    encoding["input_ids"], encoding["attention_mask"]
-                )
                 mel = acoustic_model(
-                    symbol_ids, speaker_ids, style_embeds, 1.0, talking_speed,
+                    symbol_ids, speaker_ids, lang_ids, 1.0, talking_speed,
                 )
                 wave = vocoder(mel)
                 waves.append(wave.view(-1))

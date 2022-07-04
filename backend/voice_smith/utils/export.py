@@ -16,7 +16,6 @@ from voice_smith.config.configs import (
 
 def acoustic_to_torchscript(
     checkpoint_acoustic: str,
-    checkpoint_style: str,
     data_path: str,
     train_config: Union[AcousticPretrainingConfig, AcousticFinetuningConfig],
     preprocess_config: PreprocessingConfig,
@@ -24,9 +23,8 @@ def acoustic_to_torchscript(
     assets_path: str,
 ) -> Tuple[ScriptModule, ScriptModule]:
     device = torch.device("cpu")
-    acoustic, style_predictor, _, _ = get_acoustic_models(
+    acoustic, _, _ = get_acoustic_models(
         checkpoint_acoustic=checkpoint_acoustic,
-        checkpoint_style=checkpoint_style,
         data_path=data_path,
         train_config=train_config,
         preprocess_config=preprocess_config,
@@ -38,9 +36,8 @@ def acoustic_to_torchscript(
     )
     acoustic.prepare_for_export()
     acoustic.eval()
-    style_predictor.eval()
     acoustic_torch = script(acoustic,)
-    return acoustic_torch, style_predictor
+    return acoustic_torch
 
 
 def vocoder_to_torchscript(

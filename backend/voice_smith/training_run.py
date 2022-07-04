@@ -744,12 +744,6 @@ def save_model_stage(
     with open(models_path / name / "config.json", "w", encoding="utf-8") as f:
         json.dump(config, f)
 
-    lexicon = {}
-    with open(data_path / "data" / "lexicon_post.txt", "r", encoding="utf-8",) as f:
-        for line in f:
-            split = line.strip().split(" ")
-            lexicon[split[0]] = split[1:]
-
     cur.execute(
         "INSERT INTO model(name, type, description) VALUES (?, ?, ?)",
         (name, model_type, description),
@@ -761,19 +755,6 @@ def save_model_stage(
             "INSERT INTO model_speaker (name, speaker_id, model_id) VALUES (?, ?, ?)",
             [speaker_name, speaker_id, model_id],
         )
-    for symbol in symbol2id.keys():
-        symbol_id = symbol2id[symbol]
-        cur.execute(
-            "INSERT INTO symbol (symbol, symbol_id, model_id) VALUES (?, ?, ?)",
-            [symbol, symbol_id, model_id],
-        )
-    for word in lexicon.keys():
-        phonemes = " ".join(lexicon[word])
-        cur.execute(
-            "INSERT INTO lexicon_word (word, phonemes, model_id) VALUES (?, ?, ?)",
-            [word, phonemes, model_id],
-        )
-    con.commit()
 
     cur.execute(
         "UPDATE training_run SET stage='finished' WHERE ID=?", (run_id,),

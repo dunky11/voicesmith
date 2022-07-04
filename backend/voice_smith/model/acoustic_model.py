@@ -122,6 +122,7 @@ class AcousticModel(nn.Module):
 
     def prepare_for_export(self) -> None:
         del self.phoneme_prosody_encoder
+        del self.utterance_prosody_encoder
 
     def freeze(self) -> None:
         for par in self.parameters():

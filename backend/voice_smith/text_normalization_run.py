@@ -21,9 +21,11 @@ def before_run(data_path: str, **kwargs):
 
 
 def before_stage(
-    data_path: str, **kwargs,
+    log_console: bool, data_path: str, **kwargs,
 ):
-    set_stream_location(str(Path(data_path) / "logs" / "preprocessing.txt"))
+    set_stream_location(
+        str(Path(data_path) / "logs" / "preprocessing.txt"), log_console=log_console
+    )
 
 
 def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
@@ -111,7 +113,7 @@ def text_normalization_stage(
     return True
 
 
-def continue_text_normalization_run(run_id: int):
+def continue_text_normalization_run(run_id: int, log_console: bool):
     con = get_con(DB_PATH)
     cur = con.cursor()
     save_current_pid(con=con, cur=cur)
@@ -129,13 +131,18 @@ def continue_text_normalization_run(run_id: int):
         ],
     )
     runner.run(
-        cur=cur, con=con, run_id=run_id, data_path=data_path, assets_path=ASSETS_PATH,
+        cur=cur,
+        con=con,
+        run_id=run_id,
+        data_path=data_path,
+        assets_path=ASSETS_PATH,
+        log_console=log_console,
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", type=int, required=True)
+    parser.add_argument("--log_console", action="store_true")
     args = parser.parse_args()
-
-    continue_text_normalization_run(run_id=args.run_id)
+    continue_text_normalization_run(run_id=args.run_id, log_console=args.log_console)

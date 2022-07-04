@@ -9,39 +9,21 @@ import uuid
 from torch.jit._serialization import load
 from g2p_en import G2p
 from waitress import serve
-from voice_smith.utils.tokenization import BertTokenizer
 from voice_smith.utils.text_normalization import EnglishTextNormalizer
 from voice_smith.sql import get_con
 from voice_smith.utils.tools import get_cpu_usage, get_ram_usage, get_disk_usage
 from voice_smith.inference import synthesize as synthesize_infer
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.utils.audio import save_audio
+from voice_smith.config.symbols import symbol2id
+from voice_smith.config.langs import lang2id
 from voice_smith.config.globals import (
     DB_PATH,
     AUDIO_SYNTH_PATH,
     ASSETS_PATH,
     MODELS_PATH,
 )
-
-
-def get_lexicon(cur: sqlite3.Cursor, model_id: int) -> Dict[str, List[str]]:
-    symbols = cur.execute(
-        "SELECT word, phonemes FROM lexicon_word WHERE model_id=?", [model_id]
-    ).fetchall()
-    lexicon: Dict[str, List[str]] = {}
-    for word, phonemes in symbols:
-        lexicon[word] = phonemes.split(" ")
-    return lexicon
-
-
-def get_symbol2id(cur: sqlite3.Cursor, model_id: int) -> Dict[str, int]:
-    symbols = cur.execute(
-        "SELECT symbol, symbol_id FROM symbol WHERE model_id=?", [model_id]
-    ).fetchall()
-    symbol2id: Dict[str, int] = {}
-    for symbol, symbol_id in symbols:
-        symbol2id[symbol] = symbol_id
-    return symbol2id
+from voice_smith.g2p.dp.utils.model import get_g2p
 
 
 __model__ = None
@@ -56,21 +38,13 @@ def get_model(
 ) -> Dict[str, Any]:
     torchscript_dir = Path(models_path) / model_name / "torchscript"
     acoustic_model = load(torchscript_dir / "acoustic_model.pt")
-    style_predictor = load(torchscript_dir / "style_predictor.pt")
     vocoder = load(torchscript_dir / "vocoder.pt")
-    lexicon = get_lexicon(cur=cur, model_id=model_id)
-    symbol2id = get_symbol2id(cur=cur, model_id=model_id)
     text_normalizer = EnglishTextNormalizer()
-    bert_tokenizer = BertTokenizer(assets_path)
 
     return {
         "g2p": G2p(),
         "acoustic_model": acoustic_model,
-        "style_predictor": style_predictor,
         "vocoder": vocoder,
-        "lexicon": lexicon,
-        "symbol2id": symbol2id,
-        "bert_tokenizer": bert_tokenizer,
         "text_normalizer": text_normalizer,
     }
 
@@ -132,6 +106,10 @@ def run_server(port: int):
         ).fetchone()
         model_name, model_type = row
 
+        logs_dir = Path(MODELS_PATH) / model_name / "logs"
+        logs_dir.mkdir(exist_ok=True, parents=True)
+        set_stream_location(str(logs_dir / "synthesize.txt"), log_console=False)
+
         row = cur.execute(
             "SELECT name FROM model_speaker WHERE speaker_id=? AND model_id=?",
             (speaker_id, model_id),
@@ -146,25 +124,24 @@ def run_server(port: int):
             model_name=model_name,
         )
 
-        logs_dir = Path(MODELS_PATH) / model_name / "logs"
         audio_dir = Path(AUDIO_SYNTH_PATH)
         audio_dir.mkdir(parents=True, exist_ok=True)
         logs_dir.mkdir(parents=True, exist_ok=True)
-        set_stream_location(str(logs_dir / "synthesize.txt"))
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         audio, sr = synthesize_infer(
             text=text,
+            lang="pl",
             talking_speed=talking_speed,
             speaker_id=speaker_id,
             model_type=model_type,
-            symbol2id=__model__["symbol2id"],
-            lexicon=__model__["lexicon"],
-            g2p=__model__["g2p"],
+            symbol2id=symbol2id,
+            lang2id=lang2id,
+            g2p=get_g2p(assets_path=ASSETS_PATH, device=device),
             acoustic_model=__model__["acoustic_model"],
             text_normalizer=__model__["text_normalizer"],
             vocoder=__model__["vocoder"],
-            style_predictor=__model__["style_predictor"],
-            bert_tokenizer=__model__["bert_tokenizer"],
         )
 
         audio_name = f"{uuid.uuid1().hex[:12]}.flac"
