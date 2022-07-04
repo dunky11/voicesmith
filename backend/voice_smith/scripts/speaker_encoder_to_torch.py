@@ -5,9 +5,7 @@ import torch
 from voice_smith import ASSETS_PATH
 
 if __name__ == "__main__":
-    classifier = EncoderClassifier.from_hparams(
-        source=str(ASSETS_PATH / "ecapa_tdnn")
-    )
+    classifier = EncoderClassifier.from_hparams(source=str(ASSETS_PATH / "ecapa_tdnn"))
     classifier.eval()
     classifier.device = torch.device("cpu")
     classifier.mods.embedding_model.cpu()

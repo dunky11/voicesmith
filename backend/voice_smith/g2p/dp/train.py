@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from typing import Dict, List
 from voice_smith.g2p.dp.model.model import load_checkpoint, ModelType, create_model
 from voice_smith.g2p.dp.preprocessing.text import Preprocessor
 from voice_smith.g2p.dp.training.trainer import Trainer
@@ -12,6 +12,7 @@ logger = get_logger(__name__)
 def train(
     config: str,
     name: str,
+    lang_to_word_to_gold: Dict[str, Dict[str, List[List[str]]]],
     checkpoint_file: str = None,
 ) -> None:
     """
@@ -27,27 +28,27 @@ def train(
     """
 
     if checkpoint_file is not None:
-        logger.info(f'Restoring model from checkpoint: {checkpoint_file}')
+        logger.info(f"Restoring model from checkpoint: {checkpoint_file}")
         model, checkpoint = load_checkpoint(checkpoint_file)
         model.train()
-        step = checkpoint['step']
-        logger.info(f'Loaded model with step: {step}')
-        for key, val in config['training'].items():
-            val_orig = checkpoint['config']['training'][key]
+        step = checkpoint["step"]
+        logger.info(f"Loaded model with step: {step}")
+        for key, val in config["training"].items():
+            val_orig = checkpoint["config"]["training"][key]
             if val_orig != val:
-                logger.info(f'Overwriting training param: {key} {val_orig} --> {val}')
-                checkpoint['config']['training'][key] = val
-        config = checkpoint['config']
-        model_type = config['model']['type']
+                logger.info(f"Overwriting training param: {key} {val_orig} --> {val}")
+                checkpoint["config"]["training"][key] = val
+        config = checkpoint["config"]
+        model_type = config["model"]["type"]
         model_type = ModelType(model_type)
     else:
-        logger.info('Initializing new model from config...')
+        logger.info("Initializing new model from config...")
         preprocessor = Preprocessor.from_config(config)
-        model_type = config['model']['type']
+        model_type = config["model"]["type"]
         model_type = ModelType(model_type)
         model = create_model(model_type, config=config)
         checkpoint = {
-            'config': config,
+            "config": config,
         }
 
     print(f"Total number of parameters: {get_param_num(model)}")
@@ -55,12 +56,15 @@ def train(
     if "preprocessor" in checkpoint.keys():
         del checkpoint["preprocessor"]
 
-    checkpoint_dir = Path(config['paths']['checkpoint_dir'])
-    logger.info(f'Checkpoints will be stored at {checkpoint_dir.absolute()}')
-    loss_type = 'cross_entropy' if model_type.is_autoregressive() else 'ctc'
-    trainer = Trainer(checkpoint_dir=checkpoint_dir, loss_type=loss_type, name=name, config=config)
+    checkpoint_dir = Path(config["paths"]["checkpoint_dir"])
+    logger.info(f"Checkpoints will be stored at {checkpoint_dir.absolute()}")
+    loss_type = "cross_entropy" if model_type.is_autoregressive() else "ctc"
+    trainer = Trainer(
+        checkpoint_dir=checkpoint_dir, loss_type=loss_type, name=name, config=config
+    )
     trainer.train(
         model=model,
         checkpoint=checkpoint,
-        store_phoneme_dict_in_model=config['training']['store_phoneme_dict_in_model']
+        store_phoneme_dict_in_model=config["training"]["store_phoneme_dict_in_model"],
+        lang_to_word_to_gold=lang_to_word_to_gold,
     )

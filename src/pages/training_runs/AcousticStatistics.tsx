@@ -69,6 +69,7 @@ export default function AcousticStatistics({
                 return el.step;
               })}
               paths={audiosSynthesized.map((el) => {
+                console.log(el.path);
                 return el.path;
               })}
             ></AudioStatistic>

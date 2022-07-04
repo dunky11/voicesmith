@@ -19,7 +19,7 @@ from voice_smith.utils.optimizer import (
 )
 from voice_smith.utils.model import (
     get_acoustic_models,
-    get_param_num,
+    get_param_num, 
     save_model,
     save_torchscript,
 )

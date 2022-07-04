@@ -19,7 +19,6 @@ def save_gta(
     db_id: int,
     table_name: str,
     gen: AcousticModel,
-    style_predictor: torch.nn.Module,
     loader: DataLoader,
     id2speaker: Dict[int, str],
     device: torch.device,
@@ -29,7 +28,6 @@ def save_gta(
     log_every: int = 50,
 ):
     gen.eval()
-    style_predictor.eval()
     output_mels_gta_dir = Path(data_dir) / "data_gta"
 
     def callback(index: int):
@@ -59,22 +57,18 @@ def save_gta(
                 pitches,
                 durations,
                 mel_lens,
-                token_ids,
-                attention_masks,
+                langs,
             ) = batch
             with torch.no_grad():
-                style_embeds_pred = style_predictor(token_ids, attention_masks)
                 outputs = gen.forward_train(
                     x=texts,
                     speakers=speakers,
                     src_lens=src_lens,
                     mels=mels,
                     mel_lens=mel_lens,
-                    style_embeds_pred=style_embeds_pred,
-                    attention_mask=attention_masks,
                     pitches=pitches,
                     durations=durations,
-                    use_ground_truth=False,
+                    langs=langs,
                 )
                 y_pred = outputs["y_pred"]
             for basename, speaker_id, mel_pred, mel_len, mel in zip(
@@ -96,11 +90,10 @@ def ground_truth_alignment(
     batch_size: int,
     group_size: int,
     checkpoint_acoustic: str,
-    checkpoint_style: str,
     device: torch.device,
     logger: Optional[Logger],
     assets_path: str,
-    training_runs_path: str, 
+    training_runs_path: str,
     log_every: int = 200,
 ):
     print("Generating ground truth aligned data ... \n")
@@ -118,10 +111,9 @@ def ground_truth_alignment(
 
     id2speaker = {speakers[key]: key for key in speakers.keys()}
 
-    gen, style_predictor, _, _ = get_acoustic_models(
-        checkpoint_acoustic=checkpoint_acoustic,
-        checkpoint_style=checkpoint_style,
+    gen, optim, step = get_acoustic_models(
         data_path=str(data_path),
+        checkpoint_acoustic=checkpoint_acoustic,
         train_config=AcousticFinetuningConfig(),
         preprocess_config=PreprocessingConfig(),
         model_config=AcousticModelConfig(),
@@ -136,7 +128,6 @@ def ground_truth_alignment(
         db_id=db_id,
         table_name=table_name,
         gen=gen,
-        style_predictor=style_predictor,
         loader=train_loader,
         id2speaker=id2speaker,
         device=device,
@@ -151,7 +142,6 @@ def ground_truth_alignment(
         db_id=db_id,
         table_name=table_name,
         gen=gen,
-        style_predictor=style_predictor,
         loader=eval_loader,
         id2speaker=id2speaker,
         device=device,

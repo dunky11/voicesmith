@@ -5,6 +5,7 @@ from voice_smith.g2p.dp.preprocess import preprocess
 from voice_smith.g2p.dp.train import train
 from voice_smith.g2p.dp.utils.io import read_config
 from parse_dictionary import parse_dictionary
+import json
 
 
 perform_benchmark = False
@@ -27,13 +28,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     data, phones, text_symbols = [], [], []
-
-    """
-    for dictionary_path, lang in [
-        (Path(".") / "dictionaries" / "en" / "english_us_mfa.dict", "en"),
-    ]:
-    """
-
+    lang_to_word_to_gold = {}
     if args.checkpoint is None:
         for dictionary_path in [
             Path(".") / "dictionaries" / "bg" / "bulgarian_mfa.dict",
@@ -52,10 +47,11 @@ if __name__ == "__main__":
             Path(".") / "dictionaries" / "uk" / "ukrainian_mfa.dict",
         ]:
             lang = dictionary_path.parent.name
-            d, p, t = parse_dictionary(dictionary_path, lang)
+            d, p, t, word_to_gold = parse_dictionary(dictionary_path, lang)
             data.extend(d)
             phones.extend(p)
             text_symbols.extend(t)
+            lang_to_word_to_gold[lang] = word_to_gold
 
         phones = list(set(phones))
         text_symbols = list(set(text_symbols))
@@ -65,10 +61,6 @@ if __name__ == "__main__":
 
         with open(Path(".") / "phones.txt", "w", encoding="utf-8") as f:
             f.write(str(phones))
-
-        print(phones)
-        print(text_symbols)
-        print(data[:100])
 
         config = read_config(Path(".") / "dp" / "configs" / "autoreg_config.yaml")
         config["preprocessing"]["phoneme_symbols"] = phones
@@ -84,4 +76,20 @@ if __name__ == "__main__":
             deduplicate_train_data=False,
         )
 
-    train(config=config, checkpoint_file=args.checkpoint, name=name)
+        with open(
+            Path(".") / "datasets" / "lang_to_word_to_gold.json", "w", encoding="utf-8"
+        ) as f:
+            f.write(json.dumps(lang_to_word_to_gold))
+
+    else:
+        with open(
+            Path(".") / "datasets" / "lang_to_word_to_gold.json", "r", encoding="utf-8"
+        ) as f:
+            lang_to_word_to_gold = json.load(f)
+
+    train(
+        config=config,
+        checkpoint_file=args.checkpoint,
+        name=name,
+        lang_to_word_to_gold=lang_to_word_to_gold,
+    )

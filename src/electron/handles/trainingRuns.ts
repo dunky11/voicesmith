@@ -191,30 +191,31 @@ ipcMain.handle(
             .all({
               ID: el.ID,
             })
-            .map((el: any) => ({
-              ...el,
+            .map((statsEl: any) => ({
+              ...statsEl,
               path: path.join(
                 getTrainingRunsDir(),
                 String(el.ID),
                 "image_logs",
-                el.name,
-                `${el.step}.png`
+                statsEl.name,
+                `${statsEl.step}.png`
               ),
             }));
           audioStatistics = selectAudioStatisticsStmt
             .all({
               ID: el.ID,
             })
-            .map((el: any) => ({
-              ...el,
+            .map((statsEl: any) => ({
+              ...statsEl,
               path: path.join(
                 getTrainingRunsDir(),
                 String(el.ID),
                 "audio_logs",
-                el.name,
-                `${el.step}.flac`
+                statsEl.name,
+                `${statsEl.step}.flac`
               ),
             }));
+          console.log(audioStatistics);
         }
 
         const run: TrainingRunInterface = {

@@ -1,11 +1,12 @@
 from pathlib import Path
 from tqdm import tqdm
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 
 def parse_dictionary(
     dictionary_path: str, name: str
 ) -> Tuple[List[Tuple[str, str, List[str]]], List[str], List[str]]:
+    word_to_gold: Dict[str, List[List[str]]] = {}
     out = []
     all_phones = []
     words_preprocessed = {}
@@ -18,6 +19,10 @@ def parse_dictionary(
             words_preprocessed[word] = 0
             out.append((name, word, phones))
             all_phones.extend(phones)
+            if word in word_to_gold:
+                word_to_gold[word].append(phones)
+            else:
+                word_to_gold[word] = [phones]
     unique_phones = list(set(all_phones))
     text_symbols = list(set("".join(words_preprocessed)))
-    return out, unique_phones, text_symbols
+    return out, unique_phones, text_symbols, word_to_gold
