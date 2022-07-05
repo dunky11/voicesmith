@@ -5,7 +5,6 @@ import numpy as np
 import argparse
 from typing import Callable
 import sqlite3
-from torchtext.data.metrics import bleu_score
 from voice_smith.preprocessing.copy_files import copy_files
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
@@ -60,10 +59,11 @@ def get_log_file_name(stage_name: str) -> str:
 
 
 def before_stage(
-    data_path: str, stage_name: str, **kwargs,
+    data_path: str, stage_name: str, log_console: bool, **kwargs,
 ):
     set_stream_location(
-        str(Path(data_path) / "logs" / get_log_file_name(stage_name=stage_name))
+        str(Path(data_path) / "logs" / get_log_file_name(stage_name=stage_name)),
+        log_console=log_console,
     )
 
 
@@ -160,6 +160,31 @@ def copying_files_stage(
     return False
 
 
+def levenshtein_distance(s1, s2):
+    """ https://stackoverflow.com/questions/2460177/edit-distance-in-python
+    """
+    if len(s1) > len(s2):
+        s1, s2 = s2, s1
+
+    distances = range(len(s1) + 1)
+    for i2, c2 in enumerate(s2):
+        distances_ = [i2 + 1]
+        for i1, c1 in enumerate(s1):
+            if c1 == c2:
+                distances_.append(distances[i1])
+            else:
+                distances_.append(
+                    1 + min((distances[i1], distances[i1 + 1], distances_[-1]))
+                )
+        distances = distances_
+    return distances[-1]
+
+
+def normalized_levenshtein_distance(x: str, y: str):
+    max_len = max(len(x), len(y))
+    return levenshtein_distance(x, y) / max_len
+
+
 def transcribe_stage(
     cur: sqlite3.Cursor,
     con: sqlite3.Connection,
@@ -171,10 +196,9 @@ def transcribe_stage(
     config = get_config(cur=cur, run_id=run_id)
     langs = [el.name for el in (Path(data_path) / "raw_data").iterdir()]
     sample_ids = []
-    text_tokens = []
+    texts = []
     transcriptions = []
     for i, lang in enumerate(langs):
-        tokenizer = WordTokenizer(lang=lang, remove_punct=True)
         audio_paths = []
         for (sample_id, audio_path, speaker_name, text) in cur.execute(
             """
@@ -186,9 +210,8 @@ def transcribe_stage(
             """,
             (run_id, lang),
         ).fetchall():
-
             sample_ids.append(sample_id)
-            text_tokens.append(tokenizer.tokenize(text))
+            texts.append(text)
             audio_paths.append(
                 str(
                     Path(data_path)
@@ -216,10 +239,10 @@ def transcribe_stage(
             )
         )
 
-    for sample_id, text_token, transcription in zip(
-        sample_ids, text_tokens, transcriptions
-    ):
-        quality_score = bleu_score([transcription.split(" ")], [text_token])
+    for sample_id, text, transcription in zip(sample_ids, texts, transcriptions):
+        quality_score = 1 - normalized_levenshtein_distance(
+            transcription.lower(), text.lower()
+        )
         cur.execute(
             """
             INSERT INTO cleaning_run_sample (quality_score, sample_id, transcription, cleaning_run_id)
@@ -247,7 +270,7 @@ def apply_changes_stage(
     return True
 
 
-def continue_cleaning_run(run_id: int):
+def continue_cleaning_run(run_id: int, log_console: bool):
     con = get_con(DB_PATH)
     cur = con.cursor()
     save_current_pid(con=con, cur=cur)
@@ -286,12 +309,14 @@ def continue_cleaning_run(run_id: int):
         assets_path=ASSETS_PATH,
         get_logger=get_logger,
         datasets_path=DATASETS_PATH,
+        log_console=log_console,
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", type=int, required=True)
+    parser.add_argument("--log_console", action="store_true")
     args = parser.parse_args()
-    continue_cleaning_run(run_id=args.run_id,)
+    continue_cleaning_run(run_id=args.run_id, log_console=args.log_console)
 

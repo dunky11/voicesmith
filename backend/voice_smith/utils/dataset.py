@@ -25,6 +25,7 @@ class AcousticDataset(Dataset):
         batch_size: int,
         data_path: str,
         assets_path: str,
+        is_eval: bool,
         sort: bool = False,
         drop_last: bool = False,
     ):
@@ -35,14 +36,7 @@ class AcousticDataset(Dataset):
             self.speaker_map = json.load(f)
         self.sort = sort
         self.drop_last = drop_last
-
-        with open(self.preprocessed_path / "stats.json", encoding="utf-8") as f:
-            stats = json.load(f)
-            self.pitch_max, self.pitch_mean, self.pitch_std = (
-                stats["pitch"][1],
-                stats["pitch"][2],
-                stats["pitch"][3],
-            )
+        self.is_eval = is_eval
 
     def __len__(self) -> int:
         return len(self.basename)
@@ -61,6 +55,13 @@ class AcousticDataset(Dataset):
         lang = data["lang"]
         phone = torch.LongTensor(phones_to_token_ids(data["phones"]))
 
+        if mel.shape[1] < 20:
+            print(
+                "Skipping small sample due to the mel-spectrogram containing less than 20 frames"
+            )
+            rand_idx = np.random.randint(0, self.__len__())
+            return self.__getitem__(rand_idx)
+
         sample = {
             "id": basename,
             "speaker_name": speaker_name,
@@ -73,12 +74,11 @@ class AcousticDataset(Dataset):
             "lang": lang2id[lang],
         }
 
-        if mel.shape[1] < 20:
-            print(
-                "Skipping small sample due to the mel-spectrogram containing less than 20 frames"
+        if self.is_eval:
+            data = torch.load(
+                self.preprocessed_path / "wav" / speaker_name / f"{basename}.pt"
             )
-            rand_idx = np.random.randint(0, self.__len__())
-            return self.__getitem__(rand_idx)
+            sample["wav"] = data["wav"].unsqueeze(0)
 
         return sample
 
@@ -110,19 +110,37 @@ class AcousticDataset(Dataset):
         pitches = pad_1D(pitches)
         durations = pad_1D(durations)
 
-        return (
-            ids,
-            raw_texts,
-            speakers,
-            speaker_names,
-            texts,
-            text_lens,
-            mels,
-            pitches,
-            durations,
-            mel_lens,
-            langs,
-        )
+        if self.is_eval:
+            wavs = [data[idx]["wav"] for idx in idxs]
+            wavs = pad_2D(wavs)
+            return (
+                ids,
+                raw_texts,
+                speakers,
+                speaker_names,
+                texts,
+                text_lens,
+                mels,
+                pitches,
+                durations,
+                mel_lens,
+                langs,
+                wavs
+            )
+        else:
+            return (
+                ids,
+                raw_texts,
+                speakers,
+                speaker_names,
+                texts,
+                text_lens,
+                mels,
+                pitches,
+                durations,
+                mel_lens,
+                langs,
+            )
 
     def collate_fn(self, data):
         data_size = len(data)

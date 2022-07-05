@@ -1,16 +1,25 @@
 import React, { useState, useEffect, useRef, ReactElement } from "react";
-import { Button, Table, Space } from "antd";
+import { Button, Table, Space, Typography, Slider, Form } from "antd";
+import { FormInstance } from "rc-field-form";
 import { useHistory } from "react-router-dom";
-import { defaultPageOptions } from "../../../config";
+import { defaultPageOptions, cleaningRunInitialValues } from "../../../config";
+import HelpIcon from "../../../components/help/HelpIcon";
 import { numberCompare, stringCompare } from "../../../utils";
 import AudioBottomBar from "../../../components/audio_player/AudioBottomBar";
 import {
   CleaningRunInterface,
-  NoisySampleInterface,
+  CleaningRunSampleInterface,
 } from "../../../interfaces";
 import RunCard from "../../../components/cards/RunCard";
 import { PREPROCESSING_RUNS_ROUTE } from "../../../routes";
-import { REMOVE_PREPROCESSING_RUN_CHANNEL } from "../../../channels";
+import {
+  FETCH_CLEANING_RUN_SAMPLES_CHANNEL,
+  REMOVE_PREPROCESSING_RUN_CHANNEL,
+  FETCH_CLEANING_RUN_SAMPLES_CHANNEL_TYPES,
+  REMOVE_CLEANING_RUN_SAMPLES_CHANNEL,
+  REMOVE_CLEANING_RUN_SAMPLES_CHANNEL_TYPES,
+  FETCH_CLEANING_RUNS_CHANNEL,
+} from "../../../channels";
 const { ipcRenderer } = window.require("electron");
 
 export default function ChooseSamples({
@@ -22,13 +31,21 @@ export default function ChooseSamples({
 }): ReactElement {
   const isMounted = useRef(false);
   const history = useHistory();
-  const [noisySamples, setNoisySamples] = useState<NoisySampleInterface[]>([]);
+  const [samples, setSamples] = useState<CleaningRunSampleInterface[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const playFuncRef = useRef<null | (() => void)>(null);
   const [audioDataURL, setAudioDataURL] = useState<string | null>(null);
+  const formRef = useRef<FormInstance | null>();
+  const navigateNextRef = useRef<boolean>(false);
+  const [initialIsLoading, setInitialIsLoading] = useState(true);
 
   const removeSamples = (sampleIDs: number[]) => {
-    ipcRenderer.invoke("remove-noisy-samples", sampleIDs).then(fetchSamples);
+    const args: REMOVE_CLEANING_RUN_SAMPLES_CHANNEL_TYPES["IN"]["ARGS"] = {
+      sampleIDs,
+    };
+    ipcRenderer
+      .invoke(REMOVE_CLEANING_RUN_SAMPLES_CHANNEL.IN, args)
+      .then(fetchSamples);
   };
 
   const onSamplesRemove = () => {
@@ -41,12 +58,25 @@ export default function ChooseSamples({
     onStepChange(1);
   };
 
+  const onNext = () => {
+    if (formRef.current === null) {
+      return;
+    }
+    navigateNextRef.current = true;
+    formRef.current.submit();
+  };
+
   const fetchSamples = () => {
+    const args: FETCH_CLEANING_RUN_SAMPLES_CHANNEL_TYPES["IN"]["ARGS"] = {
+      runID: run.ID,
+    };
     ipcRenderer
-      .invoke("fetch-noisy-samples", run.ID)
-      .then((noisySamples: NoisySampleInterface[]) => {
-        setNoisySamples(noisySamples);
-      });
+      .invoke(FETCH_CLEANING_RUN_SAMPLES_CHANNEL.IN, args)
+      .then(
+        (samples: FETCH_CLEANING_RUN_SAMPLES_CHANNEL_TYPES["IN"]["OUT"]) => {
+          setSamples(samples);
+        }
+      );
   };
 
   const loadAudio = (filePath: string) => {
@@ -97,6 +127,20 @@ export default function ChooseSamples({
     ipcRenderer.send("finish-cleaning-run", run.ID);
   };
 
+  const fetchConfiguration = () => {
+    ipcRenderer
+      .invoke(FETCH_CLEANING_RUNS_CHANNEL.IN, run.ID)
+      .then((runs: CleaningRunInterface[]) => {
+        if (!isMounted.current) {
+          return;
+        }
+        if (initialIsLoading) {
+          setInitialIsLoading(false);
+        }
+        formRef.current?.setFieldsValue(runs[0].configuration);
+      });
+  };
+
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -106,7 +150,7 @@ export default function ChooseSamples({
   });
 
   useEffect(() => {
-    fetchSamples();
+    fetchConfiguration();
   }, []);
 
   const columns = [
@@ -115,23 +159,27 @@ export default function ChooseSamples({
       dataIndex: "text",
       key: "text",
       sorter: {
-        compare: (a: NoisySampleInterface, b: NoisySampleInterface) =>
-          stringCompare(a.text, b.text),
+        compare: (
+          a: CleaningRunSampleInterface,
+          b: CleaningRunSampleInterface
+        ) => stringCompare(a.text, b.text),
       },
     },
     {
       title: "Sample Quality",
-      dataIndex: "labelQuality",
-      key: "labelQuality",
+      dataIndex: "qualityScore",
+      key: "qualityScore",
       sorter: {
-        compare: (a: NoisySampleInterface, b: NoisySampleInterface) =>
-          numberCompare(a.labelQuality, b.labelQuality),
+        compare: (
+          a: CleaningRunSampleInterface,
+          b: CleaningRunSampleInterface
+        ) => numberCompare(a.qualityScore, b.qualityScore),
       },
     },
     {
       title: "",
       key: "action",
-      render: (text: any, record: NoisySampleInterface) => (
+      render: (text: any, record: CleaningRunSampleInterface) => (
         <Space size="middle">
           <a
             onClick={() => {
@@ -148,15 +196,35 @@ export default function ChooseSamples({
   return (
     <>
       <RunCard
-        title={`Choose Samples (${noisySamples.length} total)`}
+        title={`Choose Samples (${samples.length} total)`}
         buttons={[
           <Button onClick={onBackClick}>Back</Button>,
-          <Button onClick={onFinish} type="primary">
+          <Button onClick={onNext} disabled={initialIsLoading} type="primary">
             Remove Samples From Dataset
           </Button>,
         ]}
       >
         <div style={{ width: "100%" }}>
+          <Form
+            layout="vertical"
+            ref={(node: any) => {
+              formRef.current = node;
+            }}
+            initialValues={cleaningRunInitialValues}
+            onFinish={onFinish}
+          >
+            <Form.Item
+              label={
+                <Typography.Text>
+                  Remove all samples with a sample quality of less than.
+                  <HelpIcon docsUrl={"TODO"} style={{ marginLeft: 8 }} />
+                </Typography.Text>
+              }
+              name="removeIfQualityLessThan"
+            >
+              <Slider min={0} max={1} disabled={initialIsLoading} />
+            </Form.Item>
+          </Form>
           <div style={{ marginBottom: 16, display: "flex" }}>
             <Button
               disabled={selectedRowKeys.length === 0}
@@ -177,7 +245,7 @@ export default function ChooseSamples({
                 setSelectedRowKeys(selectedRowKeys);
               },
             }}
-            dataSource={noisySamples.map((sample: NoisySampleInterface) => ({
+            dataSource={samples.map((sample: CleaningRunSampleInterface) => ({
               ...sample,
               key: sample.ID,
             }))}

@@ -9,11 +9,20 @@ export default function LanguageSelect({
   onChange,
   disabled,
 }: {
-  value: SpeakerInterface["language"];
+  value: SpeakerInterface["language"] | null;
   className: string | null;
-  onChange: (lang: SpeakerInterface["language"]) => void;
+  onChange: ((lang: SpeakerInterface["language"]) => void) | null;
   disabled: boolean;
 }): ReactElement {
+  if (value === null && onChange !== null) {
+    throw new Error(
+      `Invalid props received: value is null and onChange is not null, they both have to be null or both have to be not null ...`
+    );
+  } else if (value !== null && onChange === null) {
+    throw new Error(
+      `Invalid props received: value is not null and onChange is null, they both have to be null or both have to be not null ...`
+    );
+  }
   return (
     <Select
       disabled={disabled}
@@ -33,4 +42,6 @@ export default function LanguageSelect({
 LanguageSelect.defaultProps = {
   className: null,
   disabled: false,
+  value: null,
+  onChange: null,
 };

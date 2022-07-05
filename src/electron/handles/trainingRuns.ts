@@ -215,7 +215,6 @@ ipcMain.handle(
                 `${statsEl.step}.flac`
               ),
             }));
-          console.log(audioStatistics);
         }
 
         const run: TrainingRunInterface = {

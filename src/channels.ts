@@ -4,6 +4,7 @@ import {
   TextNormalizationRunInterface,
   CleaningRunInterface,
   SampleSplittingRunInterface,
+  CleaningRunSampleInterface,
 } from "./interfaces";
 
 export const INSTALL_BACKEND_CHANNEL = {
@@ -47,12 +48,21 @@ export const UPDATE_CLEANING_RUN_CONFIG_CHANNEL = {
   IN: "update-cleaning-run-config",
 };
 
-export const FETCH_NOISY_SAMPLES_CHANNEL = {
-  IN: "fetch-noisy-samples",
+export interface FETCH_CLEANING_RUN_SAMPLES_CHANNEL_TYPES {
+  IN: { ARGS: { runID: number }; OUT: CleaningRunSampleInterface[] };
+}
+
+export const FETCH_CLEANING_RUN_SAMPLES_CHANNEL = {
+  IN: "fetch-cleaning-run-samples",
 };
 
-export const REMOVE_NOISY_SAMPLES_CHANNEL = {
-  IN: "remove-noisy-samples",
+export interface REMOVE_CLEANING_RUN_SAMPLES_CHANNEL_TYPES {
+  IN: {
+    ARGS: { sampleIDs: number[] };
+  };
+}
+export const REMOVE_CLEANING_RUN_SAMPLES_CHANNEL = {
+  IN: "remove-cleaning-run-samples",
 };
 
 export const FINISH_CLEANING_RUN_CHANNEL = {

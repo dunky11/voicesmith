@@ -127,7 +127,9 @@ ipcMain.handle(
       case "cleaningRun": {
         DB.getInstance().transaction(() => {
           DB.getInstance()
-            .prepare("DELETE FROM noisy_sample WHERE cleaning_run_id=@ID")
+            .prepare(
+              "DELETE FROM cleaning_run_sample WHERE cleaning_run_id=@ID"
+            )
             .run({
               ID: preprocessingRun.ID,
             });

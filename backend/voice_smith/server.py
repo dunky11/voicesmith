@@ -92,6 +92,7 @@ def run_server(port: int):
         speaker_id = request.form.get("speakerID", type=int)
         text = request.form.get("text")
         talking_speed = request.form.get("talkingSpeed", type=float)
+        language = request.form.get("language", type=str)
 
         if (
             model_id == None
@@ -132,7 +133,7 @@ def run_server(port: int):
 
         audio, sr = synthesize_infer(
             text=text,
-            lang="pl",
+            lang=language,
             talking_speed=talking_speed,
             speaker_id=speaker_id,
             model_type=model_type,

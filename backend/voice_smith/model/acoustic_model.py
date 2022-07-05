@@ -130,16 +130,20 @@ class AcousticModel(nn.Module):
         self.speaker_embed.requires_grad = True
         self.pitch_adaptor.pitch_embedding.requires_grad = True
 
-    def unfreeze(self) -> None:
+    def unfreeze(self, freeze_text_embed: bool, freeze_lang_embed: bool) -> None:
         for par in self.parameters():
             par.requires_grad = True
+        if freeze_text_embed:
+            for par in self.src_word_emb.parameters():
+                self.src_word_emb.requires_grad = False
+        if freeze_lang_embed:
+            self.lang_embed.requires_grad = False
 
     def average_utterance_prosody(
         self, u_prosody_pred: torch.Tensor, src_mask: torch.Tensor
     ) -> torch.Tensor:
         lengths = ((~src_mask) * 1.0).sum(1)
         u_prosody_pred = u_prosody_pred.sum(1, keepdim=True) / lengths.view(-1, 1, 1)
-
         return u_prosody_pred
 
     def forward_train(
@@ -202,7 +206,6 @@ class AcousticModel(nn.Module):
             x=x, x_res=x_res, duration_target=durations, src_mask=src_mask
         )
         x = self.decoder(x, mel_mask, embeddings=embeddings, encoding=encoding)
-
         x = self.to_mel(x)
 
         x = x.permute((0, 2, 1))

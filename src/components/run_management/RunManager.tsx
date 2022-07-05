@@ -44,15 +44,6 @@ export default function RunManager(): React.ReactElement {
         }
       ) => {
         switch (message.type) {
-          case "notEnoughSpeakers": {
-            notification["error"]({
-              message: "Couldn't Start Run",
-              description:
-                "This runs dataset contains only one speaker, but it has to have at least two speakers in order to detect potentially noisy samples.",
-              placement: "top",
-            });
-            return;
-          }
           case "notEnoughSamples":
             notification["error"]({
               message: "Couldn't Start Run",
@@ -64,11 +55,9 @@ export default function RunManager(): React.ReactElement {
           case "startedRun":
             return;
           case "finishedRun":
-            console.log("FINISHED RUN");
             onRunFinishRef.current();
             return;
           case "error":
-            console.log("ERROR");
             notification["error"]({
               message: "Oops, an error occured, check logs for more info ...",
               description: message.errorMessage,

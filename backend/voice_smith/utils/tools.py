@@ -23,44 +23,77 @@ def warnings_to_stdout():
 def to_device(
     data: Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any],
     device: torch.device,
-    non_blocking: bool = False,
+    is_eval: bool
 ):
-    (
-        ids,
-        raw_texts,
-        speakers,
-        speaker_names,
-        texts,
-        src_lens,
-        mels,
-        pitches,
-        durations,
-        mel_lens,
-        langs,
-    ) = data
+    if is_eval:
+        (
+            ids,
+            raw_texts,
+            speakers,
+            speaker_names,
+            texts,
+            src_lens,
+            mels,
+            pitches,
+            durations,
+            mel_lens,
+            langs,
+            wavs
+        ) = data
+    else:   
+        (
+            ids,
+            raw_texts,
+            speakers,
+            speaker_names,
+            texts,
+            src_lens,
+            mels,
+            pitches,
+            durations,
+            mel_lens,
+            langs,
+        ) = data
 
-    speakers = torch.from_numpy(speakers).to(device, non_blocking=non_blocking)
-    texts = torch.from_numpy(texts).long().to(device, non_blocking=non_blocking)
-    src_lens = torch.from_numpy(src_lens).to(device, non_blocking=non_blocking)
-    mels = torch.from_numpy(mels).float().to(device, non_blocking=non_blocking)
-    pitches = torch.from_numpy(pitches).float().to(device, non_blocking=non_blocking)
-    durations = torch.from_numpy(durations).long().to(device, non_blocking=non_blocking)
-    mel_lens = torch.from_numpy(mel_lens).to(device, non_blocking=non_blocking)
-    langs = torch.from_numpy(langs).long().to(device, non_blocking=non_blocking)
-
-    return (
-        ids,
-        raw_texts,
-        speakers,
-        speaker_names,
-        texts,
-        src_lens,
-        mels,
-        pitches,
-        durations,
-        mel_lens,
-        langs,
-    )
+    speakers = torch.tensor(speakers, dtype=torch.int64, device=device)
+    texts = torch.tensor(texts, dtype=torch.int64, device=device)
+    src_lens = torch.tensor(src_lens, dtype=torch.int64, device=device)
+    mels = torch.tensor(mels, dtype=torch.float32, device=device)
+    pitches = torch.tensor(pitches, dtype=torch.float32, device=device)
+    durations = torch.tensor(durations, dtype=torch.int64, device=device)
+    mel_lens = torch.tensor(mel_lens, dtype=torch.int64, device=device)
+    langs = torch.tensor(langs, dtype=torch.int64, device=device)
+    
+    if is_eval:
+        wavs = torch.tensor(wavs, dtype=torch.float32, device=device)
+        return (
+            ids,
+            raw_texts,
+            speakers,
+            speaker_names,
+            texts,
+            src_lens,
+            mels,
+            pitches,
+            durations,
+            mel_lens,
+            langs,
+            wavs
+        )
+    else:
+        return (
+            ids,
+            raw_texts,
+            speakers,
+            speaker_names,
+            texts,
+            src_lens,
+            mels,
+            pitches,
+            durations,
+            mel_lens,
+            langs,
+        )
 
 
 def sample_wise_min_max(x: torch.Tensor) -> torch.Tensor:
@@ -81,34 +114,31 @@ def get_mask_from_lengths(lengths: torch.Tensor) -> torch.Tensor:
     return mask
 
 
-def pad_1D(inputs: List[np.ndarray], PAD: int = 0) -> np.ndarray:
-    def pad_data(x, length, PAD):
+def pad_1D(inputs: List[np.ndarray], pad_value: float = 0.) -> np.ndarray:
+    def pad_data(x, length):
         x_padded = np.pad(
-            x, (0, length - x.shape[0]), mode="constant", constant_values=PAD
+            x, (0, length - x.shape[0]), mode="constant", constant_values=pad_value
         )
         return x_padded
 
     max_len = max((len(x) for x in inputs))
-    padded = np.stack([pad_data(x, max_len, PAD) for x in inputs])
+    padded = np.stack([pad_data(x, max_len) for x in inputs])
 
     return padded
 
 
-def pad_2D(inputs: List[np.ndarray], maxlen: Union[int, None] = None) -> np.ndarray:
+def pad_2D(inputs: List[np.ndarray], maxlen: Union[int, None] = None, pad_value: float = 0.) -> np.ndarray:
     def pad(x, max_len):
         if np.shape(x)[1] > max_len:
             raise ValueError("not max_len")
-
-        zeros = np.zeros((x.shape[0], max_len - np.shape(x)[1]))
-        x = np.concatenate((x, zeros), 1)
+        padding = np.ones((x.shape[0], max_len - np.shape(x)[1])) * pad_value
+        x = np.concatenate((x, padding), 1)
         return x
-
     if maxlen:
         output = np.stack([pad(x, maxlen) for x in inputs])
     else:
         max_len = max(np.shape(x)[1] for x in inputs)
         output = np.stack([pad(x, max_len) for x in inputs])
-
     return output
 
 

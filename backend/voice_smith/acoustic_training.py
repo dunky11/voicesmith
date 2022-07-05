@@ -2,6 +2,7 @@ from logging import Logger
 import torch
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from torch.utils.data import DataLoader
+import torchaudio
 from pathlib import Path
 from itertools import chain
 import numpy as np
@@ -19,7 +20,7 @@ from voice_smith.utils.optimizer import (
 )
 from voice_smith.utils.model import (
     get_acoustic_models,
-    get_param_num, 
+    get_param_num,
     save_model,
     save_torchscript,
 )
@@ -31,10 +32,10 @@ from voice_smith.utils.tools import (
 )
 from voice_smith.utils.loss import FastSpeech2LossGen
 from voice_smith.utils.dataset import AcousticDataset
-from voice_smith.utils.metrics import mcd_dtw
 from voice_smith.model.acoustic_model import AcousticModel
 from voice_smith.utils.model import get_infer_vocoder
 from voice_smith.utils.loggers import Logger
+from voice_smith.utils.metrics import calc_estoi, calc_pesq
 
 
 def unfreeze_torchscript(model: ScriptModule) -> None:
@@ -78,7 +79,7 @@ def synth_iter(
     with torch.no_grad():
         for batches in loader:
             for batch in batches:
-                batch = to_device(batch, device)
+                batch = to_device(batch, device, is_eval=True)
                 (
                     ids,
                     raw_texts,
@@ -91,9 +92,10 @@ def synth_iter(
                     durations,
                     mel_lens,
                     langs,
+                    wavs
                 ) = batch
-                for (speaker, text, src_len, mel, mel_len, lang) in zip(
-                    speakers, texts, src_lens, mels, mel_lens, langs
+                for (speaker, text, src_len, mel, mel_len, lang, wav) in zip(
+                    speakers, texts, src_lens, mels, mel_lens, langs, wavs
                 ):
                     y_pred = gen(
                         x=text[: src_len.item()].unsqueeze(0),
@@ -102,16 +104,12 @@ def synth_iter(
                         d_control=1.0,
                         langs=lang.unsqueeze(0),
                     )
-
-                    wav_prediction = vocoder(y_pred)
-                    wav_prediction = wav_prediction.cpu().numpy()
-
-                    wav_reconstruction = vocoder(mel[:, : mel_len.item()].unsqueeze(0))
-                    wav_reconstruction = wav_reconstruction.cpu().numpy()
+                    wav_prediction = vocoder(y_pred, mel_lens=torch.tensor([y_pred.shape[2]], dtype=torch.int32, device=device))
+                    wav_prediction = wav_prediction[0, 0].cpu().numpy()
 
                     logger.log_audio(
                         name="val_wav_reconstructed",
-                        audio=wav_reconstruction,
+                        audio=wav[0, :mel_len * preprocess_config.stft.hop_length].cpu().numpy(),
                         sr=sampling_rate,
                         step=step,
                     )
@@ -146,9 +144,8 @@ def get_data_loaders(
         drop_last=True,
         data_path=data_path,
         assets_path=assets_path,
+        is_eval=False
     )
-    # TODO check if this assertion is necessary
-    # assert batch_size * group_size < len(dataset)
     train_loader = DataLoader(
         dataset,
         num_workers=4,
@@ -165,6 +162,7 @@ def get_data_loaders(
         drop_last=False,
         data_path=data_path,
         assets_path=assets_path,
+        is_eval=True
     )
     eval_loader = DataLoader(
         dataset,
@@ -195,20 +193,20 @@ def train_iter(
     gen.train()
 
     losses = {
-        "reconstruction_loss": torch.FloatTensor([0.0]).to(device),
-        "mel_loss": torch.FloatTensor([0.0]).to(device),
-        "ssim_loss": torch.FloatTensor([0.0]).to(device),
-        "duration_loss": torch.FloatTensor([0.0]).to(device),
-        "u_prosody_loss": torch.FloatTensor([0.0]).to(device),
-        "p_prosody_loss": torch.FloatTensor([0.0]).to(device),
-        "pitch_loss": torch.FloatTensor([0.0]).to(device),
+        "reconstruction_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "mel_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "ssim_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "duration_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "u_prosody_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "p_prosody_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "pitch_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
     }
 
     total_batch_size = 0
 
     for j in range(grad_acc_steps):
         batch = next(train_loader)
-        batch = to_device(batch, device)
+        batch = to_device(batch, device, is_eval=False)
         (
             ids,
             raw_texts,
@@ -326,24 +324,28 @@ def eval_iter(
     criterion: FastSpeech2LossGen,
     device: torch.device,
     logger: Logger,
+    assets_path: str,
+    preprocess_config: PreprocessingConfig
 ) -> None:
     gen.eval()
 
     losses = {
-        "reconstruction_loss": torch.FloatTensor([0.0]).to(device),
-        "mel_loss": torch.FloatTensor([0.0]).to(device),
-        "ssim_loss": torch.FloatTensor([0.0]).to(device),
-        "duration_loss": torch.FloatTensor([0.0]).to(device),
-        "u_prosody_loss": torch.FloatTensor([0.0]).to(device),
-        "p_prosody_loss": torch.FloatTensor([0.0]).to(device),
-        "pitch_loss": torch.FloatTensor([0.0]).to(device),
+        "reconstruction_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "mel_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "ssim_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "duration_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "u_prosody_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "p_prosody_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "pitch_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "pesq": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "estoi": torch.tensor([0.0], dtype=torch.float32, device=device)
     }
 
     len_ds = 0
     with torch.no_grad():
-        for i, batches in iter_logger(enumerate(loader)):
+        for batches in iter_logger(loader):
             for batch in batches:
-                batch = to_device(batch, device)
+                batch = to_device(batch, device, is_eval=True)
                 (
                     ids,
                     raw_texts,
@@ -356,8 +358,8 @@ def eval_iter(
                     durations,
                     mel_lens,
                     langs,
+                    wavs
                 ) = batch
-
                 src_mask = get_mask_from_lengths(src_lens)
                 mel_mask = get_mask_from_lengths(mel_lens)
                 outputs = gen.forward_train(
@@ -375,7 +377,6 @@ def eval_iter(
                 p_prosody_ref = outputs["p_prosody_ref"]
                 p_prosody_pred = outputs["p_prosody_pred"]
                 pitch_prediction = outputs["pitch_prediction"]
-
                 (
                     total_loss,
                     mel_loss,
@@ -398,7 +399,6 @@ def eval_iter(
                     p_targets=pitches,
                     durations=durations,
                 )
-
                 batch_size = mels.shape[0]
                 losses["reconstruction_loss"] += total_loss * batch_size
                 losses["mel_loss"] += mel_loss * batch_size
@@ -413,10 +413,21 @@ def eval_iter(
     samples_generated = 0
     mcds = []
 
+    vocoder = get_infer_vocoder(
+        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"), 
+        device=device,
+    )
+    sampling_rate = preprocess_config.sampling_rate
+
+    resampler_16k = torchaudio.transforms.Resample(
+        orig_freq=sampling_rate, 
+        new_freq=16000
+    ).to(device)
+
     with torch.no_grad():
         for batches in iter_logger(loader):
             for batch in batches:
-                batch = to_device(batch, device)
+                batch = to_device(batch, device, is_eval=True)
                 (
                     ids,
                     raw_texts,
@@ -429,39 +440,37 @@ def eval_iter(
                     durations,
                     mel_lens,
                     langs,
+                    wavs
                 ) = batch
-                for (speaker, text, src_len, mel, mel_len, lang) in zip(
-                    speakers, texts, src_lens, mels, mel_lens, langs
-                ):
-                    y_pred = gen(
-                        x=text[: src_len.item()].unsqueeze(0),
-                        speakers=speaker.unsqueeze(0),
-                        p_control=1.0,
-                        d_control=1.0,
-                        langs=lang.unsqueeze(0),
-                    )
+                outputs = gen.forward_train(
+                    x=texts,
+                    speakers=speakers,
+                    src_lens=src_lens,
+                    mels=mels,
+                    mel_lens=mel_lens,
+                    pitches=pitches,
+                    durations=durations,
+                    langs=langs,
+                    use_ground_truth=False
+                )
+                y_pred = vocoder(outputs["y_pred"], mel_lens=mel_lens)
+                wavs = wavs[:,:,:y_pred.shape[2]]
+                estoi = calc_estoi(
+                    audio_real=wavs, 
+                    audio_fake=y_pred, 
+                    sampling_rate=preprocess_config.sampling_rate
+                )
+                pesq = calc_pesq(
+                    audio_real_16k=resampler_16k(wavs),
+                    audio_fake_16k=resampler_16k(y_pred)
+                )
+                batch_size = mels.shape[0]
+                losses["estoi"] += estoi * batch_size
+                losses["pesq"] += pesq * batch_size
 
-                    samples_generated += 1
-                    mcd = mcd_dtw(
-                        y_pred[0].T.cpu().numpy(),
-                        mel[:, : mel_len.item()].T.cpu().numpy(),
-                    )
-                    mcds.append(mcd)
-                    if samples_generated >= samples_to_gen:
-                        break
-                if samples_generated >= samples_to_gen:
-                    break
-            if samples_generated >= samples_to_gen:
-                break
-
-    losses["reconstruction_loss"] /= len_ds
-    losses["mel_loss"] /= len_ds
-    losses["ssim_loss"] /= len_ds
-    losses["duration_loss"] /= len_ds
-    losses["u_prosody_loss"] /= len_ds
-    losses["p_prosody_loss"] /= len_ds
-    losses["pitch_loss"] /= len_ds
-    losses["mcd_dtw"] = sum(mcds) / len(mcds)
+                
+    for loss_name in losses.keys():
+        losses[loss_name] /= len_ds
 
     message = f"Validation Step {step}: "
     for j, loss_name in enumerate(losses.keys()):
@@ -545,7 +554,7 @@ def train_acoustic(
     if model_is_frozen:
         gen.freeze()
     else:
-        gen.unfreeze()
+        gen.unfreeze(freeze_text_embed=fine_tuning, freeze_lang_embed=fine_tuning)
 
     for step in iter_logger(
         iterable=range(step, total_step + 1), start=step, total=total_step,
@@ -553,7 +562,7 @@ def train_acoustic(
 
         if model_is_frozen and step >= freeze_model_until:
             model_is_frozen = False
-            gen.unfreeze()
+            gen.unfreeze(freeze_text_embed=fine_tuning, freeze_lang_embed=fine_tuning)
 
         train_iter(
             db_id=db_id,
@@ -581,6 +590,8 @@ def train_acoustic(
                 criterion=criterion,
                 device=device,
                 logger=logger,
+                assets_path=assets_path,
+                preprocess_config=preprocess_config
             )
 
         if step % synth_step == 0 and step != 0:

@@ -15,7 +15,7 @@ const createTables = (db: any) => {
         validation_size FLOAT NOT NULL,
         min_seconds FLOAT NOT NULL,
         max_seconds FLOAT NOT NULL, 
-        use_audio_normalization BOOLEAN NOT NULL, 
+        use_audio_normalization BOOLEAN NOT NULL,  
         acoustic_learning_rate FLOAT NOT NULL,
         acoustic_training_iterations BIGINT NOT NULL,
         acoustic_batch_size INTEGER NOT NULL,
@@ -294,7 +294,7 @@ const createTables = (db: any) => {
         forced_alignment_batch_size INTEGER NOT NULL DEFAULT 200000,
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID)
-    ); 
+    );  
     `
   ).run();
   db.prepare(

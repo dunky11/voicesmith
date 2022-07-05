@@ -33,6 +33,7 @@ import {
   REMOVE_AUDIOS_SYNTH_CHANNEL,
 } from "../../channels";
 import { MODELS_ROUTE } from "../../routes";
+import LanguageSelect from "../../components/inputs/LanguageSelect";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -54,6 +55,7 @@ export default function Synthesize({
     speakerID:
       selectedModel !== null ? selectedModel.speakers[0].speakerID : null,
     talkingSpeed: 1.0,
+    language: "en",
   };
   const isMounted = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +111,7 @@ export default function Synthesize({
     formData.append("talkingSpeed", String(formValues.talkingSpeed));
     formData.append("text", formValues.text);
     formData.append("speakerID", String(formValues.speakerID));
+    formData.append("language", formValues.language);
     ajax.open("POST", `${SERVER_URL}/synthesize`);
     ajax.onload = () => {
       fetchAudios(true);
@@ -196,7 +199,6 @@ export default function Synthesize({
   }, []);
 
   useEffect(() => {
-    console.log(selectedModel);
     if (selectedModel === null) {
       return;
     }
@@ -268,6 +270,9 @@ export default function Synthesize({
                           )
                         )}
                     </Select>
+                  </Form.Item>
+                  <Form.Item name="language" label="Language">
+                    <LanguageSelect />
                   </Form.Item>
                   <Form.Item label="Text:" name="text">
                     <Input.TextArea name="text" rows={4} />

@@ -35,3 +35,4 @@ dependencies:
       - -e .
       - tgt==1.4.1
       - nemo-toolkit[all]==1.8.2
+      - pythainlp==3.0.8

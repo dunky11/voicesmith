@@ -96,6 +96,7 @@ export interface SynthConfigInterface {
   text: string;
   speakerID: number | null;
   talkingSpeed: number;
+  language: SpeakerInterface["language"];
 }
 
 export interface TrainingRunInterface extends RunInterface {
@@ -251,11 +252,11 @@ export interface FileInterface {
   basename: string;
 }
 
-export interface NoisySampleInterface {
+export interface CleaningRunSampleInterface {
   ID: number;
   text: string;
   audioPath: string;
-  labelQuality: number;
+  qualityScore: number;
 }
 
 export interface TextNormalizationSampleInterface {

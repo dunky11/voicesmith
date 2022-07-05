@@ -5,9 +5,11 @@ import {
   FETCH_CLEANING_RUNS_CHANNEL,
   FETCH_CLEANING_RUNS_CHANNEL_TYPES,
   UPDATE_CLEANING_RUN_CONFIG_CHANNEL,
-  FETCH_NOISY_SAMPLES_CHANNEL,
-  REMOVE_NOISY_SAMPLES_CHANNEL,
+  FETCH_CLEANING_RUN_SAMPLES_CHANNEL,
   FINISH_CLEANING_RUN_CHANNEL,
+  FETCH_CLEANING_RUN_SAMPLES_CHANNEL_TYPES,
+  REMOVE_CLEANING_RUN_SAMPLES_CHANNEL,
+  REMOVE_CLEANING_RUN_SAMPLES_CHANNEL_TYPES,
 } from "../../channels";
 import { safeUnlink } from "../utils/files";
 import { getDatasetsDir } from "../utils/globals";
@@ -30,14 +32,6 @@ ipcMain.on(
       )
       .get({ runID }).datasetID;
     const speakers = getSpeakersWithSamples(datasetID);
-
-    if (speakers.length <= 1) {
-      const reply: ContinueTrainingRunReplyInterface = {
-        type: "notEnoughSpeakers",
-      };
-      event.reply(CONTINUE_CLEANING_RUN_CHANNEL.REPLY, reply);
-      return;
-    }
 
     let sampleCount = 0;
     speakers.forEach((speaker: SpeakerInterface) => {
@@ -144,26 +138,29 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  FETCH_NOISY_SAMPLES_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, cleaningRunID: number) => {
+  FETCH_CLEANING_RUN_SAMPLES_CHANNEL.IN,
+  (
+    event: IpcMainInvokeEvent,
+    { runID }: FETCH_CLEANING_RUN_SAMPLES_CHANNEL_TYPES["IN"]["ARGS"]
+  ): FETCH_CLEANING_RUN_SAMPLES_CHANNEL_TYPES["IN"]["OUT"] => {
     return DB.getInstance()
       .prepare(
         `
-      SELECT noisy_sample.ID AS ID, noisy_sample.label_quality AS labelQuality, 
+      SELECT cleaning_run_sample.ID AS ID, cleaning_run_sample.quality_score AS qualityScore, 
       sample.text, sample.audio_path AS audioPath, speaker.ID AS speakerID, dataset.ID AS datasetID 
-      FROM noisy_sample
-      INNER JOIN sample ON noisy_sample.sample_id = sample.ID
+      FROM cleaning_run_sample
+      INNER JOIN sample ON cleaning_run_sample.sample_id = sample.ID
       INNER JOIN speaker ON sample.speaker_id = speaker.ID
       INNER JOIN dataset ON speaker.dataset_id = dataset.ID
-      WHERE noisy_sample.cleaning_run_id = @cleaningRunID
-      ORDER BY noisy_sample.label_quality ASC
+      WHERE cleaning_run_sample.cleaning_run_id = @runID
+      ORDER BY cleaning_run_sample.quality_score ASC
       `
       )
-      .all({ cleaningRunID })
+      .all({ runID })
       .map((el: any) => ({
         ID: el.ID,
         text: el.text,
-        labelQuality: el.labelQuality,
+        qualityScore: el.qualityScore,
         audioPath: path.join(
           getDatasetsDir(),
           String(el.datasetID),
@@ -176,10 +173,13 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  REMOVE_NOISY_SAMPLES_CHANNEL.IN,
-  (event: IpcMainInvokeEvent, sampleIDs: number[]) => {
+  REMOVE_CLEANING_RUN_SAMPLES_CHANNEL.IN,
+  (
+    event: IpcMainInvokeEvent,
+    { sampleIDs }: REMOVE_CLEANING_RUN_SAMPLES_CHANNEL_TYPES["IN"]["ARGS"]
+  ) => {
     const removeSample = DB.getInstance().prepare(
-      "DELETE FROM noisy_sample WHERE ID=@sampleID"
+      "DELETE FROM cleaning_run_sample WHERE ID=@sampleID"
     );
     DB.getInstance().transaction(() => {
       for (const sampleID of sampleIDs) {

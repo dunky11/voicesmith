@@ -1,41 +1,9 @@
-"""  
-BSD 3-Clause License
-
-Copyright (c) 2019, Seungwon Park 박승원
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm, spectral_norm
 from voice_smith.config.configs import PreprocessingConfig, VocoderModelConfig
-from voice_smith.utils.tools import get_mask_from_lengths
 
 MAX_WAV_VALUE = 32768.0
 
@@ -322,13 +290,13 @@ class LVCBlock(torch.nn.Module):
             nn.utils.remove_weight_norm(block[1])
 
 
-class Generator(nn.Module):
+class BatchedGenerator(nn.Module):
     """UnivNet Generator"""
 
     def __init__(
         self, model_config: VocoderModelConfig, preprocess_config: PreprocessingConfig
     ):
-        super(Generator, self).__init__()
+        super(BatchedGenerator, self).__init__()
         self.mel_channel = preprocess_config.stft.n_mel_channels
         self.noise_dim = model_config.gen.noise_dim
         self.hop_length = preprocess_config.stft.hop_length
@@ -369,9 +337,6 @@ class Generator(nn.Module):
             nn.Tanh(),
         )
 
-        # Output of STFT(zeros)
-        self.mel_mask_value = -11.5129
-
     def forward_train(self, c):
         """
         Args:
@@ -407,320 +372,41 @@ class Generator(nn.Module):
         for res_block in self.res_stack:
             res_block.remove_weight_norm()
 
-    def forward(self, c: torch.Tensor, mel_lens: torch.Tensor):
-        mel_mask = get_mask_from_lengths(mel_lens).unsqueeze(1)
-        c = c.masked_fill(mel_mask, self.mel_mask_value)
-        zero = torch.full((c.shape[0], self.mel_channel, 10), self.mel_mask_value, device=c.device)
+    def forward(self, c):
+        # pad input mel with zeros to cut artifact
+        # see https://github.com/seungwonpark/melgan/issues/8
+        zero = torch.full((c.shape[0], self.mel_channel, 10), -11.5129).to(c.device)
         mel = torch.cat((c, zero), dim=2)
+
         audio = self.forward_train(mel)
         audio = audio[:, :, : -(self.hop_length * 10)]
-        audio_mask = get_mask_from_lengths(mel_lens * 256).unsqueeze(1)
-        audio = audio.masked_fill(audio_mask, 0.0)
+
         return audio
 
 
-class DiscriminatorP(nn.Module):
-    def __init__(self, period, model_config: VocoderModelConfig):
-        super(DiscriminatorP, self).__init__()
+    
+    
+if __name__ == "__main__": 
+    import librosa
+    from voice_smith.config.configs import PreprocessingConfig, VocoderModelConfig
+    from voice_smith.utils.tools import pad_2D
+    import soundfile as sf
+    from voice_smith.model.univnet import Generator
+    inp_1 = torch.load("/home/voice_smith/data/training_runs/21/data/data/de_Fallout_3_Game_of_the_Year_Edition_(DE)_(TN,_SS)_cbradioconversation/audioholot_ffraidercamp07h_00029f5f_1_split_0.pt")["mel"]
+    inp_2 = torch.load("/home/voice_smith/data/training_runs/21/data/data/de_Fallout_3_Game_of_the_Year_Edition_(DE)_(TN,_SS)_cbradioconversation/audioholot_ffraidercamp07h_00029f5f_1_split_1.pt")["mel"]
+    
+    inp = torch.from_numpy(pad_2D([inp_1, inp_2], pad_value=-11.5129)).float()
+    model = BatchedGenerator(VocoderModelConfig(), PreprocessingConfig())
+    model.load_state_dict(torch.load("/home/voice_smith/assets/vocoder_pretrained.pt")["generator"])
+    # output_from_non_batched = model(inp_1.unsqueeze(0))[0, 0]
+    output_1_from_batched = model(inp)[0, 0, :256 * inp_1.shape[1]]
+    sf.write("./batched.wav", output_1_from_batched.detach().numpy(), 22050)
 
-        self.LRELU_SLOPE = model_config.mpd.lReLU_slope
-        self.period = period
+    model = Generator(VocoderModelConfig(), PreprocessingConfig())
+    model.load_state_dict(torch.load("/home/voice_smith/assets/vocoder_pretrained.pt")["generator"])
+    output_from_non_batched = model(inp_1.unsqueeze(0))
+    sf.write("./non_batched.wav", output_from_non_batched.detach().numpy(), 22050)
 
-        kernel_size = model_config.mpd.kernel_size
-        stride = model_config.mpd.stride
-        norm_f = spectral_norm if model_config.mpd.use_spectral_norm else weight_norm
-
-        self.convs = nn.ModuleList(
-            [
-                norm_f(
-                    nn.Conv2d(
-                        1,
-                        64,
-                        (kernel_size, 1),
-                        (stride, 1),
-                        padding=(kernel_size // 2, 0),
-                    )
-                ),
-                norm_f(
-                    nn.Conv2d(
-                        64,
-                        128,
-                        (kernel_size, 1),
-                        (stride, 1),
-                        padding=(kernel_size // 2, 0),
-                    )
-                ),
-                norm_f(
-                    nn.Conv2d(
-                        128,
-                        256,
-                        (kernel_size, 1),
-                        (stride, 1),
-                        padding=(kernel_size // 2, 0),
-                    )
-                ),
-                norm_f(
-                    nn.Conv2d(
-                        256,
-                        512,
-                        (kernel_size, 1),
-                        (stride, 1),
-                        padding=(kernel_size // 2, 0),
-                    )
-                ),
-                norm_f(
-                    nn.Conv2d(
-                        512, 1024, (kernel_size, 1), 1, padding=(kernel_size // 2, 0)
-                    )
-                ),
-            ]
-        )
-        self.conv_post = norm_f(nn.Conv2d(1024, 1, (3, 1), 1, padding=(1, 0)))
-
-    def forward(self, x):
-        fmap = []
-
-        # 1d to 2d
-        b, c, t = x.shape
-        if t % self.period != 0:  # pad first
-            n_pad = self.period - (t % self.period)
-            x = F.pad(x, (0, n_pad), "reflect")
-            t = t + n_pad
-        x = x.view(b, c, t // self.period, self.period)
-
-        for l in self.convs:
-            x = l(x)
-            x = F.leaky_relu(x, self.LRELU_SLOPE)
-            fmap.append(x)
-        x = self.conv_post(x)
-        fmap.append(x)
-        x = torch.flatten(x, 1, -1)
-
-        return fmap, x
-
-
-class MultiPeriodDiscriminator(nn.Module):
-    def __init__(self, model_config: VocoderModelConfig):
-        super(MultiPeriodDiscriminator, self).__init__()
-
-        self.discriminators = nn.ModuleList(
-            [
-                DiscriminatorP(period, model_config=model_config)
-                for period in model_config.mpd.periods
-            ]
-        )
-
-    def forward(self, x):
-        ret = list()
-        for disc in self.discriminators:
-            ret.append(disc(x))
-
-        return ret
-
-
-class DiscriminatorR(torch.nn.Module):
-    def __init__(self, resolution, model_config: VocoderModelConfig):
-        super(DiscriminatorR, self).__init__()
-
-        self.resolution = resolution
-        self.LRELU_SLOPE = model_config.mrd.lReLU_slope
-
-        norm_f = spectral_norm if model_config.mrd.use_spectral_norm else weight_norm
-
-        self.convs = nn.ModuleList(
-            [
-                norm_f(nn.Conv2d(1, 32, (3, 9), padding=(1, 4))),
-                norm_f(nn.Conv2d(32, 32, (3, 9), stride=(1, 2), padding=(1, 4))),
-                norm_f(nn.Conv2d(32, 32, (3, 9), stride=(1, 2), padding=(1, 4))),
-                norm_f(nn.Conv2d(32, 32, (3, 9), stride=(1, 2), padding=(1, 4))),
-                norm_f(nn.Conv2d(32, 32, (3, 3), padding=(1, 1))),
-            ]
-        )
-        self.conv_post = norm_f(nn.Conv2d(32, 1, (3, 3), padding=(1, 1)))
-
-    def forward(self, x):
-        fmap = []
-
-        x = self.spectrogram(x)
-        x = x.unsqueeze(1)
-        for l in self.convs:
-            x = l(x)
-            x = F.leaky_relu(x, self.LRELU_SLOPE)
-            fmap.append(x)
-        x = self.conv_post(x)
-        fmap.append(x)
-        x = torch.flatten(x, 1, -1)
-
-        return fmap, x
-
-    def spectrogram(self, x):
-        n_fft, hop_length, win_length = self.resolution
-        x = F.pad(
-            x,
-            (int((n_fft - hop_length) / 2), int((n_fft - hop_length) / 2)),
-            mode="reflect",
-        )
-        x = x.squeeze(1)
-        x = torch.stft(
-            x, n_fft=n_fft, hop_length=hop_length, win_length=win_length, center=False
-        )  # [B, F, TT, 2]
-        mag = torch.norm(x, p=2, dim=-1)  # [B, F, TT]
-
-        return mag
-
-
-class MultiResolutionDiscriminator(torch.nn.Module):
-    def __init__(self, model_config: VocoderModelConfig):
-        super(MultiResolutionDiscriminator, self).__init__()
-        self.resolutions = model_config.mrd.resolutions
-        self.discriminators = nn.ModuleList(
-            [
-                DiscriminatorR(resolution, model_config=model_config)
-                for resolution in self.resolutions
-            ]
-        )
-
-    def forward(self, x):
-        ret = list()
-        for disc in self.discriminators:
-            ret.append(disc(x))
-
-        return ret  # [(feat, score), (feat, score), (feat, score)]
-
-
-class Discriminator(nn.Module):
-    def __init__(self, model_config: VocoderModelConfig):
-        super(Discriminator, self).__init__()
-        self.MRD = MultiResolutionDiscriminator(model_config=model_config)
-        self.MPD = MultiPeriodDiscriminator(model_config=model_config)
-
-    def forward(self, x):
-        return self.MRD(x), self.MPD(x)
-
-
-def stft(x, fft_size, hop_size, win_length, window):
-    """Perform STFT and convert to magnitude spectrogram.
-    Args:
-        x (Tensor): Input signal tensor (B, T).
-        fft_size (int): FFT size.
-        hop_size (int): Hop size.
-        win_length (int): Window length.
-        window (str): Window function type.
-    Returns:
-        Tensor: Magnitude spectrogram (B, #frames, fft_size // 2 + 1).
-    """
-    x_stft = torch.stft(x, fft_size, hop_size, win_length, window)
-    real = x_stft[..., 0]
-    imag = x_stft[..., 1]
-
-    # NOTE(kan-bayashi): clamp is needed to avoid nan or inf
-    return torch.sqrt(torch.clamp(real**2 + imag**2, min=1e-7)).transpose(2, 1)
-
-
-class SpectralConvergengeLoss(torch.nn.Module):
-    """Spectral convergence loss module."""
-
-    def __init__(self):
-        """Initilize spectral convergence loss module."""
-        super(SpectralConvergengeLoss, self).__init__()
-
-    def forward(self, x_mag, y_mag):
-        """Calculate forward propagation.
-        Args:
-            x_mag (Tensor): Magnitude spectrogram of predicted signal (B, #frames, #freq_bins).
-            y_mag (Tensor): Magnitude spectrogram of groundtruth signal (B, #frames, #freq_bins).
-        Returns:
-            Tensor: Spectral convergence loss value.
-        """
-        return torch.norm(y_mag - x_mag, p="fro") / torch.norm(y_mag, p="fro")
-
-
-class LogSTFTMagnitudeLoss(torch.nn.Module):
-    """Log STFT magnitude loss module."""
-
-    def __init__(self):
-        """Initilize los STFT magnitude loss module."""
-        super(LogSTFTMagnitudeLoss, self).__init__()
-
-    def forward(self, x_mag, y_mag):
-        """Calculate forward propagation.
-        Args:
-            x_mag (Tensor): Magnitude spectrogram of predicted signal (B, #frames, #freq_bins).
-            y_mag (Tensor): Magnitude spectrogram of groundtruth signal (B, #frames, #freq_bins).
-        Returns:
-            Tensor: Log STFT magnitude loss value.
-        """
-        return F.l1_loss(torch.log(y_mag), torch.log(x_mag))
-
-
-class STFTLoss(torch.nn.Module):
-    """STFT loss module."""
-
-    def __init__(
-        self,
-        device,
-        fft_size=1024,
-        shift_size=120,
-        win_length=600,
-        window="hann_window",
-    ):
-        """Initialize STFT loss module."""
-        super(STFTLoss, self).__init__()
-        self.fft_size = fft_size
-        self.shift_size = shift_size
-        self.win_length = win_length
-        self.window = getattr(torch, window)(win_length).to(device)
-        self.spectral_convergenge_loss = SpectralConvergengeLoss()
-        self.log_stft_magnitude_loss = LogSTFTMagnitudeLoss()
-
-    def forward(self, x, y):
-        """Calculate forward propagation.
-        Args:
-            x (Tensor): Predicted signal (B, T).
-            y (Tensor): Groundtruth signal (B, T).
-        Returns:
-            Tensor: Spectral convergence loss value.
-            Tensor: Log STFT magnitude loss value.
-        """
-        x_mag = stft(x, self.fft_size, self.shift_size, self.win_length, self.window)
-        y_mag = stft(y, self.fft_size, self.shift_size, self.win_length, self.window)
-        sc_loss = self.spectral_convergenge_loss(x_mag, y_mag)
-        mag_loss = self.log_stft_magnitude_loss(x_mag, y_mag)
-
-        return sc_loss, mag_loss
-
-
-class MultiResolutionSTFTLoss(torch.nn.Module):
-    """Multi resolution STFT loss module."""
-
-    def __init__(self, device, resolutions, window="hann_window"):
-        """Initialize Multi resolution STFT loss module.
-        Args:
-            resolutions (list): List of (FFT size, hop size, window length).
-            window (str): Window function type.
-        """
-        super(MultiResolutionSTFTLoss, self).__init__()
-        self.stft_losses = torch.nn.ModuleList()
-        for fs, ss, wl in resolutions:
-            self.stft_losses += [STFTLoss(device, fs, ss, wl, window)]
-
-    def forward(self, x, y):
-        """Calculate forward propagation.
-        Args:
-            x (Tensor): Predicted signal (B, T).
-            y (Tensor): Groundtruth signal (B, T).
-        Returns:
-            Tensor: Multi resolution spectral convergence loss value.
-            Tensor: Multi resolution log STFT magnitude loss value.
-        """
-        sc_loss = 0.0
-        mag_loss = 0.0
-        for f in self.stft_losses:
-            sc_l, mag_l = f(x, y)
-            sc_loss += sc_l
-            mag_loss += mag_l
-
-        sc_loss /= len(self.stft_losses)
-        mag_loss /= len(self.stft_losses)
-
-        return sc_loss, mag_loss
+    print(torch.mean(output_1_from_batched), torch.mean(output_from_non_batched))
+    print(torch.std(output_1_from_batched), torch.std(output_from_non_batched))
+    print(torch.mean(output_1_from_batched - output_from_non_batched))

@@ -110,15 +110,28 @@ export default function AcousticStatistics({
         <Row gutter={[20, 20]}>
           <Col span={12} className={classes.statisticWrapper}>
             <LineChart
-              title="Mel Spectral Distortion"
+              title="PESQ"
               lines={[
                 graphStatistics.filter((graphStatistic) => {
-                  return graphStatistic.name === "val_mcd_dtw";
+                  return graphStatistic.name === "val_pesq";
                 }),
               ]}
               chartHeight={STATISTIC_HEIGHT}
               xLabel="Step"
-              labels={["Mel Spectral Distortion"]}
+              labels={["PESQ"]}
+            />
+          </Col>
+          <Col span={12} className={classes.statisticWrapper}>
+            <LineChart
+              title="ESTOI"
+              lines={[
+                graphStatistics.filter((graphStatistic) => {
+                  return graphStatistic.name === "val_estoi";
+                }),
+              ]}
+              chartHeight={STATISTIC_HEIGHT}
+              xLabel="Step"
+              labels={["ESTOI"]}
             />
           </Col>
         </Row>

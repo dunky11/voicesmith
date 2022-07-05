@@ -4,6 +4,7 @@ from scipy.spatial.distance import euclidean
 from typing import Tuple
 import torch
 from torchmetrics.functional.audio.stoi import short_time_objective_intelligibility
+from torchmetrics.functional.audio.pesq import perceptual_evaluation_speech_quality
 from voice_smith.utils.audio import resample
 
 
@@ -51,8 +52,15 @@ def calc_estoi(audio_real, audio_fake, sampling_rate):
     )
 
 
-def calc_pesq(audio_real, audio_fake, sampling_rate):
-    return torch.FloatTensor([0.0])
+def calc_pesq(audio_real_16k, audio_fake_16k):
+    return torch.mean(
+        perceptual_evaluation_speech_quality(
+            audio_fake_16k, 
+            audio_real_16k, 
+            16000, 
+            'wb'
+        )
+    )
 
 
 def calc_rmse(audio_real, audio_fake, stft):
