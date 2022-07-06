@@ -36,6 +36,7 @@ import torch.nn.functional as F
 from torch.nn.utils import weight_norm, spectral_norm
 from voice_smith.config.configs import PreprocessingConfig, VocoderModelConfig
 from voice_smith.utils.tools import get_mask_from_lengths
+from typing import Tuple, Any
 
 MAX_WAV_VALUE = 32768.0
 
@@ -156,10 +157,7 @@ class KernelPredictor(torch.nn.Module):
             cond_length,
         )
         bias = b.contiguous().view(
-            batch,
-            self.conv_layers,
-            self.conv_out_channels,
-            cond_length,
+            batch, self.conv_layers, self.conv_out_channels, cond_length,
         )
 
         return kernels, bias
@@ -410,9 +408,30 @@ class Generator(nn.Module):
     def forward(self, c: torch.Tensor, mel_lens: torch.Tensor):
         mel_mask = get_mask_from_lengths(mel_lens).unsqueeze(1)
         c = c.masked_fill(mel_mask, self.mel_mask_value)
-        zero = torch.full((c.shape[0], self.mel_channel, 10), self.mel_mask_value, device=c.device)
+        zero = torch.full(
+            (c.shape[0], self.mel_channel, 10), self.mel_mask_value, device=c.device
+        )
         mel = torch.cat((c, zero), dim=2)
         audio = self.forward_train(mel)
+        audio = audio[:, :, : -(self.hop_length * 10)]
+        audio_mask = get_mask_from_lengths(mel_lens * 256).unsqueeze(1)
+        audio = audio.masked_fill(audio_mask, 0.0)
+        return audio
+
+
+class TracedGenerator(nn.Module):
+    def __init__(self, generator: nn.Module, example_inputs: Tuple[Any]):
+        super().__init__()
+        self.generator = torch.jit.trace(generator.forward_train, example_inputs)
+
+    def forward(self, c: torch.Tensor, mel_lens: torch.Tensor):
+        mel_mask = get_mask_from_lengths(mel_lens).unsqueeze(1)
+        c = c.masked_fill(mel_mask, self.mel_mask_value)
+        zero = torch.full(
+            (c.shape[0], self.mel_channel, 10), self.mel_mask_value, device=c.device
+        )
+        mel = torch.cat((c, zero), dim=2)
+        audio = self.generator.forward_train(mel)
         audio = audio[:, :, : -(self.hop_length * 10)]
         audio_mask = get_mask_from_lengths(mel_lens * 256).unsqueeze(1)
         audio = audio.masked_fill(audio_mask, 0.0)
@@ -614,7 +633,7 @@ def stft(x, fft_size, hop_size, win_length, window):
     imag = x_stft[..., 1]
 
     # NOTE(kan-bayashi): clamp is needed to avoid nan or inf
-    return torch.sqrt(torch.clamp(real**2 + imag**2, min=1e-7)).transpose(2, 1)
+    return torch.sqrt(torch.clamp(real ** 2 + imag ** 2, min=1e-7)).transpose(2, 1)
 
 
 class SpectralConvergengeLoss(torch.nn.Module):

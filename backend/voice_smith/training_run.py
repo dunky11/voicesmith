@@ -718,7 +718,7 @@ def save_model_stage(
 
     # TODO place in transaction
 
-    model_type = "Delighful_FreGANv1_v0.0"
+    model_type = "0.2.3"
     config = {
         "acousticSteps": acoustic_steps,
         "vocoderSteps": vocoder_steps,
@@ -728,9 +728,6 @@ def save_model_stage(
         "fine_tuning_acoustic": dataclasses.asdict(t_config_acoustic),
         "fine_tuning_vocoder": dataclasses.asdict(t_config_vocoder),
     }
-    description = """
-            TODO
-        """
 
     row = cur.execute("SELECT name FROM training_run WHERE ID=?", (run_id,),).fetchone()
     con.commit()
@@ -746,7 +743,7 @@ def save_model_stage(
 
     cur.execute(
         "INSERT INTO model(name, type, description) VALUES (?, ?, ?)",
-        (name, model_type, description),
+        (name, model_type, model_type),
     )
     model_id = cur.lastrowid
     for speaker_name in speakers.keys():

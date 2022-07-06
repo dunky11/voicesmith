@@ -121,7 +121,8 @@ def synthesize(
                 mel = acoustic_model(
                     symbol_ids, speaker_ids, lang_ids, 1.0, talking_speed,
                 )
-                wave = vocoder(mel)
+                mel_len = torch.tensor([mel.shape[2]], dtype=torch.int64)
+                wave = vocoder(mel, mel_len)
                 waves.append(wave.view(-1))
 
         wave_cat = torch.cat(waves).numpy()

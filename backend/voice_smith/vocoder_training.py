@@ -356,7 +356,7 @@ def train_vocoder(
                 logger=logger,
             )
 
-        if steps % train_config.validation_interval == 0 and steps != 0:
+        if steps % train_config.validation_interval == 0:
             print("\nEvaluating ...\n")
             loss_means = evaluate(
                 generator=generator,

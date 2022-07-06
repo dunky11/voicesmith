@@ -3,6 +3,7 @@ from typing import Tuple, Union
 from torch.jit._script import script, ScriptModule
 from torch.jit._trace import trace
 from voice_smith.utils.model import get_acoustic_models, get_vocoder
+from voice_smith.model.univnet import TracedGenerator
 from voice_smith.config.configs import (
     AcousticPretrainingConfig,
     AcousticFinetuningConfig,
@@ -57,6 +58,18 @@ def vocoder_to_torchscript(
         model_config=model_config,
     )
     vocoder.eval(True)
-    mels = torch.randn((1, preprocess_config.stft.n_mel_channels, 50))
-    vocoder_torch = trace(vocoder, (mels,))
+    mels = torch.randn((2, preprocess_config.stft.n_mel_channels, 50))
+    mel_lens = torch.tensor([50], dtype=torch.int64)
+    vocoder = TracedGenerator(vocoder, (mels,))
+    vocoder_torch = trace(
+        vocoder,
+        (mels, mel_lens),
+        check_inputs=[
+            (
+                torch.randn(3, preprocess_config.stft.n_mel_channels, 64),
+                torch.tensor([64], dtype=torch.int64),
+            )
+        ],
+    )
+    quit()
     return vocoder_torch

@@ -64,7 +64,7 @@ def synth_iter(
         drop_last=False,
         data_path=data_path,
         assets_path=assets_path,
-        is_eval=True
+        is_eval=True,
     )
     loader = DataLoader(
         dataset,
@@ -93,7 +93,7 @@ def synth_iter(
                     durations,
                     mel_lens,
                     langs,
-                    wavs
+                    wavs,
                 ) = batch
                 for (speaker, text, src_len, mel, mel_len, lang, wav) in zip(
                     speakers, texts, src_lens, mels, mel_lens, langs, wavs
@@ -105,12 +105,19 @@ def synth_iter(
                         d_control=1.0,
                         langs=lang.unsqueeze(0),
                     )
-                    wav_prediction = vocoder(y_pred, mel_lens=torch.tensor([y_pred.shape[2]], dtype=torch.int32, device=device))
+                    wav_prediction = vocoder(
+                        y_pred,
+                        mel_lens=torch.tensor(
+                            [y_pred.shape[2]], dtype=torch.int32, device=device
+                        ),
+                    )
                     wav_prediction = wav_prediction[0, 0].cpu().numpy()
 
                     logger.log_audio(
                         name="val_wav_reconstructed",
-                        audio=wav[0, :mel_len * preprocess_config.stft.hop_length].cpu().numpy(),
+                        audio=wav[0, : mel_len * preprocess_config.stft.hop_length]
+                        .cpu()
+                        .numpy(),
                         sr=sampling_rate,
                         step=step,
                     )
@@ -145,7 +152,7 @@ def get_data_loaders(
         drop_last=True,
         data_path=data_path,
         assets_path=assets_path,
-        is_eval=False
+        is_eval=False,
     )
     train_loader = DataLoader(
         dataset,
@@ -163,7 +170,7 @@ def get_data_loaders(
         drop_last=False,
         data_path=data_path,
         assets_path=assets_path,
-        is_eval=True
+        is_eval=True,
     )
     eval_loader = DataLoader(
         dataset,
@@ -275,10 +282,8 @@ def train_iter(
 
         (total_loss / grad_acc_steps).backward()
 
-    # Clipping gradients to avoid gradient explosion
     clip_grad_norm_(gen.parameters(), grad_clip_thresh)
 
-    # Update weights
     optim.step_and_update_lr(step)
     optim.zero_grad()
 
@@ -326,7 +331,7 @@ def evaluate(
     device: torch.device,
     logger: Logger,
     assets_path: str,
-    preprocess_config: PreprocessingConfig
+    preprocess_config: PreprocessingConfig,
 ) -> None:
     gen.eval()
 
@@ -339,7 +344,7 @@ def evaluate(
         "p_prosody_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
         "pitch_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
         "pesq": torch.tensor([0.0], dtype=torch.float32, device=device),
-        "estoi": torch.tensor([0.0], dtype=torch.float32, device=device)
+        "estoi": torch.tensor([0.0], dtype=torch.float32, device=device),
     }
 
     len_ds = 0
@@ -359,7 +364,7 @@ def evaluate(
                     durations,
                     mel_lens,
                     langs,
-                    wavs
+                    wavs,
                 ) = batch
                 src_mask = get_mask_from_lengths(src_lens)
                 mel_mask = get_mask_from_lengths(mel_lens)
@@ -415,14 +420,12 @@ def evaluate(
     mcds = []
 
     vocoder = get_infer_vocoder(
-        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"), 
-        device=device,
+        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"), device=device,
     )
     sampling_rate = preprocess_config.sampling_rate
 
     resampler_16k = torchaudio.transforms.Resample(
-        orig_freq=sampling_rate, 
-        new_freq=16000
+        orig_freq=sampling_rate, new_freq=16000
     ).to(device)
 
     with torch.no_grad():
@@ -441,7 +444,7 @@ def evaluate(
                     durations,
                     mel_lens,
                     langs,
-                    wavs
+                    wavs,
                 ) = batch
                 outputs = gen.forward_train(
                     x=texts,
@@ -452,24 +455,23 @@ def evaluate(
                     pitches=pitches,
                     durations=durations,
                     langs=langs,
-                    use_ground_truth=False
+                    use_ground_truth=False,
                 )
                 y_pred = vocoder(outputs["y_pred"], mel_lens=mel_lens)
-                wavs = wavs[:,:,:y_pred.shape[2]]
+                wavs = wavs[:, :, : y_pred.shape[2]]
                 estoi = calc_estoi(
-                    audio_real=wavs, 
-                    audio_fake=y_pred, 
-                    sampling_rate=preprocess_config.sampling_rate
+                    audio_real=wavs,
+                    audio_fake=y_pred,
+                    sampling_rate=preprocess_config.sampling_rate,
                 )
                 pesq = calc_pesq(
                     audio_real_16k=resampler_16k(wavs),
-                    audio_fake_16k=resampler_16k(y_pred)
+                    audio_fake_16k=resampler_16k(y_pred),
                 )
                 batch_size = mels.shape[0]
                 losses["estoi"] += estoi * batch_size
                 losses["pesq"] += pesq * batch_size
 
-                
     for loss_name in losses.keys():
         losses[loss_name] /= len_ds
 
@@ -502,7 +504,6 @@ def train_acoustic(
     batch_size = train_config.batch_size
     data_path = Path(training_runs_path) / str(training_run_name) / "data"
 
-    # Prepare model
     gen, optim, step = get_acoustic_models(
         data_path=str(data_path),
         checkpoint_acoustic=checkpoint_acoustic,
@@ -515,7 +516,7 @@ def train_acoustic(
         assets_path=assets_path,
     )
 
-    group_size = 5  # Set this larger than 1 to enable sorting in Dataset
+    group_size = 5
     train_loader, validation_loader = get_data_loaders(
         batch_size=batch_size,
         group_size=group_size,
@@ -530,12 +531,10 @@ def train_acoustic(
     prosody_encoder_pars = get_param_num(gen.phoneme_prosody_encoder)
 
     print(f"Number of acoustic model parameters: {gen_pars}")
-
     print(
         f"Total number of parameters during inference: {gen_pars - prosody_encoder_pars}"
     )
 
-    # Training
     grad_acc_steps = train_config.grad_acc_step
     grad_clip_thresh = train_config.optimizer_config.grad_clip_thresh
     log_step = train_config.log_step
@@ -579,7 +578,9 @@ def train_acoustic(
             model_is_frozen=model_is_frozen,
         )
 
-        if step % val_step == 0 and step != 0:
+        # Don't evaluate on pretraining step 0 since duration predictor could
+        # predict too high durations
+        if step % val_step == 0 and not (step == 0 and not fine_tuning):
             evaluate(
                 gen=gen,
                 step=step,
@@ -590,7 +591,7 @@ def train_acoustic(
                 device=device,
                 logger=logger,
                 assets_path=assets_path,
-                preprocess_config=preprocess_config
+                preprocess_config=preprocess_config,
             )
 
         if step % synth_step == 0 and step != 0:
