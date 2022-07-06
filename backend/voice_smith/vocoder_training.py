@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 import torch
 import torch.nn.functional as F
+import torchaudio
 from torch.utils.data import DataLoader
 import numpy as np
 from typing import Union
@@ -36,19 +37,18 @@ def synth_iter(
         mel = mel.to(device, non_blocking=True)
         audio = audio.to(device, non_blocking=True)
 
-        audio_fake = vocoder(mel.unsqueeze(0))
-
+        audio_fake = vocoder(
+            mel.unsqueeze(0),
+            mel_lens=torch.tensor([mel.shape[1]], dtype=torch.int64, device=device),
+        )
         logger.log_audio(
             name="audio_fake",
-            audio=audio_fake.squeeze(0).squeeze(0).cpu().numpy(),
+            audio=audio_fake[0, 0].cpu().numpy(),
             sr=sampling_rate,
             step=step,
         )
         logger.log_audio(
-            name="audio_real",
-            audio=audio.squeeze(0).cpu().numpy(),
-            sr=sampling_rate,
-            step=step,
+            name="audio_real", audio=audio.cpu().numpy(), sr=sampling_rate, step=step,
         )
 
 
@@ -82,7 +82,7 @@ def get_data_loaders(
         fine_tuning=fine_tuning,
         preprocess_config=preprocess_config,
         preprocessed_path=preprocessed_path,
-        segment_size=segment_size,
+        segment_size=-1,
     )
 
     validation_loader = DataLoader(
@@ -91,7 +91,8 @@ def get_data_loaders(
         shuffle=True,
         batch_size=batch_size,
         pin_memory=True,
-        drop_last=True,  # For debugging
+        drop_last=True,
+        collate_fn=validset.collate_fn,
     )
 
     return train_loader, validation_loader, validset
@@ -112,10 +113,10 @@ def train_iter(
     discriminator.train()
 
     loss_means = {
-        "total_loss_gen": 0,
-        "total_loss_disc": 0,
-        "mel_loss": 0,
-        "score_loss": 0,
+        "total_loss_gen": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "total_loss_disc": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "mel_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "score_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
     }
 
     len_group = 0
@@ -197,15 +198,11 @@ def evaluate(
 ):
     generator.eval()
     loss_means = {
-        "mel_loss": torch.FloatTensor([0.0]).to(device),
-        "pesq": torch.FloatTensor([0.0]).to(device),
-        "estoi": torch.FloatTensor([0.0]).to(device),
-        "rmse": torch.FloatTensor([0.0]).to(device),
+        "pesq": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "estoi": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "rmse": torch.tensor([0.0], dtype=torch.float32, device=device),
     }
-    len_group = 0
-    len_group_pesq = 0
-    batch_size = 0
-
+    len_ds = 0
     stft = TacotronSTFT(
         filter_length=preprocess_config.stft.filter_length,
         hop_length=preprocess_config.stft.hop_length,
@@ -217,48 +214,39 @@ def evaluate(
         device=device,
         center=False,
     )
+    resampler_16k = torchaudio.transforms.Resample(
+        orig_freq=preprocess_config.sampling_rate, new_freq=16000
+    ).to(device)
 
     with torch.no_grad():
         for batch in iter_logger(loader):
-            mel, audio, _ = batch
+            mel, audio, speaker_ids, mel_lens = batch
             mel = mel.to(device, non_blocking=True)
             audio = audio.to(device, non_blocking=True)
+            mel_lens = mel_lens.to(device, non_blocking=True)
             audio = audio.unsqueeze(1)
+            fake_audio = generator(mel, mel_lens=mel_lens)
 
-            fake_audio = generator.forward_train(mel)
-
-            sc_loss, mag_loss = stft_criterion(fake_audio.squeeze(1), audio.squeeze(1))
-            stft_loss = (sc_loss + mag_loss) * stft_lamb
+            audio = audio[:, :, : fake_audio.shape[2]]
 
             estoi = calc_estoi(
                 audio_real=audio,
                 audio_fake=fake_audio,
                 sampling_rate=preprocess_config.sampling_rate,
             )
-            pesq = calc_pesq(
-                audio_real=audio,
-                audio_fake=fake_audio,
-                sampling_rate=preprocess_config.sampling_rate,
-            )
             rmse = calc_rmse(audio_real=audio, audio_fake=fake_audio, stft=stft)
-
+            pesq = calc_pesq(
+                audio_real_16k=resampler_16k(audio),
+                audio_fake_16k=resampler_16k(fake_audio),
+            )
             batch_size = mel.shape[0]
-            if pesq != None:
-                loss_means["pesq"] += pesq * batch_size
-                len_group_pesq += batch_size
-
-            len_group += batch_size
+            len_ds += batch_size
             loss_means["estoi"] += estoi * batch_size
-            loss_means["mel_loss"] += stft_loss * batch_size
+            loss_means["pesq"] += pesq * batch_size
             loss_means["rmse"] += rmse * batch_size
 
-    if len_group_pesq > 0:
-        loss_means["pesq"] /= len_group_pesq
-
-    if len_group > 0:
-        loss_means["estoi"] /= len_group
-        loss_means["mel_loss"] /= len_group
-        loss_means["rmse"] /= len_group
+    for loss_name in loss_means.keys():
+        loss_means[loss_name] /= len_ds
 
     return loss_means
 
@@ -455,27 +443,3 @@ def train_vocoder(
         [1.0, db_id],
     )
 
-
-if __name__ == "__main__":
-    from voice_smith.utils.wandb_logger import WandBLogger
-    from voice_smith.config.vocoder_pre_training_config import (
-        vocoder_pre_training_config,
-    )
-
-    logger = WandBLogger("Univnet pretraining 2")
-    train_vocoder(
-        db_id=None,
-        training_run_name="univnet_pretraining",
-        train_config=vocoder_pre_training_config,
-        logger=logger,
-        device=torch.device("cuda"),
-        reset=False,
-        checkpoint_path=Path(training_runs_path)
-        / "univnet_pretraining"
-        / "ckpt"
-        / "vocoder"
-        / "vocoder_75750.pt",
-        fine_tuning=False,
-        overwrite_saves=False,
-        stop_after_hour=None,
-    )

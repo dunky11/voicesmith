@@ -123,7 +123,7 @@ ipcMain.handle(
   FETCH_TRAINING_RUNS_CHANNEL.IN,
   async (
     event: IpcMainInvokeEvent,
-    { withStatistics, ID }: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"]
+    { stage, ID }: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"]
   ): Promise<FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["OUT"]> => {
     const selectTrainingRunsStmt = DB.getInstance().prepare(`
       SELECT
@@ -163,13 +163,13 @@ ipcMain.handle(
     LEFT JOIN dataset ON training_run.dataset_id = dataset.ID 
     ${ID === null ? "" : "WHERE training_run.ID=@ID"}`);
     const selectGraphStatisticsStmt = DB.getInstance().prepare(
-      `SELECT name, step, value FROM graph_statistic WHERE training_run_id=@ID`
+      `SELECT name, step, value FROM graph_statistic WHERE training_run_id=@ID AND stage=@stage`
     );
     const selectImageStatisticsStmt = DB.getInstance().prepare(
-      `SELECT name, step FROM image_statistic WHERE training_run_id=@ID`
+      `SELECT name, step FROM image_statistic WHERE training_run_id=@ID AND stage=@stage`
     );
     const selectAudioStatisticsStmt = DB.getInstance().prepare(
-      `SELECT name, step FROM audio_statistic WHERE training_run_id=@ID`
+      `SELECT name, step FROM audio_statistic WHERE training_run_id=@ID AND stage=@stage`
     );
     let runs;
 
@@ -183,13 +183,15 @@ ipcMain.handle(
         let graphStatistics: GraphStatisticInterface[] = [];
         let imageStatistics: ImageStatisticInterface[] = [];
         let audioStatistics: AudioStatisticInterface[] = [];
-        if (withStatistics) {
+        if (stage !== null) {
           graphStatistics = selectGraphStatisticsStmt.all({
             ID: el.ID,
+            stage,
           });
           imageStatistics = selectImageStatisticsStmt
             .all({
               ID: el.ID,
+              stage,
             })
             .map((statsEl: any) => ({
               ...statsEl,
@@ -204,6 +206,7 @@ ipcMain.handle(
           audioStatistics = selectAudioStatisticsStmt
             .all({
               ID: el.ID,
+              stage,
             })
             .map((statsEl: any) => ({
               ...statsEl,

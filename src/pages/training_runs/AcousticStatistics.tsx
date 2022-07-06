@@ -26,6 +26,9 @@ export default function AcousticStatistics({
 }): ReactElement {
   const classes = useStyles();
 
+  const audiosReal = audioStatistics.filter((audioStatistic) => {
+    return audioStatistic.name === "val_wav_reconstructed";
+  });
   const audiosSynthesized = audioStatistics.filter((audioStatistic) => {
     return audioStatistic.name === "val_wav_synthesized";
   });
@@ -64,12 +67,22 @@ export default function AcousticStatistics({
           </Col>
           <Col span={12}>
             <AudioStatistic
+              name="Real Audio"
+              steps={audiosReal.map((el) => {
+                return el.step;
+              })}
+              paths={audiosReal.map((el) => {
+                return el.path;
+              })}
+            ></AudioStatistic>
+          </Col>
+          <Col span={12}>
+            <AudioStatistic
               name="Synthesized Audio"
               steps={audiosSynthesized.map((el) => {
                 return el.step;
               })}
               paths={audiosSynthesized.map((el) => {
-                console.log(el.path);
                 return el.path;
               })}
             ></AudioStatistic>

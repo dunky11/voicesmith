@@ -69,6 +69,49 @@ export default function VocoderStatistics({
           </Col>
         </Row>
       </Card>
+      <Card title="Metrics" style={{ marginBottom: 16 }}>
+        <Row gutter={[20, 20]}>
+          <Col span={12}>
+            <LineChart
+              title="PESQ"
+              lines={[
+                graphStatistics.filter((graphStatistic) => {
+                  return graphStatistic.name === "val_pesq";
+                }),
+              ]}
+              chartHeight={STATISTIC_HEIGHT}
+              xLabel="Step"
+              labels={["PESQ"]}
+            />
+          </Col>
+          <Col span={12}>
+            <LineChart
+              title="ESTOI"
+              lines={[
+                graphStatistics.filter((graphStatistic) => {
+                  return graphStatistic.name === "val_estoi";
+                }),
+              ]}
+              chartHeight={STATISTIC_HEIGHT}
+              xLabel="Step"
+              labels={["ESTOI"]}
+            />
+          </Col>
+          <Col span={12}>
+            <LineChart
+              title="RMSE"
+              lines={[
+                graphStatistics.filter((graphStatistic) => {
+                  return graphStatistic.name === "val_rmse";
+                }),
+              ]}
+              chartHeight={STATISTIC_HEIGHT}
+              xLabel="Step"
+              labels={["RMSE"]}
+            />
+          </Col>
+        </Row>
+      </Card>
       <Card title="Losses">
         <Row gutter={[20, 20]}>
           <Col span={12}>
@@ -105,7 +148,7 @@ export default function VocoderStatistics({
           </Col>
           <Col span={12}>
             <LineChart
-              title="Mel L1 Loss"
+              title="Mel Loss"
               lines={[
                 graphStatistics.filter((graphStatistic) => {
                   return graphStatistic.name === "train_mel_loss";

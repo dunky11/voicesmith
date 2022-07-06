@@ -59,7 +59,7 @@ export default function RunSelection({
 
   const pollTrainingRuns = () => {
     const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
-      withStatistics: false,
+      stage: null,
       ID: null,
     };
     ipcRenderer

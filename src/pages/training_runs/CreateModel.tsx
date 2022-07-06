@@ -61,9 +61,16 @@ export default function CreateModel({
   const selectedIsRunning = running?.ID === selectedTrainingRun.ID;
 
   const pollTrainingRun = () => {
+    let stage: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"]["stage"] = null;
+    if (current === 2) {
+      stage = "acoustic";
+    } else if (current === 4) {
+      stage = "vocoder";
+    }
+    console.log(stage);
     const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
-      withStatistics: true,
       ID: selectedTrainingRun.ID,
+      stage,
     };
     ipcRenderer
       .invoke(FETCH_TRAINING_RUNS_CHANNEL.IN, args)

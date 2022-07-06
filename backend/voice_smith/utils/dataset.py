@@ -184,7 +184,7 @@ class VocoderDataset(Dataset):
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         basename = self.basename[idx]
         speaker = self.speaker[idx]
-        speaker_id = torch.LongTensor([self.speaker_map[speaker]])
+        speaker_id = np.array([self.speaker_map[speaker]])
 
         try:
             data_path = (
@@ -205,19 +205,20 @@ class VocoderDataset(Dataset):
             rand_idx = np.random.randint(0, self.__len__())
             return self.__getitem__(rand_idx)
 
-        if audio.shape[0] < self.segment_size:
-            audio = F.pad(audio, (0, self.segment_size - audio.shape[0]), "constant")
+        if self.segment_size != -1:
+            if audio.shape[0] < self.segment_size:
+                audio = F.pad(audio, (0, self.segment_size - audio.shape[0]), "constant")
 
-        if mel.shape[1] < self.frames_per_seg:
-            mel = F.pad(mel, (0, self.frames_per_seg - mel.shape[1]), "constant")
+            if mel.shape[1] < self.frames_per_seg:
+                mel = F.pad(mel, (0, self.frames_per_seg - mel.shape[1]), "constant")
 
-        from_frame = random.randint(0, mel.shape[1] - self.frames_per_seg)
-        # Skip last frame, otherwise errors are thrown, find out why
-        if from_frame > 0:
-            from_frame -= 1
-        till_frame = from_frame + self.frames_per_seg
-        mel = mel[:, from_frame:till_frame]
-        audio = audio[from_frame * self.hop_size : till_frame * self.hop_size]
+            from_frame = random.randint(0, mel.shape[1] - self.frames_per_seg)
+            # Skip last frame, otherwise errors are thrown, find out why
+            if from_frame > 0:
+                from_frame -= 1
+            till_frame = from_frame + self.frames_per_seg
+            mel = mel[:, from_frame:till_frame]
+            audio = audio[from_frame * self.hop_size : till_frame * self.hop_size]
         return mel, audio, speaker_id
 
     def __len__(self) -> int:
@@ -227,7 +228,7 @@ class VocoderDataset(Dataset):
         rand_idx = np.random.randint(0, self.__len__())
         basename = self.basename[rand_idx]
         speaker = self.speaker[rand_idx]
-        speaker_id = torch.LongTensor([self.speaker_map[speaker]])
+        speaker_id = np.array([self.speaker_map[speaker]])
 
         try:
             data_path = (
@@ -257,3 +258,13 @@ class VocoderDataset(Dataset):
                 name.append(n)
                 speaker.append(s)
         return name, speaker
+
+    def collate_fn(self, datas):
+        mels = [data[0] for data in datas]
+        audios = [data[1] for data in datas]
+        speaker_ids = [data[2][0] for data in datas]
+        mel_lens = torch.tensor([mel.shape[1] for mel in mels], dtype=torch.int64)
+        speaker_ids = torch.tensor(speaker_ids, dtype=torch.int64)
+        audios = torch.tensor(pad_1D(audios), dtype=torch.float32)
+        mels = torch.tensor(pad_2D(mels), dtype=torch.float32)
+        return mels, audios, speaker_ids, mel_lens

@@ -102,7 +102,7 @@ export default function Configuration({
 
   const fetchConfiguration = () => {
     const args: FETCH_TRAINING_RUNS_CHANNEL_TYPES["IN"]["ARGS"] = {
-      withStatistics: false,
+      stage: null,
       ID: run.ID,
     };
     ipcRenderer

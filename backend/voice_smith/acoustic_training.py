@@ -64,6 +64,7 @@ def synth_iter(
         drop_last=False,
         data_path=data_path,
         assets_path=assets_path,
+        is_eval=True
     )
     loader = DataLoader(
         dataset,
@@ -315,7 +316,7 @@ def train_iter(
         )
 
 
-def eval_iter(
+def evaluate(
     gen: AcousticModel,
     step: int,
     train_config: Union[AcousticFinetuningConfig, AcousticPretrainingConfig],
@@ -479,8 +480,6 @@ def eval_iter(
         loss_value = losses[loss_name]
         message += f"{loss_name}: {round(loss_value.item(), 4)}"
 
-    print(message)
-
     for key in losses.keys():
         logger.log_graph(name=f"val_{key}", value=losses[key].item(), step=step)
 
@@ -581,7 +580,7 @@ def train_acoustic(
         )
 
         if step % val_step == 0 and step != 0:
-            eval_iter(
+            evaluate(
                 gen=gen,
                 step=step,
                 train_config=train_config,

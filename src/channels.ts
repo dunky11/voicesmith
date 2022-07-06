@@ -90,7 +90,7 @@ export const FETCH_TRAINING_RUNS_CHANNEL = {
 export interface FETCH_TRAINING_RUNS_CHANNEL_TYPES {
   IN: {
     ARGS: {
-      withStatistics: boolean;
+      stage: null | "acoustic" | "vocoder";
       ID: number | null;
     };
     OUT: TrainingRunInterface[];

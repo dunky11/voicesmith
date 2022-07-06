@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader
 from typing import Dict, Literal, Optional, Union
 from voice_smith.utils.model import get_acoustic_models
 from voice_smith.utils.tools import to_device, iter_logger
-from voice_smith.acoustic_training import get_data_loaders
 from voice_smith.config.configs import (
     AcousticModelConfig,
     AcousticFinetuningConfig,
@@ -13,6 +12,7 @@ from voice_smith.config.configs import (
 )
 from voice_smith.utils.loggers import Logger
 from voice_smith.model.acoustic_model import AcousticModel
+from voice_smith.utils.dataset import AcousticDataset
 
 
 def save_gta(
@@ -45,7 +45,7 @@ def save_gta(
 
     for batchs in iter_logger(loader, cb=callback, total=len(loader)):
         for batch in batchs:
-            batch = to_device(batch, device)
+            batch = to_device(batch, device, is_eval=False)
             (
                 ids,
                 raw_texts,
@@ -100,11 +100,38 @@ def ground_truth_alignment(
     # TODO change group size automatically
     data_path = Path(training_runs_path) / str(training_run_name) / "data"
     group_size = 5
-    train_loader, eval_loader = get_data_loaders(
+    dataset = AcousticDataset(
+        filename="train.txt",
         batch_size=batch_size,
-        group_size=group_size,
-        data_path=str(data_path),
+        sort=False,
+        drop_last=True,
+        data_path=data_path,
         assets_path=assets_path,
+        is_eval=False
+    )
+    train_loader = DataLoader(
+        dataset,
+        num_workers=4,
+        batch_size=batch_size * group_size,
+        shuffle=True,
+        pin_memory=True,
+        collate_fn=dataset.collate_fn,
+    )
+    dataset = AcousticDataset(
+        filename="val.txt",
+        batch_size=batch_size * group_size,
+        sort=False,
+        drop_last=False,
+        data_path=data_path,
+        assets_path=assets_path,
+        is_eval=False
+    )
+    eval_loader = DataLoader(
+        dataset,
+        num_workers=4,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=dataset.collate_fn,
     )
     with open(data_path / "speakers.json", "r", encoding="utf-8") as f:
         speakers = json.load(f)
