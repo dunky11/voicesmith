@@ -37,7 +37,7 @@ def synth_iter(
         mel = mel.to(device, non_blocking=True)
         audio = audio.to(device, non_blocking=True)
 
-        audio_fake = vocoder(
+        audio_fake = vocoder.infer(
             mel.unsqueeze(0),
             mel_lens=torch.tensor([mel.shape[1]], dtype=torch.int64, device=device),
         )
@@ -131,7 +131,7 @@ def train_iter(
         audio = audio.to(device, non_blocking=True)
         audio = audio.unsqueeze(1)
 
-        fake_audio = generator.forward_train(mel)
+        fake_audio = generator(mel)
 
         sc_loss, mag_loss = stft_criterion(fake_audio.squeeze(1), audio.squeeze(1))
         stft_loss = (sc_loss + mag_loss) * stft_lamb
@@ -225,7 +225,7 @@ def evaluate(
             audio = audio.to(device, non_blocking=True)
             mel_lens = mel_lens.to(device, non_blocking=True)
             audio = audio.unsqueeze(1)
-            fake_audio = generator(mel, mel_lens=mel_lens)
+            fake_audio = generator.infer(mel, mel_lens=mel_lens)
 
             audio = audio[:, :, : fake_audio.shape[2]]
 

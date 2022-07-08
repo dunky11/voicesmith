@@ -143,6 +143,7 @@ def run_server(port: int):
             acoustic_model=__model__["acoustic_model"],
             text_normalizer=__model__["text_normalizer"],
             vocoder=__model__["vocoder"],
+            device=device,
         )
 
         audio_name = f"{uuid.uuid1().hex[:12]}.flac"

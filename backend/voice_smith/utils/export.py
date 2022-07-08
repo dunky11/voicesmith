@@ -59,17 +59,7 @@ def vocoder_to_torchscript(
     )
     vocoder.eval(True)
     mels = torch.randn((2, preprocess_config.stft.n_mel_channels, 50))
-    mel_lens = torch.tensor([50], dtype=torch.int64)
-    vocoder = TracedGenerator(vocoder, (mels,))
-    vocoder_torch = trace(
-        vocoder,
-        (mels, mel_lens),
-        check_inputs=[
-            (
-                torch.randn(3, preprocess_config.stft.n_mel_channels, 64),
-                torch.tensor([64], dtype=torch.int64),
-            )
-        ],
-    )
-    quit()
+    vocoder = TracedGenerator(vocoder, example_inputs=(mels,))
+    mel_lens = torch.tensor([mels.shape[2]], dtype=torch.int64)
+    vocoder_torch = script(vocoder, example_inputs=[(mels, mel_lens)])
     return vocoder_torch

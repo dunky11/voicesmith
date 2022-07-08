@@ -24,7 +24,7 @@ from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
 from voice_smith.config.symbols import symbol2id
 from voice_smith.utils.tools import warnings_to_stdout, get_workers, get_device
-from voice_smith.preprocessing.generate_vocab import generate_vocab
+from voice_smith.preprocessing.generate_vocab import generate_vocab_mfa
 from voice_smith.preprocessing.align import align
 from voice_smith.utils.punctuation import get_punct
 from voice_smith.utils.runs import StageRunner
@@ -276,38 +276,23 @@ def preprocessing_stage(
             device = row[0]
             device = get_device(device)
 
-            langs = [el.name for el in (Path(data_path) / "raw_data").iterdir()]
-            for i, lang in enumerate(langs):
+            lang_paths = list((Path(data_path) / "raw_data").iterdir())
 
-                texts = []
-                for (text,) in cur.execute(
-                    """
-                    SELECT sample.text AS text FROM training_run INNER JOIN dataset ON training_run.dataset_id = dataset.ID 
-                    INNER JOIN speaker on speaker.dataset_id = dataset.ID
-                    INNER JOIN sample on sample.speaker_id = speaker.ID
-                    WHERE training_run.ID=? AND speaker.language=?
-                    """,
-                    (run_id, lang),
-                ).fetchall():
-                    texts.append(text)
-
-                lexica_path = str(vocab_path / f"{lang}.txt")
-                predicted_phones = generate_vocab(
-                    texts=texts, lang=lang, assets_path=assets_path, device=device
+            for i, lang_path in enumerate(lang_paths):
+                lang = lang_path.name
+                lexica_path = vocab_path / f"{lang}.txt"
+                if lexica_path.exists():
+                    continue
+                generate_vocab_mfa(
+                    lexicon_path=str(lexica_path),
+                    n_workers=p_config.workers,
+                    lang=lang,
+                    corpus_path=lang_path,
+                    environment_name=environment_name,
                 )
-                punct_set = get_punct(lang=lang)
-                with open(lexica_path, "w", encoding="utf-8") as f:
-                    for word, phones in predicted_phones.items():
-                        word = word.lower().strip()
-                        phones = " ".join(phones).strip()
-                        if len(word) == 0 or len(phones) == 0:
-                            continue
-                        if word in punct_set:
-                            continue
-                        f.write(f"{word.lower()} {phones}\n")
                 cur.execute(
                     "UPDATE training_run SET preprocessing_gen_vocab_progress=? WHERE ID=?",
-                    ((i + 1) / len(langs), run_id),
+                    ((i + 1) / len(lang_paths), run_id),
                 )
                 con.commit()
             cur.execute(

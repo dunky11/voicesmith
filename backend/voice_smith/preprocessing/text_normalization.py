@@ -1,22 +1,27 @@
 from pathlib import Path
-from nemo_text_processing.text_normalization.normalize import Normalizer
-from typing import Tuple, List, Dict, Any, Callable, Optional
-from voice_smith.utils.tokenization import WordTokenizer
+from typing import Tuple, List, Dict, Any, Callable, Optional, Set, Union
 from dataclasses import dataclass
+from nemo_text_processing.text_normalization.normalize import Normalizer
+from voice_smith.utils.tokenization import WordTokenizer
 
+
+# CHARACTERS
 LATIN_CHARACTERS = list("abcdefghijklmnopqrstuvwxyz")
 GERMAN_CHARACTERS = list("öüäß")
 SPANISH_CHARACTERS = list("üúóñíéá")
 RUSSIAN_CHARACTERS = list("АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ".lower())
 
+# PUNCTUATION
 MULTILINGUAL_PUNCTUATION = list(".,!?:-")
 ENGLISH_PUNCTUATION = list("")
 SPANISH_PUNCTUATION = list("¿¡«»—")
 GERMAN_PUNCTUATION = list("")
 RUSSIAN_PUNCTUATION = list("")
 
+# SPECIAL SYMBOLS
 SPECIALS = list("\"' ")
 
+# ABBREVIATIONS
 MULTILINGUAL_ABBREVIATIONS = [
     "kg",
     "cal",
@@ -56,6 +61,8 @@ ENGLISH_ABBREVIATIONS = []
 SPANISH_ABBREVIATIONS = []
 GERMAN_ABBREVIATIONS = []
 RUSSIAN_ABBREVIATIONS = []
+
+# INITIALISMS
 MULTILINGUAL_INITIALISMS = [
     "FBI",
     "GOP",
@@ -146,7 +153,7 @@ class CharNormalizer:
 
 class DetShouldNormalizeBase:
     """
-    Nemos text normalizer unfortunately produces a large amount of false positives.
+    Nemo's text normalizer unfortunately produces a large amount of false positives.
     For example it normalizes 'medic' into 'm e d i c' or 'yeah' into 'y e a h'.
     To reduce the amount of false postives we will do a check for unusual symbols
     or words inside the text and only normalize if necessary.
@@ -336,7 +343,6 @@ def apply_nemo_normalization(text: str, normalizer: Normalizer):
     text_out = normalizer.normalize(
         text=text_in, verbose=False, punct_post_process=True,
     )
-
     if (
         len(text_in) > 0
         and len(text_out) > 0
@@ -358,7 +364,7 @@ def apply_nemo_normalization(text: str, normalizer: Normalizer):
 def normalize_sample(
     text_in: str,
     char_normalizer: Optional[CharNormalizer],
-    detector: Optional[DetShouldNormalizeEN],
+    detector: Optional[DetShouldNormalizeBase],
     normalizer: Optional[Normalizer],
     tokenizer: WordTokenizer,
 ):
@@ -396,40 +402,83 @@ class NormalizationUtils:
     char_normalizer: Optional[CharNormalizer]
     detector: Optional[DetShouldNormalizeBase]
     normalizer: Optional[Normalizer]
+    can_normalize_numbers: bool
 
 
 def get_normalization_utils(
     lang: str, normalize_characters: bool, assets_path: str
 ) -> NormalizationUtils:
-    if lang == "en":
-        detector = DetShouldNormalizeEN(assets_path)
-        normalizer = Normalizer(
-            input_case="cased", lang=lang, overwrite_cache=False, deterministic=True,
-        )
-    elif lang == "es":
-        detector = DetShouldNormalizeES(assets_path)
-        normalizer = Normalizer(
-            input_case="cased", lang=lang, overwrite_cache=False, deterministic=True,
-        )
+    if lang == "bg":
+        detector = None
+        normalizer = None
+        can_normalize_numbers = False
+    elif lang == "cs":
+        detector = None
+        normalizer = None
+        can_normalize_numbers = True
     elif lang == "de":
         detector = DetShouldNormalizeDE(assets_path)
         normalizer = Normalizer(
             input_case="cased", lang=lang, overwrite_cache=False, deterministic=True,
         )
+        can_normalize_numbers = True
+    elif lang == "en":
+        detector = DetShouldNormalizeEN(assets_path)
+        normalizer = Normalizer(
+            input_case="cased", lang=lang, overwrite_cache=False, deterministic=True,
+        )
+        can_normalize_numbers = True
+    elif lang == "es":
+        detector = DetShouldNormalizeES(assets_path)
+        normalizer = Normalizer(
+            input_case="cased", lang=lang, overwrite_cache=False, deterministic=True,
+        )
+        can_normalize_numbers = True
+    elif lang == "fr":
+        detector = None
+        normalizer = None
+        can_normalize_numbers = True
+    elif lang == "hr":
+        detector = None
+        normalizer = None
+        can_normalize_numbers = False
+    elif lang == "pl":
+        detector = None
+        normalizer = None
+        can_normalize_numbers = True
+    elif lang == "pt":
+        detector = None
+        normalizer = None
+        can_normalize_numbers = True
     elif lang == "ru":
         detector = DetShouldNormalizeRU(assets_path)
         normalizer = Normalizer(
             input_case="cased", lang=lang, overwrite_cache=False, deterministic=False,
         )
-    else:
+        can_normalize_numbers = True
+    elif lang == "sv":
         detector = None
         normalizer = None
+        can_normalize_numbers = True
+    elif lang == "th":
+        detector = None
+        normalizer = None
+        can_normalize_numbers = True
+    elif lang == "tr":
+        detector = None
+        normalizer = None
+        can_normalize_numbers = True
+    elif lang == "uk":
+        detector = None
+        normalizer = None
+        can_normalize_numbers = True
 
     return NormalizationUtils(
         tokenizer=WordTokenizer(lang, remove_punct=False),
         char_normalizer=CharNormalizer() if normalize_characters else None,
         detector=detector,
         normalizer=normalizer,
+        can_normalize_numbers=can_normalize_numbers,
     )
 
 
@@ -445,16 +494,16 @@ def text_normalize(
     assert len(sample_ids) == len(texts) == len(langs)
 
     normalizations = []
-    lang2Utils: Dict[str, NormalizationUtils] = {}
+    lang2utils: Dict[str, NormalizationUtils] = {}
 
     for i, (sample_id, text, lang) in enumerate(zip(sample_ids, texts, langs)):
-        if not lang in lang2Utils:
-            lang2Utils[lang] = get_normalization_utils(
+        if not lang in lang2utils:
+            lang2utils[lang] = get_normalization_utils(
                 lang=lang,
                 normalize_characters=normalize_characters,
                 assets_path=assets_path,
             )
-        utils = lang2Utils[lang]
+        utils = lang2utils[lang]
         ret = normalize_sample(
             text_in=text,
             char_normalizer=utils.char_normalizer,

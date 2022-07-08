@@ -2,7 +2,6 @@ import torch
 from typing import Dict, List, Tuple
 import unicodedata
 from pathlib import Path
-from voice_smith.utils.text import strip_cont_whitespaces
 from voice_smith.utils.punctuation import get_punct
 
 
@@ -133,7 +132,9 @@ class BertTokenizer:
 
     def load_vocab(self, assets_path: str) -> Dict[str, int]:
         vocab: Dict[str, int] = {}
-        with open(Path(assets_path) / "tiny_bert" / "vocab.txt", "r") as f:
+        with open(
+            Path(assets_path) / "tiny_bert" / "vocab.txt", "r", encoding="utf-8"
+        ) as f:
             for i, line in enumerate(f):
                 line_stripped = line.rstrip()
                 vocab[line_stripped] = i
@@ -353,45 +354,59 @@ class WordpieceTokenizer(object):
 def _get_nlp(lang):
     if lang == "bg":
         from spacy.lang.bg import Bulgarian
+
         nlp = Bulgarian()
     elif lang == "cs":
         from spacy.lang.cs import Czech
+
         nlp = Czech()
     elif lang == "de":
         from spacy.lang.de import German
+
         nlp = German()
     elif lang == "en":
         from spacy.lang.en import English
+
         nlp = English()
     elif lang == "es":
         from spacy.lang.es import Spanish
+
         nlp = Spanish()
     elif lang == "fr":
         from spacy.lang.fr import French
+
         nlp = French()
     elif lang == "hr":
         from spacy.lang.hr import Croatian
+
         nlp = Croatian()
     elif lang == "pl":
         from spacy.lang.pl import Polish
+
         nlp = Polish()
     elif lang == "pt":
         from spacy.lang.pt import Portuguese
+
         nlp = Portuguese()
     elif lang == "ru":
         from spacy.lang.ru import Russian
+
         nlp = Russian()
     elif lang == "sv":
         from spacy.lang.sv import Swedish
+
         nlp = Swedish()
     elif lang == "th":
         from spacy.lang.th import Thai
+
         nlp = Thai()
     elif lang == "tr":
         from spacy.lang.tr import Turkish
+
         nlp = Turkish()
     elif lang == "uk":
         from spacy.lang.uk import Ukrainian
+
         nlp = Ukrainian()
     else:
         raise Exception(

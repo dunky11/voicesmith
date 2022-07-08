@@ -55,10 +55,7 @@ def calc_estoi(audio_real, audio_fake, sampling_rate):
 def calc_pesq(audio_real_16k, audio_fake_16k):
     return torch.mean(
         perceptual_evaluation_speech_quality(
-            audio_fake_16k, 
-            audio_real_16k, 
-            16000, 
-            'wb'
+            audio_fake_16k, audio_real_16k, 16000, "wb"
         )
     )
 

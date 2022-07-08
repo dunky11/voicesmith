@@ -5,6 +5,7 @@ import numpy as np
 from torch.jit._script import ScriptModule
 from g2p_en import G2p
 import re
+import time
 from voice_smith.utils.text_normalization import (
     remove_cont_whitespaces,
     EnglishTextNormalizer,
@@ -90,12 +91,16 @@ def synthesize(
     text_normalizer: EnglishTextNormalizer,
     acoustic_model: ScriptModule,
     vocoder: ScriptModule,
+    device: torch.device,
 ) -> Tuple[np.ndarray, int]:
+
     text = text.strip()
     text = remove_cont_whitespaces(text)
     word_tokenizer = WordTokenizer(lang=lang, remove_punct=False)
     sentence_tokenizer = SentenceTokenizer(lang=lang)
-    if model_type == "Delighful_FreGANv1_v0.0":
+    acoustic_model = acoustic_model.to(device)
+    start_time = time.time()
+    if model_type == "Delighful_FreGANv1_v0.0" or model_type == "0.2.3":
         waves = []
         for sentence in sentence_tokenizer.tokenize(text):
             symbol_ids = []
@@ -113,22 +118,30 @@ def synthesize(
                         symbol_ids.append(symbol2id[phone])
                     symbol_ids.append(symbol2id["BLANK"])
 
-            symbol_ids = torch.LongTensor([symbol_ids])
-            speaker_ids = torch.LongTensor([speaker_id])
-            lang_ids = torch.LongTensor([lang2id[lang]])
+            symbol_ids = torch.tensor([symbol_ids], device=device, dtype=torch.int64)
+            speaker_ids = torch.tensor([speaker_id], device=device, dtype=torch.int64)
+            lang_ids = torch.tensor([lang2id[lang]], device=device, dtype=torch.int64)
 
             with torch.no_grad():
                 mel = acoustic_model(
                     symbol_ids, speaker_ids, lang_ids, 1.0, talking_speed,
                 )
-                mel_len = torch.tensor([mel.shape[2]], dtype=torch.int64)
-                wave = vocoder(mel, mel_len)
+                mel_len = torch.tensor([mel.shape[2]], dtype=torch.int64, device=device)
+                wave = vocoder(mel.cpu(), mel_len.cpu())
                 waves.append(wave.view(-1))
 
-        wave_cat = torch.cat(waves).numpy()
-        return wave_cat, 22050
+        wave_cat = torch.cat(waves).cpu().numpy()
 
     else:
         raise Exception(
             f"Model type '{type}' is not supported for this version of VoiceSmith ..."
         )
+
+    time_elapsed = time.time() - start_time
+    audio_generated = wave_cat.shape[0] / 22050
+    rtf = audio_generated / time_elapsed
+    print(
+        f"Generating {round(audio_generated, 2)}s of audio took {round(time_elapsed, 2)}s. RFT: {round(rtf, 2)}",
+        flush=True,
+    )
+    return wave_cat, 22050

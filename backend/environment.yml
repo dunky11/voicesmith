@@ -15,7 +15,6 @@ dependencies:
   - pytorch::pytorch=1.11.0
   - pytorch::torchtext==0.12.0
   - conda-forge::cudatoolkit=11.3.1
-  - g2p-en=2.1.0
   - psutil=5.9.0
   - einops=0.4.1
   - fastdtw=0.3.4
@@ -24,15 +23,17 @@ dependencies:
   - fire=0.4.0
   - waitress=2.1.1
   - pysoundfile
-  - conda-forge::montreal-forced-aligner=2.0.0rc7
+  - conda-forge::montreal-forced-aligner=2.0.5
   - numpy=1.22.4
   - anaconda::cython=0.29.28
   - conda-forge::torchmetrics=0.9.1
   - conda-forge::spacy=3.3.1
   - photosynthesis-team::piq=0.7.0
+  - conda-forge::monkeytype=22.2.0
   - pip
   - pip:
       - -e .
       - tgt==1.4.1
       - nemo-toolkit[all]==1.8.2
       - pythainlp==3.0.8
+      - git+https://github.com/savoirfairelinux/num2words.git # Package is not up to date in both pip and conda

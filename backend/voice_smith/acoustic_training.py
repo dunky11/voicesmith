@@ -105,7 +105,7 @@ def synth_iter(
                         d_control=1.0,
                         langs=lang.unsqueeze(0),
                     )
-                    wav_prediction = vocoder(
+                    wav_prediction = vocoder.infer(
                         y_pred,
                         mel_lens=torch.tensor(
                             [y_pred.shape[2]], dtype=torch.int32, device=device
@@ -457,7 +457,7 @@ def evaluate(
                     langs=langs,
                     use_ground_truth=False,
                 )
-                y_pred = vocoder(outputs["y_pred"], mel_lens=mel_lens)
+                y_pred = vocoder.infer(outputs["y_pred"], mel_lens=mel_lens)
                 wavs = wavs[:, :, : y_pred.shape[2]]
                 estoi = calc_estoi(
                     audio_real=wavs,
