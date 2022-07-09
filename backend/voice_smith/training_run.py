@@ -428,7 +428,7 @@ def acoustic_fine_tuning_stage(
                 logger=logger,
                 device=device,
                 reset=reset,
-                checkpoint_acoustic=checkpoint_acoustic,
+                checkpoint_acoustic=str(checkpoint_acoustic),
                 fine_tuning=True,
                 overwrite_saves=True,
                 assets_path=assets_path,
@@ -571,7 +571,7 @@ def vocoder_fine_tuning_stage(
     while True:
         try:
             checkpoint_path, step = get_latest_checkpoint(
-                name="vocoder", ckpt_dir=str(data_path / "ckpt" / "vocoder")
+                name="vocoder", ckpt_dir=str(Path(data_path) / "ckpt" / "vocoder")
             )
 
             cur.execute(
@@ -774,7 +774,7 @@ def continue_training_run(run_id: int, log_console: bool):
             training_run_id=run_id,
             con=con,
             cursor=cur,
-            out_dir=data_path,
+            out_dir=str(data_path),
             stage="preprocessing",
         )
         return logger

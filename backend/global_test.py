@@ -10,6 +10,3 @@ def should_import_modules():
             continue
         __import__(module[:-3].replace("/", "."), locals(), globals())
 
-
-if __name__ == "__main__":
-    should_import_modules()

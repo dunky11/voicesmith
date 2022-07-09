@@ -111,7 +111,7 @@ def align(
         )
         if len(sample_ids) == 0:
             break
-        copy_batch(base_paths=base_paths, out_dir=tmp_dir, n_workers=n_workers)
+        copy_batch(base_paths=base_paths, out_dir=str(tmp_dir), n_workers=n_workers)
         cmd = f"mfa align --overwrite --clean -j {n_workers} {tmp_dir} {lexicon_path} {lang_to_mfa_acoustic(lang)} {out_path}"
         success = run_conda_in_shell(cmd, environment_name, stderr_to_stdout=True)
         finish_batch(
