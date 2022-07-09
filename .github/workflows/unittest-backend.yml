@@ -1,6 +1,6 @@
 
 
-name: Unittest Backend
+name: Unit-Test Backend
 
 on:
   push:
@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CONDA_ENV_NAME: voice_smith
     strategy:
       matrix:
         python-version: [3.8.13]  
@@ -23,3 +25,9 @@ jobs:
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
         $CONDA/bin/conda env create -f ./backend/environment.yml
+      run:
+        $CONDA/bin/conda run --name $CONDA_ENV_NAME pip install -U pytest
+    - name: Running PyTest Unit-Tests
+      run:
+        $CONDA/bin/conda run --name $CONDA_ENV_NAME pytest ./backend
+        
