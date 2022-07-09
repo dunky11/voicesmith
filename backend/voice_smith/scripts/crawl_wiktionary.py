@@ -47,6 +47,8 @@ FILLER_WORDS = [
     "so",
     "mm",
     "ach",
+    "pa",
+    "pow",
 ]
 BLACKLIST_ALL = LAUGH_WORDS + FILLER_WORDS
 

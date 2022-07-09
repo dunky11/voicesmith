@@ -22,14 +22,15 @@ class SampleSplit:
     lang: str
     splits: List[Split]
 
+
 def flatten(nested_list: List[List[Any]]):
     return [x for sublist in nested_list for x in sublist]
+
 
 def get_splits(sentences_word, sentences_full, words_tier):
     assert len(sentences_word) == len(sentences_full)
     word_idx = 0
     splits: List[Split] = []
-    continue_search = True
     end_time = None
 
     if len(words_tier) != len(flatten(sentences_word)):
@@ -40,8 +41,14 @@ def get_splits(sentences_word, sentences_full, words_tier):
     for i, (sentence_word, sentence_full) in enumerate(
         zip(sentences_word, sentences_full)
     ):
-        start_time = words_tier[word_idx].start_time
-        end_time = words_tier[word_idx + len(sentence_word) - 1].end_time
+        if i == 0:
+            start_time = 0.0
+        else:
+            start_time = words_tier[word_idx].start_time
+        if i == len(sentences_word) - 1:
+            end_time = words_tier.end_time
+        else:
+            end_time = words_tier[word_idx + len(sentence_word) - 1].end_time
         word_idx += len(sentence_word)
         splits.append(
             Split(text=sentence_full, from_msecs=start_time, to_msecs=end_time)
