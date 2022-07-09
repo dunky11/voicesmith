@@ -54,3 +54,4 @@ jobs:
       - name: Run pytest in backend
         shell: bash -l {0}
         run: pytest ./backend
+        

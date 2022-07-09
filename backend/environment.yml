@@ -30,6 +30,7 @@ dependencies:
   - conda-forge::spacy=3.3.1
   - photosynthesis-team::piq=0.7.0
   - conda-forge::monkeytype=22.2.0
+  - conda-forge::pytest
   - pip
   - pip:
       - -e .
