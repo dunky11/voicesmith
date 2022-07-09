@@ -51,9 +51,10 @@ jobs:
         id: cache
 
       - name: Update environment
-        run: mamba env update -n my-env -f ./backend/environment.yml
+        run: mamba env update -n $CONDA_ENV_NAME -f ./backend/environment.yml
         if: steps.cache.outputs.cache-hit != 'true'
 
       - name: Run pytest in backend
         shell: bash -l {0}
         run: conda run -n $CONDA_ENV_NAME python -m pytest ./backend
+        
