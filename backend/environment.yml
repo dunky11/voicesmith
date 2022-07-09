@@ -17,9 +17,6 @@ dependencies:
   - conda-forge::cudatoolkit=11.3.1
   - psutil=5.9.0
   - einops=0.4.1
-  - fastdtw=0.3.4
-  - cleanlab=2.0.0
-  - skorch=0.11.0
   - fire=0.4.0
   - waitress=2.1.1
   - pysoundfile
@@ -30,7 +27,7 @@ dependencies:
   - conda-forge::spacy=3.3.1
   - photosynthesis-team::piq=0.7.0
   - conda-forge::monkeytype=22.2.0
-  - conda-forge::pytest
+  - conda-forge::librosa=0.9.2
   - pip
   - pip:
       - -e .

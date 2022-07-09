@@ -1,19 +1,19 @@
 import torch
 import math
+import sys
 import numpy as np
 import torch.nn.functional as F
 from typing import Tuple, List, Union, Optional
 import librosa
-import soundfile as sf
-from voice_smith.utils.librosa import mel as librosa_mel_fn
+import torchaudio
 
 
 def save_audio(file_path: str, audio: torch.Tensor, sr: int):
-    sf.write(file_path, audio.numpy(), sr)
+    torchaudio.save(file_path, audio.unsqueeze(0), sr)
 
 
-def stereo_to_mono(audio: np.ndarray) -> np.ndarray:
-    return np.mean(audio, axis=0, keepdims=True)
+def stereo_to_mono(audio: torch.FloatTensor) -> torch.FloatTensor:
+    return torch.mean(audio, axis=0, keepdims=True)
 
 
 def get_mel_from_wav(audio: np.ndarray, to_mel: torch.nn.Module) -> np.ndarray:
@@ -33,11 +33,16 @@ def safe_load(
     path: str, sr: Union[int, None], verbose: bool = True
 ) -> Tuple[np.ndarray, int]:
     try:
-        audio, sr_actual = librosa.load(path, sr=sr)
-
+        audio, sr_actual = torchaudio.load(path)
+        if audio.shape[0] > 0:
+            audio = stereo_to_mono(audio)
+        audio = audio.squeeze(0)
+        if sr_actual != sr and sr != None:
+            audio = resample(audio.numpy(), orig_sr=sr_actual, target_sr=sr)
+            sr_actual = sr
+        else:
+            audio = audio.numpy()
     except Exception as e:
-        import sys
-
         raise type(e)(
             f"The following error happened loading the file {path} ... \n" + str(e)
         ).with_traceback(sys.exc_info()[2])
@@ -244,7 +249,7 @@ class TacotronSTFT(torch.nn.Module):
         self.fmax = mel_fmax
         self.center = center
 
-        mel = librosa_mel_fn(
+        mel = librosa.filters.mel(
             sr=sampling_rate,
             n_fft=filter_length,
             n_mels=n_mel_channels,
