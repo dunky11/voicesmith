@@ -1,5 +1,6 @@
 import torch
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
 import unicodedata
 from pathlib import Path
 from voice_smith.utils.punctuation import get_punct
@@ -415,17 +416,28 @@ def _get_nlp(lang):
     return nlp
 
 
+@dataclass
+class WordTokenizerResult:
+    word: str
+    offset: Optional[int]
+
+
 class WordTokenizer:
     def __init__(self, lang: str, remove_punct: bool):
         self.nlp = _get_nlp(lang)
         self.tokenizer = self.nlp.tokenizer
         self.remove_punct = remove_punct
 
-    def tokenize(self, text: str) -> List[str]:
+    def tokenize(self, text: str) -> List[WordTokenizerResult]:
         tokens = self.tokenizer(text)
         if self.remove_punct:
             tokens = filter(lambda token: not token.is_punct, tokens)
-        tokens = [str(token) for token in tokens]
+        tokens = [
+            WordTokenizerResult(
+                word=str(token), offset=None if self.remove_punct else token.idx
+            )
+            for token in tokens
+        ]
         return tokens
 
 

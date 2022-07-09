@@ -112,6 +112,8 @@ class NumberNormalizerBase:
         currency = None
         for code in iso_4217_currency_codes:
             for symbol in iso_4217_to_symbols[code]:
+                if symbol == "$" and "USD" in iso_4217_currency_codes and code != "USD":
+                    continue
                 if word.startswith(symbol):
                     word = word.lstrip(symbol)
                     to = "currency"
@@ -132,7 +134,6 @@ class NumberNormalizerBase:
                     to = "currency"
                     currency = code
                     break
-
         try:
 
             if to == "currency":
