@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Tuple, List, Dict, Any, Callable, Optional, Set, Union
+from typing import Tuple, List, Dict, Any, Callable, Optional
 from dataclasses import dataclass
 from nemo_text_processing.text_normalization.normalize import Normalizer
 from voice_smith.utils.tokenization import WordTokenizer

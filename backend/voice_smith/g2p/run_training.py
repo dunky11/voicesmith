@@ -4,7 +4,7 @@ import argparse
 from voice_smith.g2p.dp.preprocess import preprocess
 from voice_smith.g2p.dp.train import train
 from voice_smith.g2p.dp.utils.io import read_config
-from parse_dictionary import parse_dictionary
+from voice_smith.g2p.parse_dictionary import parse_dictionary
 import json
 
 

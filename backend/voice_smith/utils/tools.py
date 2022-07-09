@@ -23,7 +23,7 @@ def warnings_to_stdout():
 def to_device(
     data: Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any],
     device: torch.device,
-    is_eval: bool
+    is_eval: bool,
 ):
     if is_eval:
         (
@@ -38,9 +38,9 @@ def to_device(
             durations,
             mel_lens,
             langs,
-            wavs
+            wavs,
         ) = data
-    else:   
+    else:
         (
             ids,
             raw_texts,
@@ -63,7 +63,7 @@ def to_device(
     durations = torch.tensor(durations, dtype=torch.int64, device=device)
     mel_lens = torch.tensor(mel_lens, dtype=torch.int64, device=device)
     langs = torch.tensor(langs, dtype=torch.int64, device=device)
-    
+
     if is_eval:
         wavs = torch.tensor(wavs, dtype=torch.float32, device=device)
         return (
@@ -78,7 +78,7 @@ def to_device(
             durations,
             mel_lens,
             langs,
-            wavs
+            wavs,
         )
     else:
         return (
@@ -114,7 +114,7 @@ def get_mask_from_lengths(lengths: torch.Tensor) -> torch.Tensor:
     return mask
 
 
-def pad_1D(inputs: List[np.ndarray], pad_value: float = 0.) -> np.ndarray:
+def pad_1D(inputs: List[np.ndarray], pad_value: float = 0.0) -> np.ndarray:
     def pad_data(x, length):
         x_padded = np.pad(
             x, (0, length - x.shape[0]), mode="constant", constant_values=pad_value
@@ -127,13 +127,16 @@ def pad_1D(inputs: List[np.ndarray], pad_value: float = 0.) -> np.ndarray:
     return padded
 
 
-def pad_2D(inputs: List[np.ndarray], maxlen: Union[int, None] = None, pad_value: float = 0.) -> np.ndarray:
+def pad_2D(
+    inputs: List[np.ndarray], maxlen: Union[int, None] = None, pad_value: float = 0.0
+) -> np.ndarray:
     def pad(x, max_len):
         if np.shape(x)[1] > max_len:
             raise ValueError("not max_len")
         padding = np.ones((x.shape[0], max_len - np.shape(x)[1])) * pad_value
         x = np.concatenate((x, padding), 1)
         return x
+
     if maxlen:
         output = np.stack([pad(x, maxlen) for x in inputs])
     else:
@@ -282,7 +285,7 @@ def get_embeddings(data_path: str, device: torch.device) -> torch.Tensor:
     return embeddings
 
 
-def initialize_embeddings(shape: Tuple[int]) -> torch.Tensor:
+def initialize_embeddings(shape: Tuple[int, ...]) -> torch.Tensor:
     assert len(shape) == 2, "Can only initialize 2-D embedding matrices ..."
     # Kaiming initialization
     return torch.randn(shape) * np.sqrt(2 / shape[1])

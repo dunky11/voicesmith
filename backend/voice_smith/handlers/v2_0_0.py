@@ -1,7 +1,7 @@
 import torch
 import os
 import json
-from typing import List, Device
+from typing import List
 
 
 def strip_invalid_symbols(text: str, pad_symbol: str, valid_symbols: List[str]) -> str:

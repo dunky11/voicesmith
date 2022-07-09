@@ -3,7 +3,7 @@ from typing import List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import Parameter
+from torch.nn.parameter import Parameter
 from pathlib import Path
 from typing import Dict, Any, Tuple
 from voice_smith.config.configs import PreprocessingConfig, AcousticModelConfig
@@ -12,7 +12,6 @@ from voice_smith.config.symbols import symbols, symbol2id, pad
 from voice_smith.model.layers import (
     ConvTransposed,
     Conv1dGLU,
-    EmbeddingProjBlock,
     GLUActivation,
     DepthWiseConv1d,
     PointwiseConv1d,
@@ -24,7 +23,7 @@ from voice_smith.model.reference_encoder import (
     UtteranceLevelProsodyEncoder,
 )
 from voice_smith.utils import tools
-from voice_smith.config.langs import languages
+from voice_smith.config.langs import SUPPORTED_LANGUAGES
 
 LRELU_SLOPE = 0.3
 
@@ -101,7 +100,7 @@ class AcousticModel(nn.Module):
             tools.initialize_embeddings((n_speakers, model_config.speaker_embed_dim))
         )
         self.lang_embed = Parameter(
-            tools.initialize_embeddings((len(languages), model_config.lang_embed_dim))
+            tools.initialize_embeddings((len(SUPPORTED_LANGUAGES), model_config.lang_embed_dim))
         )
 
     def get_embeddings(

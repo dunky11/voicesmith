@@ -2,10 +2,10 @@ from speechbrain.pretrained import EncoderClassifier
 from torch.jit._trace import trace_module
 from pathlib import Path
 import torch
-from voice_smith import ASSETS_PATH
+from voice_smith.config.globals import ASSETS_PATH
 
 if __name__ == "__main__":
-    classifier = EncoderClassifier.from_hparams(source=str(ASSETS_PATH / "ecapa_tdnn"))
+    classifier = EncoderClassifier.from_hparams(source=str(Path(ASSETS_PATH) / "ecapa_tdnn"))
     classifier.eval()
     classifier.device = torch.device("cpu")
     classifier.mods.embedding_model.cpu()
@@ -15,7 +15,6 @@ if __name__ == "__main__":
     classifier_torch = trace_module(
         classifier, {"encode_batch": (input, relative_lens)}
     )
-    classifier_torch.save(ASSETS_PATH / "ecapa_tdnn.pt")
+    classifier_torch.save(Path(ASSETS_PATH) / "ecapa_tdnn.pt")
     output_post = classifier_torch.encode_batch(input, relative_lens)
-
     assert torch.allclose(output_pre, output_post)
