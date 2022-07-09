@@ -1,31 +1,56 @@
-
-
-name: Unit-Test Backend
+name: Unit-test backend
 
 on:
   push:
-    branches: 
-      - main 
+    branches:
+      - '*'
+
+  pull_request:
+    branches:
+      - '*'
+
+  schedule:
+    - cron: '0 0 * * 0' # “At 00:00 on Sunday.”
+
+env:
+  CONDA_ENV_NAME: voice_smith
+  CACHE_NUMBER: 0  # increase to reset cache manually
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    env:
-      CONDA_ENV_NAME: voice_smith
     strategy:
       matrix:
-        python-version: [3.8.13]  
+        include:
+          - os: ubuntu-latest
+            label: linux-64
+            prefix: /usr/share/miniconda3/envs/voice_smith
+
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install Dependencies
-      run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        $CONDA/bin/conda env create -f ./backend/environment.yml
-        $CONDA/bin/conda run --name $CONDA_ENV_NAME pip install -U pytest
-    - name: Running PyTest Unit-Tests
-      run:
-        $CONDA/bin/conda run --name $CONDA_ENV_NAME pytest ./backend
+      - uses: actions/checkout@v2
+
+      - name: Setup Mambaforge
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+            miniforge-variant: Mambaforge
+            miniforge-version: latest
+            activate-environment: voice_smith
+            use-mamba: true
+
+      - name: Set cache date
+        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
+
+      - uses: actions/cache@v2
+        with:
+          path: ${{ matrix.prefix }}
+          key: ${{ matrix.label }}-conda-${{ hashFiles('./backend/environment.yml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
+        id: cache
+
+      - name: Update environment
+        run: mamba env update -n my-env -f ./backend/environment.yml
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Run pytest in backend
+        shell: bash -l {0}
+        run: pytest ./backend
