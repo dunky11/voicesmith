@@ -1,19 +1,14 @@
 import torch
+from torch import nn
 import numpy as np
 from typing import Dict, Iterable, List, Tuple
 import numpy as np
 from torch.jit._script import ScriptModule
-from g2p_en import G2p
 import re
 import time
-from voice_smith.utils.text_normalization import (
-    remove_cont_whitespaces,
-    EnglishTextNormalizer,
-)
 from voice_smith.utils.tokenization import (
     WordTokenizer,
     SentenceTokenizer,
-    BertTokenizer,
 )
 from voice_smith.g2p.dp.utils.infer import batched_predict
 
@@ -85,17 +80,16 @@ def synthesize(
     talking_speed: float,
     speaker_id: int,
     model_type: str,
-    g2p: G2p,
+    g2p: nn.Module,
     symbol2id: Dict[str, int],
     lang2id: Dict[str, int],
-    text_normalizer: EnglishTextNormalizer,
     acoustic_model: ScriptModule,
     vocoder: ScriptModule,
     device: torch.device,
 ) -> Tuple[np.ndarray, int]:
 
     text = text.strip()
-    text = remove_cont_whitespaces(text)
+    # text = remove_cont_whitespaces(text)
     word_tokenizer = WordTokenizer(lang=lang, remove_punct=False)
     sentence_tokenizer = SentenceTokenizer(lang=lang)
     acoustic_model = acoustic_model.to(device)
