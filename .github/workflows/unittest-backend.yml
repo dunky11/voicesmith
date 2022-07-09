@@ -25,9 +25,7 @@ jobs:
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
         $CONDA/bin/conda env create -f ./backend/environment.yml
-      run:
         $CONDA/bin/conda run --name $CONDA_ENV_NAME pip install -U pytest
     - name: Running PyTest Unit-Tests
       run:
         $CONDA/bin/conda run --name $CONDA_ENV_NAME pytest ./backend
-        
