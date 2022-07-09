@@ -9,7 +9,6 @@ import uuid
 from torch.jit._serialization import load
 from g2p_en import G2p
 from waitress import serve
-from voice_smith.utils.text_normalization import EnglishTextNormalizer
 from voice_smith.sql import get_con
 from voice_smith.utils.tools import get_cpu_usage, get_ram_usage, get_disk_usage
 from voice_smith.inference import synthesize as synthesize_infer
@@ -39,13 +38,11 @@ def get_model(
     torchscript_dir = Path(models_path) / model_name / "torchscript"
     acoustic_model = load(torchscript_dir / "acoustic_model.pt")
     vocoder = load(torchscript_dir / "vocoder.pt")
-    text_normalizer = EnglishTextNormalizer()
 
     return {
         "g2p": G2p(),
         "acoustic_model": acoustic_model,
         "vocoder": vocoder,
-        "text_normalizer": text_normalizer,
     }
 
 
@@ -141,7 +138,6 @@ def run_server(port: int):
             lang2id=lang2id,
             g2p=get_g2p(assets_path=ASSETS_PATH, device=device),
             acoustic_model=__model__["acoustic_model"],
-            text_normalizer=__model__["text_normalizer"],
             vocoder=__model__["vocoder"],
             device=device,
         )

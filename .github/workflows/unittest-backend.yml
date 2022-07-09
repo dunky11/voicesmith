@@ -9,13 +9,10 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        python-version: [3.8.x]
-
+        python-version: [3.8.13]  
     steps:
     - uses: actions/checkout@v2
     - name: Setup Python ${{ matrix.python-version }}
