@@ -76,3 +76,4 @@ def test_should_not_normalize_number():
             assert (
                 not output.collapsed_next
             ), f"Failed check for language {lang}, input: {number}, output: {output}"
+

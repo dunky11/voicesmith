@@ -818,5 +818,5 @@ def get_number_normalizer(lang: NumberNormLangType) -> NumberNormalizerBase:
 
 if __name__ == "__main__":
     normalizer = get_number_normalizer("cz")
-    output = normalizer.normalize(None, "-100", None)
+    output = normalizer.normalize(None, "100", None)
     print(output)

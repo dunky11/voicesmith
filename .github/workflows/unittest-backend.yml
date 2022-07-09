@@ -53,5 +53,4 @@ jobs:
 
       - name: Run pytest in backend
         shell: bash -l {0}
-        run: pytest ./backend
-        
+        run: conda run -n $CONDA_ENV_NAME pytest ./backend
