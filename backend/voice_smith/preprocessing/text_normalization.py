@@ -112,19 +112,10 @@ class CharNormalizer:
             ("’", "'"),
             ("“", '"'),
             ("”", '"'),
-            ("..", "."),
-            ("...", "."),
-            ("....", "."),
-            (".....", "."),
             ("…", "."),
+            ("..", "."),
             ("!!", "!"),
-            ("!!!", "!"),
-            ("!!!!", "!"),
-            ("!!!!!", "!"),
             ("??", "?"),
-            ("???", "?"),
-            ("????", "?"),
-            ("?????", "?"),
             ("„", '"'),
             ("–", "-"),
             ("«", '"'),
@@ -148,10 +139,16 @@ class CharNormalizer:
         if text_stripped != text:
             text = text_stripped
             rules.append("The text contains unnecessary whitespaces")
-        for r_from, r_to in self.rules:
-            if r_from in text:
-                text = text.replace(r_from, r_to)
-                rules.append(f"'{r_from}' should be normalized to '{r_to}'")
+        while True:
+            has_normalized = False
+            for r_from, r_to in self.rules:
+                if r_from in text:
+                    text = text.replace(r_from, r_to)
+                    rules.append(f"'{r_from}' should be normalized to '{r_to}'")
+                    has_normalized = True
+                    break
+            if not has_normalized:
+                break
         return text, rules
 
 

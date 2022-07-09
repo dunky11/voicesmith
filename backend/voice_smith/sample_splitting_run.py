@@ -1,9 +1,6 @@
 from pathlib import Path
 import shutil
 from typing import Callable, List, Dict
-import sys
-import torch
-import json
 import sqlite3
 import argparse
 from dataclasses import dataclass
@@ -17,8 +14,8 @@ from voice_smith.utils.tools import warnings_to_stdout, get_device, get_workers
 from voice_smith.preprocessing.generate_vocab import generate_vocab_mfa
 from voice_smith.preprocessing.align import align
 from voice_smith.preprocessing.sample_splitting import sample_splitting, split_sample
-from voice_smith.utils.punctuation import get_punct
 from voice_smith.utils.runs import StageRunner
+from voice_smith.utils.tokenization import SentenceTokenizer
 from voice_smith.config.globals import (
     DB_PATH,
     SAMPLE_SPLITTING_RUNS_PATH,
@@ -130,7 +127,7 @@ def copying_files_stage(
     **kwargs,
 ) -> bool:
     txt_paths, texts, audio_paths, names, langs = [], [], [], [], []
-
+    lang2sentence_tokenizer: Dict[str, SentenceTokenizer] = {}
     for (
         txt_path,
         text,
@@ -151,6 +148,10 @@ def copying_files_stage(
         """,
         (run_id,),
     ).fetchall():
+        """if lang not in lang2sentence_tokenizer:
+            lang2sentence_tokenizer[lang] = SentenceTokenizer(lang)
+        if len(lang2sentence_tokenizer[lang].tokenize(text)) < 2:
+            continue"""
         full_audio_path = (
             Path(datasets_path)
             / str(dataset_id)
