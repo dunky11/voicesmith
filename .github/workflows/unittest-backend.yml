@@ -54,7 +54,7 @@ jobs:
         run: mamba env update -n $CONDA_ENV_NAME -f ./backend/environment.yml
         if: steps.cache.outputs.cache-hit != 'true'
 
-      - name: Linting using PyLint
+      - name: Linting using Pylint
         run: pylint ./backend
         continue-on-error: true
       

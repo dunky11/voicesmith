@@ -143,7 +143,7 @@ ipcMain.handle(
     event: IpcMainInvokeEvent,
     { runID }: FETCH_CLEANING_RUN_SAMPLES_CHANNEL_TYPES["IN"]["ARGS"]
   ): FETCH_CLEANING_RUN_SAMPLES_CHANNEL_TYPES["IN"]["OUT"] => {
-    return DB.getInstance()
+    const samples = DB.getInstance()
       .prepare(
         `
       SELECT cleaning_run_sample.ID AS ID, cleaning_run_sample.quality_score AS qualityScore, 
@@ -169,6 +169,7 @@ ipcMain.handle(
           el.audioPath
         ),
       }));
+    return samples;
   }
 );
 

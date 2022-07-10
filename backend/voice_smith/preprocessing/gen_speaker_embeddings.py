@@ -1,9 +1,8 @@
-import sqlite3
 import torch
 from pathlib import Path
 import multiprocessing as mp
 from torch.utils.data import Dataset, DataLoader
-from typing import Optional, Any, List, Tuple, Union, Callable
+from typing import Any, List, Tuple, Callable
 from voice_smith.utils.tools import iter_logger
 from voice_smith.utils.audio import safe_load
 import numpy as np
@@ -95,15 +94,14 @@ def gen_file_emeddings(
             directory.mkdir(exist_ok=True, parents=True)
 
             torch.save(
-                emb.view((-1,)),
-                directory / f"{Path(file_name).stem}.pt",
+                emb.view((-1,)), directory / f"{Path(file_name).stem}.pt",
             )
 
 
 def gen_speaker_embeddings(
     speaker_paths: List[str],
     out_dir: str,
-    callback: Callable[[int], int],
+    callback: Callable[[int, float], None],
     device: torch.device,
     batch_size: int = 20,
 ):

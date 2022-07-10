@@ -150,6 +150,7 @@ export default function ChooseSamples({
   });
 
   useEffect(() => {
+    fetchSamples();
     fetchConfiguration();
   }, []);
 

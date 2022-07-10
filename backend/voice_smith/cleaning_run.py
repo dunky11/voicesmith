@@ -18,7 +18,6 @@ from voice_smith.config.globals import (
     DATASETS_PATH,
     ASSETS_PATH,
 )
-from voice_smith.utils.tokenization import WordTokenizer
 from voice_smith.config.configs import CleaningRunConfig
 
 
