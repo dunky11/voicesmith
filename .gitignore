@@ -97,6 +97,9 @@ dist
 # FuseBox cache
 .fusebox/
 
+# pytest cache
+.pytest_cache/
+
 # DynamoDB Local files
 .dynamodb/
 

@@ -54,7 +54,11 @@ jobs:
         run: mamba env update -n $CONDA_ENV_NAME -f ./backend/environment.yml
         if: steps.cache.outputs.cache-hit != 'true'
 
+      - name: Linting using PyLint
+        run: pylint ./backend
+        continue-on-error: true
+      
       - name: Run pytest in backend
         shell: bash -l {0}
         run: conda run -n $CONDA_ENV_NAME python -m pytest ./backend
-        
+      

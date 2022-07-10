@@ -1,8 +1,8 @@
+from typing import Tuple, Union
 from pathlib import Path
 import numpy as np
 from PIL import Image
 import torch
-from typing import Tuple, Union
 from voice_smith.utils.audio import save_audio
 from voice_smith.utils.loggers import Logger
 
