@@ -1,10 +1,7 @@
 import numpy as np
 import sys
-from typing import Union, List
+from typing import Union, Tuple
 import matplotlib
-from pathlib import Path
-import logging
-from contextlib import redirect_stdout
 
 
 class DualLogger(object):
@@ -53,5 +50,5 @@ class Logger:
     def log_audio(self, name: str, audio: np.ndarray, step: int, sr: int) -> None:
         raise NotImplementedError
 
-    def query(self, query: str, args: List[Union[str, int]]) -> None:
+    def query(self, query: str, args: Tuple[Union[int, str, float], ...]) -> None:
         raise NotImplementedError

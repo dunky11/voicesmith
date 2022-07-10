@@ -2,10 +2,10 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import torch
-from typing import List, Union
+from typing import Tuple, Union
 from voice_smith.utils.audio import save_audio
 from voice_smith.utils.loggers import Logger
- 
+
 
 class SQLLogger(Logger):
     def __init__(self, training_run_id: int, con, cursor, out_dir: str, stage: str):
@@ -45,7 +45,7 @@ class SQLLogger(Logger):
         )
         self.con.commit()
 
-    def query(self, query: str, args: List[Union[int, str]]) -> None:
+    def query(self, query: str, args: Tuple[Union[int, str, float], ...]) -> None:
         self.cur.execute(query, args)
         self.con.commit()
- 
+

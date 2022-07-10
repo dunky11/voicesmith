@@ -105,11 +105,11 @@ def get_stage_name(cur: sqlite3.Cursor, run_id: int, **kwargs):
 def not_started_stage(
     cur: sqlite3.Cursor, con: sqlite3.Connection, run_id: int, data_path: str, **kwargs
 ) -> bool:
-    data_path = Path(data_path)
-    if data_path.exists():
-        shutil.rmtree(data_path)
-    (data_path / "logs").mkdir(exist_ok=True, parents=True)
-    (data_path / "raw_data").mkdir(exist_ok=True)
+    d_path = Path(data_path)
+    if d_path.exists():
+        shutil.rmtree(d_path)
+    (d_path / "logs").mkdir(exist_ok=True, parents=True)
+    (d_path / "raw_data").mkdir(exist_ok=True)
     cur.execute(
         "UPDATE sample_splitting_run SET stage='copying_files' WHERE ID=?", (run_id,),
     )
@@ -148,10 +148,10 @@ def copying_files_stage(
         """,
         (run_id,),
     ).fetchall():
-        """if lang not in lang2sentence_tokenizer:
+        if lang not in lang2sentence_tokenizer:
             lang2sentence_tokenizer[lang] = SentenceTokenizer(lang)
         if len(lang2sentence_tokenizer[lang].tokenize(text)) < 2:
-            continue"""
+            continue
         full_audio_path = (
             Path(datasets_path)
             / str(dataset_id)
@@ -201,8 +201,8 @@ def get_vocab_stage(
     vocab_path: str,
     **kwargs,
 ) -> bool:
-    vocab_path = Path(vocab_path)
-    vocab_path.mkdir(exist_ok=True, parents=True)
+    v_path = Path(vocab_path)
+    v_path.mkdir(exist_ok=True, parents=True)
     p_config = get_config(cur, run_id)
 
     row = cur.execute(
@@ -215,14 +215,14 @@ def get_vocab_stage(
 
     for i, lang_path in enumerate(lang_paths):
         lang = lang_path.name
-        lexica_path = vocab_path / f"{lang}.txt"
+        lexica_path = v_path / f"{lang}.txt"
         if lexica_path.exists():
             continue
         generate_vocab_mfa(
             lexicon_path=str(lexica_path),
             n_workers=p_config.workers,
             lang=lang,
-            corpus_path=lang_path,
+            corpus_path=str(lang_path),
             environment_name=environment_name,
         )
 
@@ -250,9 +250,9 @@ def gen_alignments_stage(
     **kwargs,
 ):
     p_config = get_config(cur, run_id)
-    vocab_paths = list(Path(vocab_path).iterdir())
-    for i, vocab_path in enumerate(vocab_paths):
-        lang = vocab_path.name.split(".")[0]
+    v_paths = list(Path(vocab_path).iterdir())
+    for i, v_path in enumerate(v_paths):
+        lang = v_path.name.split(".")[0]
         align(
             cur=cur,
             con=con,
@@ -269,7 +269,7 @@ def gen_alignments_stage(
         )
         cur.execute(
             "UPDATE sample_splitting_run SET gen_align_progress=? WHERE ID=?",
-            ((i + 1) / len(vocab_paths), run_id),
+            ((i + 1) / len(v_paths), run_id),
         )
         con.commit()
     cur.execute(
@@ -289,10 +289,10 @@ def creating_splits_stage(
     datasets_path: str,
     **kwargs,
 ):
-    splits_path = Path(splits_path)
+    s_path = Path(splits_path)
     sample_ids, texts, textgrid_paths, langs = [], [], [], []
-    if splits_path.exists():
-        shutil.rmtree(splits_path)
+    if s_path.exists():
+        shutil.rmtree(s_path)
     (Path(data_path) / "splits").mkdir(parents=True)
     p_config = get_config(cur, run_id)
 
@@ -444,7 +444,7 @@ def apply_changes_stage(
             / f"{sample_splitting_run_sample_id}_split_{split_idx}.flac"
         )
         apply_changes_split = ApplyChangesSplit(
-            full_audio_path=full_new_audio_path, text=new_text, split_idx=split_idx
+            full_audio_path=str(full_new_audio_path), text=new_text, split_idx=split_idx
         )
         if sample_splitting_run_sample_id in sample_id_to_info:
             sample_id_to_info[sample_splitting_run_sample_id].splits.append(
@@ -470,7 +470,7 @@ def apply_changes_stage(
                 continue
             copy_audio_to = (
                 Path(old_sample_full_audio_path.parent)
-                / f"{old_sample_full_audio_path.stem}_split_{split.split_idx}{split.full_audio_path.suffix}"
+                / f"{old_sample_full_audio_path.stem}_split_{split.split_idx}{Path(split.full_audio_path).suffix}"
             )
             audio_name_to = f"{old_sample_full_audio_path.stem}_split_{split.split_idx}{old_sample_full_audio_path.suffix}"
             text_name_to = f"{old_sample_txt_path.stem}_split_{split.split_idx}{old_sample_txt_path.suffix}"
@@ -559,6 +559,5 @@ if __name__ == "__main__":
     parser.add_argument("--run_id", type=int, required=True)
     parser.add_argument("--log_console", action="store_true")
     args = parser.parse_args()
-
     continue_sample_splitting_run(run_id=args.run_id, log_console=args.log_console)
 

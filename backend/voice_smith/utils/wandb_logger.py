@@ -1,11 +1,11 @@
 import wandb
 import numpy as np
-from typing import List, Union, Dict, Any
+from typing import Tuple, Union, Dict, Any
 from voice_smith.utils.loggers import Logger
 
 
 class WandBLogger(Logger):
-    def __init__(self, training_run_name, config: Union[Dict[str, Any], None]=None):
+    def __init__(self, training_run_name, config: Union[Dict[str, Any], None] = None):
         super().__init__()
         wandb.init(id=training_run_name, resume=None, config=config)
 
@@ -19,5 +19,5 @@ class WandBLogger(Logger):
     def log_audio(self, name: str, audio: np.ndarray, step: int, sr: int):
         wandb.log({name: wandb.Audio(audio, sample_rate=sr)}, step=step)
 
-    def query(self, query: str, args: List[Union[int, str]]) -> None:
+    def query(self, query: str, args: Tuple[Union[int, str, float], ...]) -> None:
         pass

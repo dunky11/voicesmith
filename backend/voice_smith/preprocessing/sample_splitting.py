@@ -61,7 +61,7 @@ def sample_splitting(
     texts: List[str],
     textgrid_paths: List[str],
     languages: List[Union[Literal["en"]]],
-) -> List[Split]:
+) -> List[SampleSplit]:
     assert len(ids) == len(texts) == len(textgrid_paths) == len(languages)
     lang_to_info = {}
 
@@ -115,4 +115,6 @@ def split_sample(
     for i, split in enumerate(sample_split.splits):
         audio_split = audio[int(split.from_msecs * sr) : int(split.to_msecs * sr)]
         file_path = Path(out_dir) / f"{sample_split_id}_split_{i}.flac"
-        save_audio(file_path=file_path, audio=torch.FloatTensor(audio_split), sr=sr)
+        save_audio(
+            file_path=str(file_path), audio=torch.FloatTensor(audio_split), sr=sr
+        )
