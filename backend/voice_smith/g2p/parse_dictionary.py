@@ -3,9 +3,10 @@ from tqdm import tqdm
 from typing import List, Tuple, Dict
 
 
+
 def parse_dictionary(
     dictionary_path: str, name: str
-) -> Tuple[List[Tuple[str, str, List[str]]], List[str], List[str]]:
+) -> Tuple[List[Tuple[str, str, List[str]]], List[str], List[str], Dict[str, List[List[str]]]]:
     word_to_gold: Dict[str, List[List[str]]] = {}
     out = []
     all_phones = []

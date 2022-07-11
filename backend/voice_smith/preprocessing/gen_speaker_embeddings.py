@@ -1,12 +1,11 @@
 import torch
 from pathlib import Path
-import multiprocessing as mp
-from torch.utils.data import Dataset, DataLoader
 from typing import Any, List, Tuple, Callable
-from voice_smith.utils.tools import iter_logger
-from voice_smith.utils.audio import safe_load
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from speechbrain.pretrained import EncoderClassifier
+from voice_smith.utils.tools import iter_logger
+from voice_smith.utils.audio import safe_load
 
 
 class SpeakerDS(Dataset):
@@ -32,13 +31,27 @@ class FilesDS(Dataset):
     def __init__(self, file_paths: List[str]):
         self.file_paths = file_paths
 
-    def __len__(self) -> None:
+    def __len__(self) -> int:
         return len(self.file_paths)
 
     def __getitem__(self, idx: int) -> torch.Tensor:
         file_path = self.file_paths[idx]
         embedding = torch.load(file_path)
         return embedding
+
+
+class QualityScoreDS(Dataset):
+    def __init__(self, file_paths: List[str]):
+        self.file_paths = file_paths
+
+    def __len__(self) -> int:
+        return len(self.file_paths)
+
+    def __getitem__(self, idx: int) -> Tuple[int, torch.Tensor]:
+        file_path = self.file_paths[idx]
+        speaker_id = int(Path(file_path).stem)
+        embedding = torch.load(file_path)
+        return speaker_id, embedding
 
 
 def collate_fn(batch: List[Any]):
@@ -55,22 +68,21 @@ def collate_fn(batch: List[Any]):
 def gen_file_emeddings(
     in_paths: List[str],
     out_dir: str,
-    callback: Callable[[int], int],
+    callback: Callable[[float], None],
     device: torch.device,
+    workers: int,
     batch_size: int = 6,
 ):
     classifier = EncoderClassifier.from_hparams(
-        source=str(Path(".") / "assets" / "ecapa_tdnn")
+        source="speechbrain/spkrec-ecapa-voxceleb", run_opts={"device": "cuda"}
     )
     classifier.eval()
-    classifier.device = device
-    classifier.mods.embedding_model.to(device)
 
     ds = SpeakerDS(in_paths)
     loader = DataLoader(
         ds,
         batch_size=batch_size,
-        num_workers=max(mp.cpu_count() - 1, 1),
+        num_workers=workers,
         shuffle=False,
         drop_last=False,
         collate_fn=collate_fn,
@@ -78,7 +90,7 @@ def gen_file_emeddings(
 
     def inner_callback(index: int):
         progress = index / (len(in_paths) // batch_size)
-        callback(index, progress)
+        callback(progress)
 
     for i, (wavs, relative_lens, speaker_names, file_names) in iter_logger(
         enumerate(loader), total=len(in_paths) // batch_size, cb=inner_callback
@@ -101,20 +113,21 @@ def gen_file_emeddings(
 def gen_speaker_embeddings(
     speaker_paths: List[str],
     out_dir: str,
-    callback: Callable[[int, float], None],
+    callback: Callable[[float], None],
+    workers: int,
     device: torch.device,
     batch_size: int = 20,
 ):
     def inner_callback(index: int):
         progress = index / len(speaker_paths)
-        callback(index, progress)
+        callback(progress)
 
     for speaker_path in iter_logger(
         speaker_paths, total=len(speaker_paths), cb=inner_callback
     ):
-        speaker_name = speaker_path.name
+        speaker_name = Path(speaker_path).name
         (Path(out_dir) / speaker_name).mkdir(exist_ok=True, parents=True)
-        files = list(speaker_path.iterdir())
+        files = list(Path(speaker_path).iterdir())
         files = [str(file) for file in files]
         if len(files) == 0:
             continue
@@ -122,7 +135,7 @@ def gen_speaker_embeddings(
         loader = DataLoader(
             ds,
             batch_size=batch_size,
-            num_workers=max(mp.cpu_count() - 1, 1),
+            num_workers=workers,
             shuffle=False,
             drop_last=False,
         )
@@ -134,3 +147,38 @@ def gen_speaker_embeddings(
         mean = embeddings.mean(dim=0)
         mean = mean / torch.linalg.vector_norm(mean, ord=2)
         torch.save(mean.cpu(), Path(out_dir) / speaker_name / "embedding.pt")
+
+
+def get_quality_scores(
+    file_embeddings_dir: str,
+    speaker_embeddings_dir: str,
+    device: torch.device,
+    workers: int,
+    batch_size: int = 20,
+) -> Tuple[List[int], List[float]]:
+    sample_ids_out, sample_qualities_out = [], []
+    for speaker_path in Path(file_embeddings_dir).iterdir():
+        files = [str(el) for el in speaker_path.iterdir()]
+        loader = DataLoader(
+            QualityScoreDS(files),
+            batch_size=batch_size,
+            num_workers=workers,
+            shuffle=False,
+            drop_last=False,
+        )
+        file_embeddings = []
+        sample_ids = []
+        for sample_id, file_embed in loader:
+            sample_ids.extend(sample_id)
+            file_embeddings.append(file_embed)
+        embeddings = torch.cat(file_embeddings, dim=0).to(device)
+        speaker_embedding = torch.load(
+            Path(speaker_embeddings_dir) / speaker_path.name / "embedding.pt",
+            map_location=device,
+        )
+        distances = torch.sum((embeddings - speaker_embedding) ** 2, 1)
+        sort_idxs = torch.argsort(distances, dim=0, descending=True)
+        for i, sort_idx in enumerate(sort_idxs):
+            sample_ids_out.append(sample_ids[int(sort_idx.item())].item())
+            sample_qualities_out.append((i + 1) / embeddings.shape[0])
+    return sample_ids_out, sample_qualities_out

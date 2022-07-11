@@ -70,7 +70,7 @@ class AcousticPretrainingConfig:
     train_steps = 500000
     log_step = 20
     synth_step = 250
-    val_step = 4000
+    val_step = 1
     save_step = 1000
     freeze_bert_until = 4000
     mcd_gen_max_samples = 400

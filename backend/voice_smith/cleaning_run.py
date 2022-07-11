@@ -1,7 +1,5 @@
 from pathlib import Path
 import shutil
-import torch
-import numpy as np
 import argparse
 from typing import Callable
 import sqlite3
@@ -11,7 +9,11 @@ from voice_smith.sql import get_con, save_current_pid
 from voice_smith.utils.sql_logger import SQLLogger
 from voice_smith.utils.runs import StageRunner
 from voice_smith.utils.tools import get_device, get_workers
-from voice_smith.preprocessing.transcribe import transcribe
+from voice_smith.preprocessing.gen_speaker_embeddings import (
+    gen_file_emeddings,
+    gen_speaker_embeddings,
+    get_quality_scores,
+)
 from voice_smith.config.globals import (
     DB_PATH,
     CLEANING_RUNS_PATH,
@@ -98,9 +100,9 @@ def copying_files_stage(
     get_logger: Callable[[], SQLLogger],
     **kwargs,
 ) -> bool:
-    txt_paths, texts, audio_paths, names, langs = [], [], [], [], []
+    sample_ids, texts, audio_paths, names, langs = [], [], [], [], []
     for (
-        txt_path,
+        sample_id,
         text,
         audio_path,
         speaker_name,
@@ -109,9 +111,8 @@ def copying_files_stage(
         lang,
     ) in cur.execute(
         """
-        SELECT sample.txt_path, sample.text, sample.audio_path, 
-        speaker.name AS speaker_name, dataset.ID AS dataset_id, 
-        speaker.ID as speaker_id, speaker.language
+        SELECT sample.ID, sample.text, sample.audio_path, 
+        speaker.name, dataset.ID, speaker.ID, speaker.language
         FROM cleaning_run INNER JOIN dataset ON cleaning_run.dataset_id = dataset.ID 
         INNER JOIN speaker on speaker.dataset_id = dataset.ID
         INNER JOIN sample on sample.speaker_id = speaker.ID
@@ -126,7 +127,7 @@ def copying_files_stage(
             / str(speaker_id)
             / audio_path
         )
-        txt_paths.append(txt_path)
+        sample_ids.append(sample_id)
         texts.append(text)
         audio_paths.append(str(full_audio_path))
         names.append(speaker_name)
@@ -143,7 +144,7 @@ def copying_files_stage(
 
     copy_files(
         data_path=data_path,
-        txt_paths=txt_paths,
+        sample_ids=sample_ids,
         texts=texts,
         audio_paths=audio_paths,
         names=names,
@@ -159,31 +160,6 @@ def copying_files_stage(
     return False
 
 
-def levenshtein_distance(s1, s2):
-    """ https://stackoverflow.com/questions/2460177/edit-distance-in-python
-    """
-    if len(s1) > len(s2):
-        s1, s2 = s2, s1
-
-    distances = range(len(s1) + 1)
-    for i2, c2 in enumerate(s2):
-        distances_ = [i2 + 1]
-        for i1, c1 in enumerate(s1):
-            if c1 == c2:
-                distances_.append(distances[i1])
-            else:
-                distances_.append(
-                    1 + min((distances[i1], distances[i1 + 1], distances_[-1]))
-                )
-        distances = distances_
-    return distances[-1]
-
-
-def normalized_levenshtein_distance(x: str, y: str):
-    max_len = max(len(x), len(y))
-    return levenshtein_distance(x, y) / max_len
-
-
 def transcribe_stage(
     cur: sqlite3.Cursor,
     con: sqlite3.Connection,
@@ -194,14 +170,11 @@ def transcribe_stage(
 ) -> bool:
     config = get_config(cur=cur, run_id=run_id)
     langs = [el.name for el in (Path(data_path) / "raw_data").iterdir()]
-    sample_ids = []
-    texts = []
-    transcriptions = []
     for i, lang in enumerate(langs):
         audio_paths = []
-        for (sample_id, audio_path, speaker_name, text) in cur.execute(
+        for (sample_id, speaker_name) in cur.execute(
             """
-            SELECT sample.ID, sample.audio_path, speaker.name, sample.text
+            SELECT sample.ID, speaker.name
             FROM cleaning_run INNER JOIN dataset ON cleaning_run.dataset_id = dataset.ID 
             INNER JOIN speaker on speaker.dataset_id = dataset.ID
             INNER JOIN sample on sample.speaker_id = speaker.ID
@@ -209,46 +182,73 @@ def transcribe_stage(
             """,
             (run_id, lang),
         ).fetchall():
-            sample_ids.append(sample_id)
-            texts.append(text)
             audio_paths.append(
                 str(
                     Path(data_path)
                     / "raw_data"
                     / lang
                     / speaker_name
-                    / f"{Path(audio_path).stem}.flac"
+                    / f"{sample_id}.flac"
                 )
             )
 
-        def progress_cb(progress: float):
+        def gen_file_emb_progress_cb(progress: float):
             logger = get_logger()
             logger.query(
                 "UPDATE cleaning_run SET transcription_progress=? WHERE id=?",
-                (i * (1 / len(langs)) + progress * (1 / len(langs)), run_id),
+                (0.75 * i * (1 / len(langs)) + progress * (1 / len(langs)), run_id),
             )
             con.commit()
 
-        transcriptions.extend(
-            transcribe(
-                audio_files=audio_paths,
-                lang=lang,
-                device=config.device,
-                progress_cb=progress_cb,
-            )
+        gen_file_emeddings(
+            in_paths=audio_paths,
+            out_dir=str(Path(data_path) / "file_embeddings" / lang),
+            callback=gen_file_emb_progress_cb,
+            device=config.device,
+            workers=config.workers,
         )
 
-    for sample_id, text, transcription in zip(sample_ids, texts, transcriptions):
-        quality_score = 1 - normalized_levenshtein_distance(
-            transcription.lower(), text.lower()
+    for i, lang in enumerate(langs):
+
+        def gen_speaker_emb_progress_cb(progress: float):
+            logger = get_logger()
+            logger.query(
+                "UPDATE cleaning_run SET transcription_progress=? WHERE id=?",
+                (
+                    0.75 + 0.25 * i * (1 / len(langs)) + progress * (1 / len(langs)),
+                    run_id,
+                ),
+            )
+            con.commit()
+
+        speaker_paths = [
+            str(el) for el in (Path(data_path) / "file_embeddings" / lang).iterdir()
+        ]
+
+        gen_speaker_embeddings(
+            speaker_paths=speaker_paths,
+            out_dir=str(Path(data_path) / "speaker_embeddings" / lang),
+            callback=gen_speaker_emb_progress_cb,
+            device=config.device,
+            workers=config.workers,
         )
-        cur.execute(
-            """
-            INSERT INTO cleaning_run_sample (quality_score, sample_id, transcription, cleaning_run_id)
-            VALUES (?, ?, ?, ?)
-            """,
-            (quality_score, sample_id, transcription, run_id),
+
+        sample_ids, scores = get_quality_scores(
+            file_embeddings_dir=str(Path(data_path) / "file_embeddings" / lang),
+            speaker_embeddings_dir=str(Path(data_path) / "speaker_embeddings" / lang),
+            workers=config.workers,
+            device=config.device,
         )
+
+        for sample_id, score in zip(sample_ids, scores):
+            cur.execute(
+                """
+                INSERT INTO cleaning_run_sample (quality_score, sample_id, transcription, cleaning_run_id)
+                VALUES (?, ?, ?, ?)
+                """,
+                (score, sample_id, "", run_id),
+            )
+
     cur.execute(
         "UPDATE cleaning_run SET stage='choose_samples', transcription_progress=1.0 WHERE ID=?",
         (run_id,),

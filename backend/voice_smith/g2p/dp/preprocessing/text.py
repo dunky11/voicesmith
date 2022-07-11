@@ -1,5 +1,5 @@
 from typing import List, Iterable, Dict, Tuple, Any
-
+import itertools
 
 class LanguageTokenizer:
 
@@ -47,6 +47,23 @@ class LanguageTokenizer:
         """
         return self.index_lang[index]
 
+def byte_encode(word, with_pause_char=False):
+    word = word.strip()
+    if " " in word:
+        raise Exception("Space encountered in word of byte_encode()")
+    int_list = [el for el in word.encode('utf-32be')]
+    assert len(int_list) % 4 == 0
+    out_list = []
+    for start_idx in range(0, len(int_list), 4):
+        has_non_zero = False
+        for byte in int_list[start_idx:start_idx + 4]:
+            if byte != 0:
+                has_non_zero = True
+            if has_non_zero:
+                out_list.append(str(byte))
+        if with_pause_char:
+            out_list.append("<BLANK>")
+    return out_list
 
 class SequenceTokenizer:
 
@@ -57,6 +74,7 @@ class SequenceTokenizer:
         symbols: List[str],
         languages: List[str],
         char_repeats: int,
+        byte_encode: bool,
         lowercase: bool = True,
         append_start_end: bool = True,
         pad_token="_",
@@ -76,7 +94,7 @@ class SequenceTokenizer:
           pad_token (str): Special pad token for index 0.
           end_token (str): Special end of sequence token.
         """
-
+        
         self.languages = languages
         self.lowercase = lowercase
         self.char_repeats = char_repeats
@@ -94,6 +112,7 @@ class SequenceTokenizer:
             self.token_to_idx[symbol] = len(self.token_to_idx)
         self.idx_to_token = {i: s for s, i in self.token_to_idx.items()}
         self.vocab_size = len(self.idx_to_token)
+        self.byte_encode = byte_encode
 
     def __call__(self, sentence: Iterable[str], language: str) -> List[int]:
         """
@@ -114,7 +133,9 @@ class SequenceTokenizer:
             )
         if self.lowercase:
             sentence = [s.lower() for s in sentence]
-        sequence = [self.token_to_idx[c] for c in sentence if c in self.token_to_idx]
+        if self.byte_encode:
+            sentence = list(itertools.chain(*[byte_encode(word, True) for word in sentence]))
+        sequence = [self.token_to_idx[c] for c in sentence]
         if self.append_start_end:
             sequence = [self._get_start_index(language)] + sequence + [self.end_index]
         return sequence
@@ -219,6 +240,7 @@ class Preprocessor:
             char_repeats=char_repeats,
             lowercase=lowercase,
             append_start_end=True,
+            byte_encode=True
         )
         phoneme_tokenizer = SequenceTokenizer(
             phoneme_symbols,
@@ -226,6 +248,7 @@ class Preprocessor:
             lowercase=False,
             char_repeats=1,
             append_start_end=True,
+            byte_encode=False
         )
         return Preprocessor(
             lang_tokenizer=lang_tokenizer,

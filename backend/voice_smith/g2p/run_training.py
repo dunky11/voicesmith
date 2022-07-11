@@ -10,7 +10,7 @@ import json
 
 perform_benchmark = False
 
-name = "G2P MFA training 6x6 transformer (384, 1536), [15 MFA langs]"
+name = "G2P Byte MFA training 6x6 transformer (384, 1536), [15 MFA langs]"
 
 if perform_benchmark:
     SPLIT_SIZE = 12753
@@ -29,6 +29,7 @@ if __name__ == "__main__":
 
     data, phones, text_symbols = [], [], []
     lang_to_word_to_gold = {}
+    config = read_config(Path(".") / "dp" / "configs" / "autoreg_config.yaml")
     if args.checkpoint is None:
         for dictionary_path in [
             Path(".") / "dictionaries" / "bg" / "bulgarian_mfa.dict",
@@ -54,15 +55,8 @@ if __name__ == "__main__":
             lang_to_word_to_gold[lang] = word_to_gold
 
         phones = list(set(phones))
-        text_symbols = list(set(text_symbols))
+        text_symbols = list(str(el) for el in range(256)) + ["<BLANK>"]
 
-        with open(Path(".") / "text_symbols.txt", "w", encoding="utf-8") as f:
-            f.write(str(text_symbols))
-
-        with open(Path(".") / "phones.txt", "w", encoding="utf-8") as f:
-            f.write(str(phones))
-
-        config = read_config(Path(".") / "dp" / "configs" / "autoreg_config.yaml")
         config["preprocessing"]["phoneme_symbols"] = phones
         config["preprocessing"]["text_symbols"] = text_symbols
         if not perform_benchmark:
