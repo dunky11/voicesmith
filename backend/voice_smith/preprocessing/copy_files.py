@@ -12,6 +12,7 @@ def copy_sample(
     text: str,
     out_dir: str,
     skip_on_error: bool,
+    lowercase: bool,
     name_by: Union[Literal["id"], Literal["name"]],
 ) -> None:
     if not Path(audio_src).exists():
@@ -30,7 +31,7 @@ def copy_sample(
         audio, sr = safe_load(audio_src, sr=None)
         save_audio(str(audio_out_path), torch.FloatTensor(audio), sr)
         with open(txt_out_path, "w", encoding="utf-8") as f:
-            f.write(text)
+            f.write(text.lower() if lowercase else text)
     except Exception as e:
         if skip_on_error:
             if audio_out_path.exists():
@@ -52,6 +53,7 @@ def copy_files(
     skip_on_error: bool,
     name_by: Union[Literal["id"], Literal["name"]],
     progress_cb: Callable[[float], None],
+    lowercase: bool = True,
     log_every: int = 200,
 ) -> None:
     assert len(sample_ids) == len(audio_paths) == len(names) == len(texts) == len(langs)
@@ -69,6 +71,7 @@ def copy_files(
             text,
             Path(data_path) / "raw_data" / lang / name,
             skip_on_error,
+            lowercase,
             name_by,
         )
         for sample_id, audio_path, text, name, lang in iter_logger(

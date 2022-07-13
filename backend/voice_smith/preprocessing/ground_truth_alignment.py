@@ -6,7 +6,6 @@ from typing import Dict, Literal, Optional, Union
 from voice_smith.utils.model import get_acoustic_models
 from voice_smith.utils.tools import to_device, iter_logger
 from voice_smith.config.configs import (
-    AcousticModelConfig,
     AcousticFinetuningConfig,
     PreprocessingConfig,
 )
@@ -107,7 +106,7 @@ def ground_truth_alignment(
         drop_last=True,
         data_path=data_path,
         assets_path=assets_path,
-        is_eval=False
+        is_eval=False,
     )
     train_loader = DataLoader(
         dataset,
@@ -124,7 +123,7 @@ def ground_truth_alignment(
         drop_last=False,
         data_path=data_path,
         assets_path=assets_path,
-        is_eval=False
+        is_eval=False,
     )
     eval_loader = DataLoader(
         dataset,

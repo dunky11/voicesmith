@@ -1,7 +1,7 @@
 from pathlib import Path
 import shutil
 import json
-from typing import Tuple, Callable
+from typing import Tuple, Callable, Union, Literal
 import dataclasses
 import argparse
 import sqlite3
@@ -12,9 +12,12 @@ from voice_smith.preprocessing.copy_files import copy_files
 from voice_smith.preprocessing.extract_data import extract_data
 from voice_smith.preprocessing.ground_truth_alignment import ground_truth_alignment
 from voice_smith.config.configs import (
+    PreprocessLangType,
     PreprocessingConfig,
     AcousticFinetuningConfig,
-    AcousticModelConfig,
+    AcousticModelConfigType,
+    AcousticENModelConfig,
+    AcousticMultilingualModelConfig,
     VocoderModelConfig,
     VocoderFinetuningConfig,
 )
@@ -79,15 +82,44 @@ def get_latest_checkpoint(name: str, ckpt_dir: str):
     return last_ckpt_path, last_ckpt
 
 
+def model_type_to_language(acoustic_model_type: PreprocessLangType) -> str:
+    if acoustic_model_type == "english_only":
+        return "english_only"
+    elif acoustic_model_type == "multilingual":
+        return "multilingual"
+    else:
+        raise Exception(
+            f"No branch selected in switch-statement, {acoustic_model_type} is not a valid case ..."
+        )
+
+
+def model_type_to_acoustic_config(
+    acoustic_model_type: PreprocessLangType,
+) -> AcousticModelConfigType:
+    if acoustic_model_type == "english_only":
+        return AcousticENModelConfig()
+    elif acoustic_model_type == "multilingual":
+        return AcousticMultilingualModelConfig()
+    else:
+        raise Exception(
+            f"No branch selected in switch-statement, {acoustic_model_type} is not a valid case ..."
+        )
+
+
 def get_acoustic_configs(
     cur: sqlite3.Cursor, run_id: int
-) -> Tuple[PreprocessingConfig, AcousticModelConfig, AcousticFinetuningConfig]:
+) -> Tuple[
+    PreprocessingConfig,
+    Union[AcousticENModelConfig, AcousticMultilingualModelConfig],
+    AcousticFinetuningConfig,
+]:
     row = cur.execute(
         """
         SELECT min_seconds, max_seconds, maximum_workers, use_audio_normalization, 
         validation_size, acoustic_learning_rate, acoustic_training_iterations, 
         acoustic_batch_size, acoustic_grad_accum_steps, acoustic_validate_every, 
-        only_train_speaker_emb_until, forced_alignment_batch_size, skip_on_error
+        only_train_speaker_emb_until, forced_alignment_batch_size, skip_on_error, 
+        acoustic_model_type
         FROM training_run WHERE ID=?
         """,
         (run_id,),
@@ -106,9 +138,12 @@ def get_acoustic_configs(
         only_train_speaker_until,
         forced_alignment_batch_size,
         skip_on_error,
+        acoustic_model_type,
     ) = row
-    p_config: PreprocessingConfig = PreprocessingConfig()
-    m_config: AcousticModelConfig = AcousticModelConfig()
+    p_config: PreprocessingConfig = PreprocessingConfig(
+        language=model_type_to_language(acoustic_model_type)
+    )
+    m_config = model_type_to_acoustic_config(acoustic_model_type)
     t_config: AcousticFinetuningConfig = AcousticFinetuningConfig()
     p_config.val_size = validation_size / 100.0
     p_config.min_seconds = min_seconds
@@ -131,7 +166,7 @@ def get_vocoder_configs(
 ) -> Tuple[PreprocessingConfig, VocoderModelConfig, VocoderFinetuningConfig]:
     row = cur.execute(
         """
-        SELECT vocoder_learning_rate, vocoder_training_iterations, vocoder_batch_size, vocoder_grad_accum_steps, vocoder_validate_every 
+        SELECT vocoder_learning_rate, vocoder_training_iterations, vocoder_batch_size, vocoder_grad_accum_steps, vocoder_validate_every, acoustic_model_type 
         FROM training_run WHERE ID=?
         """,
         (run_id,),
@@ -142,8 +177,11 @@ def get_vocoder_configs(
         vocoder_batch_size,
         vocoder_grad_accum_steps,
         vocoder_validate_every,
+        acoustic_model_type,
     ) = row
-    p_config = PreprocessingConfig()
+    p_config: PreprocessingConfig = PreprocessingConfig(
+        language=model_type_to_language(acoustic_model_type)
+    )
     m_config = VocoderModelConfig()
     t_config = VocoderFinetuningConfig()
     t_config.batch_size = vocoder_batch_size
@@ -298,6 +336,7 @@ def preprocessing_stage(
                     lang=lang,
                     corpus_path=str(lang_path),
                     environment_name=environment_name,
+                    language_type=p_config.language,
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_gen_vocab_progress=? WHERE ID=?",
@@ -332,6 +371,7 @@ def preprocessing_stage(
                     lang=lang,
                     n_workers=p_config.workers,
                     batch_size=p_config.forced_alignment_batch_size,
+                    language_type=p_config.language,
                 )
                 cur.execute(
                     "UPDATE training_run SET preprocessing_gen_align_progress=? WHERE ID=?",
@@ -793,7 +833,14 @@ def continue_training_run(run_id: int, log_console: bool):
         before_run=before_run,
         before_stage=before_stage,
         get_stage_name=get_stage_name,
-        stages=[("not_started", not_started_stage)],
+        stages=[
+            ("not_started", not_started_stage),
+            ("preprocessing", preprocessing_stage),
+            ("acoustic_fine_tuning", acoustic_fine_tuning_stage),
+            ("ground_truth_alignment", ground_truth_alignment_stage),
+            ("vocoder_fine_tuning", vocoder_fine_tuning_stage),
+            ("save_model", save_model_stage),
+        ],
     )
     runner.run(
         cur=cur,

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, Tuple
 
 # from numba import jit, prange
-from voice_smith.config.configs import PreprocessingConfig, AcousticModelConfig
+from voice_smith.config.configs import PreprocessingConfig, AcousticModelConfigType
 from voice_smith.model.layers import EmbeddingPadded
 from voice_smith.config.symbols import symbols, symbol2id, pad
 from voice_smith.model.layers import (
@@ -38,7 +38,7 @@ class AcousticModel(nn.Module):
         self,
         data_path: str,
         preprocess_config: PreprocessingConfig,
-        model_config: AcousticModelConfig,
+        model_config: AcousticModelConfigType,
         fine_tuning: bool,
         n_speakers: int,
     ):
@@ -52,6 +52,7 @@ class AcousticModel(nn.Module):
             embedding_dim=model_config.speaker_embed_dim + model_config.lang_embed_dim,
             p_dropout=model_config.encoder.p_dropout,
             kernel_size_conv_mod=model_config.encoder.kernel_size_conv_mod,
+            with_ff=model_config.encoder.with_ff,
         )
         self.pitch_adaptor = PitchAdaptor(model_config, data_path=data_path)
         self.length_regulator = LengthAdaptor(model_config)
@@ -96,11 +97,15 @@ class AcousticModel(nn.Module):
             embedding_dim=model_config.speaker_embed_dim + model_config.lang_embed_dim,
             p_dropout=model_config.decoder.p_dropout,
             kernel_size_conv_mod=model_config.decoder.kernel_size_conv_mod,
+            with_ff=model_config.decoder.with_ff
         )
 
-        self.src_word_emb = EmbeddingPadded(
-            n_src_vocab, model_config.encoder.n_hidden, padding_idx=padding_idx
+        self.src_word_emb = Parameter(
+            tools.initialize_embeddings(
+                (len(n_src_vocab), model_config.encoder.n_hidden)
+            )
         )
+
         self.to_mel = nn.Linear(
             model_config.decoder.n_hidden, preprocess_config.stft.n_mel_channels,
         )
@@ -121,7 +126,7 @@ class AcousticModel(nn.Module):
         src_mask: torch.Tensor,
         lang_idx: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        token_embeddings = self.src_word_emb(token_idx)
+        token_embeddings = torch.index_select(self.src_word_emb, 0, token_idx)
         speaker_embeds = torch.index_select(self.speaker_embed, 0, speaker_idx).squeeze(
             1
         )
@@ -303,6 +308,7 @@ class Conformer(nn.Module):
         embedding_dim: int,
         p_dropout: float,
         kernel_size_conv_mod: int,
+        with_ff: bool
     ):
         super().__init__()
         d_k = d_v = dim // n_heads
@@ -316,6 +322,7 @@ class Conformer(nn.Module):
                     kernel_size_conv_mod=kernel_size_conv_mod,
                     dropout=p_dropout,
                     embedding_dim=embedding_dim,
+                    with_ff=with_ff
                 )
                 for _ in range(n_layers)
             ]
@@ -350,15 +357,18 @@ class ConformerBlock(torch.nn.Module):
         kernel_size_conv_mod: int,
         embedding_dim: int,
         dropout: float,
+        with_ff: bool
     ):
         super().__init__()
+        self.with_ff = with_ff
         self.conditioning = Conv1dGLU(
             d_model=d_model,
             kernel_size=kernel_size_conv_mod,
             padding=kernel_size_conv_mod // 2,
             embedding_dim=embedding_dim,
         )
-        self.ff = FeedForward(d_model=d_model, dropout=dropout, kernel_size=3)
+        if self.with_ff:
+            self.ff = FeedForward(d_model=d_model, dropout=dropout, kernel_size=3)
         self.conformer_conv_1 = ConformerConvModule(
             d_model, kernel_size=kernel_size_conv_mod, dropout=dropout
         )
@@ -379,7 +389,8 @@ class ConformerBlock(torch.nn.Module):
         encoding: torch.Tensor,
     ) -> torch.Tensor:
         x = self.conditioning(x, embeddings=embeddings)
-        x = self.ff(x) + x
+        if self.with_ff:
+            x = self.ff(x) + x
         x = self.conformer_conv_1(x) + x
         res = x
         x = self.ln(x)
@@ -548,7 +559,7 @@ class Embedding(nn.Module):
 
 
 class PitchAdaptor(nn.Module):
-    def __init__(self, model_config: AcousticModelConfig, data_path: str):
+    def __init__(self, model_config: AcousticModelConfigType, data_path: str):
         super().__init__()
         self.pitch_predictor = VariancePredictor(
             channels_in=model_config.encoder.n_hidden,
@@ -785,7 +796,7 @@ class Aligner(nn.Module):
 class LengthAdaptor(nn.Module):
     """Length Regulator"""
 
-    def __init__(self, model_config: AcousticModel):
+    def __init__(self, model_config: AcousticModelConfigType):
         super().__init__()
         self.duration_predictor = VariancePredictor(
             channels_in=model_config.encoder.n_hidden,

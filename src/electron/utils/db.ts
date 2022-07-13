@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { getDatasetsDir, DB_PATH } from "../utils/globals";
-import { SpeakerSampleInterface } from "../../interfaces";
+import { SpeakerInterface, SpeakerSampleInterface } from "../../interfaces";
 import { safeMkdir } from "./files";
 
 const createTables = (db: any) => {
@@ -39,7 +39,7 @@ const createTables = (db: any) => {
         only_train_speaker_emb_until INTEGER NOT NULL,
         skip_on_error BOOLEAN DEFAULT 1,
         forced_alignment_batch_size INTEGER NOT NULL DEFAULT 200000,
-        acoustic_model_type STRING DEFAULT NULL,
+        acoustic_model_type STRING NOT NULL DEFAULT "multilingual",
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID) ON DELETE SET NULL,
         UNIQUE(name)
@@ -349,73 +349,93 @@ export const bool2int = (obj: { [key: string]: any }) => {
   return obj;
 };
 
-export const getSpeakersWithSamples = (datasetID: number) => {
-  const samples = DB.getInstance()
-    .prepare(
-      `SELECT sample.text AS text, speaker.ID as speakerID, speaker.name,
-      speaker.language AS language, sample.txt_path AS txtPath, 
-      sample.audio_path AS audioPath, sample.ID 
-      FROM speaker 
-      LEFT JOIN sample ON speaker.ID = sample.speaker_id
-      WHERE speaker.dataset_id=@datasetID`
-    )
-    .all({ datasetID })
-    .map((sample: any) => ({
-      text: sample.text,
-      speakerID: sample.speakerID,
-      name: sample.name,
-      language: sample.language,
-      txtPath: sample.txtPath,
-      audioPath: sample.audioPath,
-      ID: sample.ID,
-      fullAudioPath:
-        sample.txtPath === null
-          ? null
-          : path.join(
-            getDatasetsDir(),
-            String(datasetID),
-            "speakers",
-            String(sample.speakerID),
-            sample.audioPath
-          ),
-    }));
+export const getSpeakersWithSamples = (datasetID: number, withSamples: boolean): SpeakerInterface[] => {
+  let speakers: SpeakerInterface[];
+  if (withSamples) {
+    const samples = DB.getInstance()
+      .prepare(
+        `SELECT sample.text AS text, speaker.ID as speakerID, speaker.name,
+          speaker.language AS language, sample.txt_path AS txtPath, 
+          sample.audio_path AS audioPath, sample.ID 
+          FROM speaker 
+          LEFT JOIN sample ON speaker.ID = sample.speaker_id
+          WHERE speaker.dataset_id=@datasetID
+        `
+      )
+      .all({ datasetID })
+      .map((sample: any) => ({
+        text: sample.text,
+        speakerID: sample.speakerID,
+        name: sample.name,
+        language: sample.language,
+        txtPath: sample.txtPath,
+        audioPath: sample.audioPath,
+        ID: sample.ID,
+        fullAudioPath:
+          sample.txtPath === null
+            ? null
+            : path.join(
+              getDatasetsDir(),
+              String(datasetID),
+              "speakers",
+              String(sample.speakerID),
+              sample.audioPath
+            ),
+      }));
 
-  const speaker2Samples: { [key: string]: SpeakerSampleInterface[] } = {};
-  const speaker2info: {
-    [key: string]: {
-      speakerID: number;
-      language: string;
-    };
-  } = {};
-  samples.forEach((sample: any) => {
-    const name = sample.name;
-    const speakerID = sample.speakerID;
-    const language = sample.language;
-    delete sample.name;
-    delete sample.speakerID;
-    delete sample.language;
-    if (name in speaker2Samples) {
-      if (sample.txtPath != null) {
-        speaker2Samples[name].push(sample);
-      }
-    } else {
-      if (sample.txtPath == null) {
-        speaker2Samples[name] = [];
-      } else {
-        speaker2Samples[name] = [sample];
-      }
-      speaker2info[name] = {
-        speakerID: speakerID,
-        language: language,
+    const speaker2Samples: { [key: string]: SpeakerSampleInterface[] } = {};
+    const speaker2info: {
+      [key: string]: {
+        speakerID: number;
+        language: SpeakerInterface["language"];
       };
-    }
-  });
-  const speakers = Object.keys(speaker2Samples).map((key) => ({
-    ID: speaker2info[key].speakerID,
-    name: key,
-    language: speaker2info[key].language,
-    samples: speaker2Samples[key],
-  }));
+    } = {};
+    samples.forEach((sample: any) => {
+      const name = sample.name;
+      const speakerID = sample.speakerID;
+      const language = sample.language;
+      delete sample.name;
+      delete sample.speakerID;
+      delete sample.language;
+      if (name in speaker2Samples) {
+        if (sample.txtPath != null) {
+          speaker2Samples[name].push(sample);
+        }
+      } else {
+        if (sample.txtPath == null) {
+          speaker2Samples[name] = [];
+        } else {
+          speaker2Samples[name] = [sample];
+        }
+        speaker2info[name] = {
+          speakerID: speakerID,
+          language: language,
+        };
+      }
+    });
+    speakers = Object.keys(speaker2Samples).map((key): SpeakerInterface => ({
+      ID: speaker2info[key].speakerID,
+      name: key,
+      language: speaker2info[key].language,
+      samples: speaker2Samples[key],
+    }));
+  } else {
+    speakers = DB.getInstance()
+      .prepare(
+        `
+          SELECT speaker.ID, speaker.name,
+            speaker.language
+          FROM speaker
+          WHERE speaker.dataset_id=@datasetID
+        `
+      )
+      .all({ datasetID }).map((el: any): SpeakerInterface => ({
+        ID: el.ID,
+        name: el.name,
+        language: el.language,
+        samples: []
+      }));
+  }
   return speakers;
 };
 

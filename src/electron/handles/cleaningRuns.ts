@@ -31,8 +31,7 @@ ipcMain.on(
         "SELECT dataset_id AS datasetID FROM cleaning_run WHERE ID=@runID"
       )
       .get({ runID }).datasetID;
-    const speakers = getSpeakersWithSamples(datasetID);
-
+    const speakers = getSpeakersWithSamples(datasetID, false);
     let sampleCount = 0;
     speakers.forEach((speaker: SpeakerInterface) => {
       sampleCount += speaker.samples.length;

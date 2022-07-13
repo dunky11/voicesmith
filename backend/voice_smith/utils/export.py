@@ -8,7 +8,7 @@ from voice_smith.config.configs import (
     AcousticPretrainingConfig,
     AcousticFinetuningConfig,
     PreprocessingConfig,
-    AcousticModelConfig,
+    AcousticModelConfigType,
     VocoderPretrainingConfig,
     VocoderFinetuningConfig,
     VocoderModelConfig,
@@ -20,7 +20,7 @@ def acoustic_to_torchscript(
     data_path: str,
     train_config: Union[AcousticPretrainingConfig, AcousticFinetuningConfig],
     preprocess_config: PreprocessingConfig,
-    model_config: AcousticModelConfig,
+    model_config: AcousticModelConfigType,
     assets_path: str,
 ) -> Tuple[ScriptModule, ScriptModule]:
     device = torch.device("cpu")

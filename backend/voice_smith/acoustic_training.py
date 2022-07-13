@@ -10,9 +10,9 @@ from torch.jit._script import ScriptModule
 from typing import Dict, Any, Union, Tuple, Generator
 from voice_smith.config.configs import (
     PreprocessingConfig,
-    AcousticModelConfig,
     AcousticPretrainingConfig,
     AcousticFinetuningConfig,
+    AcousticModelConfigType,
 )
 from voice_smith.utils.optimizer import (
     ScheduledOptimPretraining,
@@ -22,7 +22,6 @@ from voice_smith.utils.model import (
     get_acoustic_models,
     get_param_num,
     save_model,
-    save_torchscript,
 )
 from voice_smith.utils.tools import (
     to_device,
@@ -511,7 +510,7 @@ def train_acoustic(
     db_id: int,
     training_run_name: str,
     preprocess_config: PreprocessingConfig,
-    model_config: AcousticModelConfig,
+    model_config: AcousticModelConfigType,
     train_config: Union[AcousticFinetuningConfig, AcousticPretrainingConfig],
     logger: Logger,
     device: torch.device,

@@ -28,63 +28,63 @@ export const LANGUAGES: {
   name: string;
   iso6391: SpeakerInterface["language"];
 }[] = [
-  {
-    name: "Bulgarian",
-    iso6391: "bg",
-  },
-  {
-    name: "Czech",
-    iso6391: "cs",
-  },
-  {
-    name: "German",
-    iso6391: "de",
-  },
-  {
-    name: "English",
-    iso6391: "en",
-  },
-  {
-    name: "Spanish",
-    iso6391: "es",
-  },
-  {
-    name: "French",
-    iso6391: "fr",
-  },
-  {
-    name: "Croatian",
-    iso6391: "hr",
-  },
-  {
-    name: "Polish",
-    iso6391: "pl",
-  },
-  {
-    name: "Portuguese",
-    iso6391: "pt",
-  },
-  {
-    name: "Russian",
-    iso6391: "ru",
-  },
-  {
-    name: "Swedish",
-    iso6391: "sv",
-  },
-  {
-    name: "Thai",
-    iso6391: "th",
-  },
-  {
-    name: "Turkish",
-    iso6391: "tr",
-  },
-  {
-    name: "Ukrainian",
-    iso6391: "uk",
-  },
-];
+    {
+      name: "Bulgarian",
+      iso6391: "bg",
+    },
+    {
+      name: "Czech",
+      iso6391: "cs",
+    },
+    {
+      name: "German",
+      iso6391: "de",
+    },
+    {
+      name: "English",
+      iso6391: "en",
+    },
+    {
+      name: "Spanish",
+      iso6391: "es",
+    },
+    {
+      name: "French",
+      iso6391: "fr",
+    },
+    {
+      name: "Croatian",
+      iso6391: "hr",
+    },
+    {
+      name: "Polish",
+      iso6391: "pl",
+    },
+    {
+      name: "Portuguese",
+      iso6391: "pt",
+    },
+    {
+      name: "Russian",
+      iso6391: "ru",
+    },
+    {
+      name: "Swedish",
+      iso6391: "sv",
+    },
+    {
+      name: "Thai",
+      iso6391: "th",
+    },
+    {
+      name: "Turkish",
+      iso6391: "tr",
+    },
+    {
+      name: "Ukrainian",
+      iso6391: "uk",
+    },
+  ];
 
 export const trainingRunInitialValues: TrainingRunConfigInterface = {
   name: "",
@@ -109,6 +109,7 @@ export const trainingRunInitialValues: TrainingRunConfigInterface = {
   datasetName: null,
   skipOnError: true,
   forcedAlignmentBatchSize: 200000,
+  acousticModelType: "multilingual"
 };
 
 export const cleaningRunInitialValues: CleaningRunConfigInterface = {
@@ -121,22 +122,22 @@ export const cleaningRunInitialValues: CleaningRunConfigInterface = {
 };
 
 export const textNormalizationRunInitialValues: TextNormalizationRunConfigInterface =
-  {
-    name: "",
-    datasetID: null,
-    datasetName: null,
-  };
+{
+  name: "",
+  datasetID: null,
+  datasetName: null,
+};
 
 export const sampleSplittingRunInitialValues: SampleSplittingRunConfigInterface =
-  {
-    name: "",
-    maximumWorkers: -1,
-    datasetID: null,
-    datasetName: null,
-    device: "CPU",
-    skipOnError: true,
-    forcedAlignmentBatchSize: 200000,
-  };
+{
+  name: "",
+  maximumWorkers: -1,
+  datasetID: null,
+  datasetName: null,
+  device: "CPU",
+  skipOnError: true,
+  forcedAlignmentBatchSize: 200000,
+};
 
 export const defaultPageOptions = {
   defaultPageSize: 100,

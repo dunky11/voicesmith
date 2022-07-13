@@ -17,7 +17,7 @@ from voice_smith.config.configs import (
     AcousticFinetuningConfig,
     VocoderPretrainingConfig,
     VocoderFinetuningConfig,
-    AcousticModelConfig,
+    AcousticModelConfigType,
     VocoderModelConfig,
 )
 
@@ -27,7 +27,7 @@ def get_acoustic_models(
     data_path: str,
     train_config: Union[AcousticPretrainingConfig, AcousticFinetuningConfig],
     preprocess_config: PreprocessingConfig,
-    model_config: AcousticModelConfig,
+    model_config: AcousticModelConfigType,
     fine_tuning: bool,
     device: torch.device,
     reset: bool,
@@ -155,9 +155,8 @@ def get_vocoder(
     return generator, discriminator, steps, optim_g, optim_d, scheduler_g, scheduler_d
 
 
-def get_infer_vocoder(checkpoint: str, device: torch.device) -> UnivNet:
+def get_infer_vocoder(checkpoint: str, preprocess_config: PreprocessingConfig, device: torch.device) -> UnivNet:
     model_config = VocoderModelConfig()
-    preprocess_config = PreprocessingConfig()
     generator = UnivNet(
         model_config=model_config, preprocess_config=preprocess_config
     ).to(device)

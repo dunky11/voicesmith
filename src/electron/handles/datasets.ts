@@ -32,7 +32,7 @@ import {
   PICK_SPEAKER_FILES_CHANNEL,
   FETCH_DATASET_CANDIDATES_CHANNEL,
   EDIT_SAMPLE_TEXT_CHANNEL,
-  FETCH_DATASET_CHANNEL,
+  FETCH_DATASETS_CHANNEL_TYPES,
 } from "../../channels";
 import { AUDIO_EXTENSIONS, TEXT_EXTENSIONS } from "../../config";
 import {
@@ -43,23 +43,27 @@ import {
   ImportSettingsInterface,
 } from "../../interfaces";
 
-ipcMain.handle(FETCH_DATASETS_CHANNEL.IN, async () => {
-  const datasets = DB.getInstance()
-    .prepare(
-      `
-        SELECT dataset.ID, dataset.name, count(speaker.dataset_id) AS speakerCount        
+ipcMain.handle(FETCH_DATASETS_CHANNEL.IN, (event: IpcMainInvokeEvent, { ID, withSamples }: FETCH_DATASETS_CHANNEL_TYPES["IN"]["ARGS"]): FETCH_DATASETS_CHANNEL_TYPES["IN"]["OUT"] => {
+  const fetchStmt = DB.getInstance().prepare(
+    `
+        SELECT dataset.ID, dataset.name, dataset.name
         FROM dataset
-        LEFT JOIN speaker
-        ON speaker.dataset_id = dataset.ID
-        GROUP BY dataset.ID
+        ${ID === null ? "" : "WHERE dataset.ID=@ID"}
       `
-    )
-    .all()
-    .map((dataset: any) => ({
-      ...dataset,
-      referencedBy: getReferencedBy(dataset.ID),
-    }));
-  return datasets;
+  );
+  let dsRaw;
+  if (ID === null) {
+    dsRaw = fetchStmt.all();
+  } else {
+    dsRaw = [fetchStmt.get({ ID })];
+  }
+  const ds: DatasetInterface[] = dsRaw.map((el: any) => ({
+    ID: el.ID,
+    name: el.name,
+    referencedBy: getReferencedBy(el.ID),
+    speakers: getSpeakersWithSamples(el.ID, withSamples)
+  }));
+  return ds;
 });
 
 ipcMain.handle(
@@ -68,11 +72,11 @@ ipcMain.handle(
     DB.getInstance()
       .prepare(
         `
-      INSERT INTO speaker 
-      (
-        name, 
-        dataset_id
-      ) VALUES(@name, @datasetID)
+      INSERT INTO speaker
+    (
+      name,
+      dataset_id
+    ) VALUES(@name, @datasetID)
       `
       )
       .run({
@@ -86,7 +90,7 @@ ipcMain.handle(
   CREATE_DATASET_CHANNEL.IN,
   async (event: IpcMainInvokeEvent, name: string) => {
     DB.getInstance()
-      .prepare(`INSERT INTO dataset (name) VALUES (@name)`)
+      .prepare(`INSERT INTO dataset(name) VALUES(@name)`)
       .run({ name });
   }
 );
@@ -97,21 +101,21 @@ ipcMain.handle(
     const datasetPath = path.join(getDatasetsDir(), String(ID));
     await safeRmDir(datasetPath);
     const deleteDSstmt = DB.getInstance().prepare(
-      `DELETE FROM dataset WHERE ID=@ID`
+      `DELETE FROM dataset WHERE ID =@ID`
     );
     const deleteSpeakersStmt = DB.getInstance().prepare(
-      `DELETE FROM speaker WHERE dataset_id=@ID`
+      `DELETE FROM speaker WHERE dataset_id =@ID`
     );
     const deleteSamplesStmt = DB.getInstance().prepare(
       `
       DELETE FROM sample
       WHERE sample.speaker_id IN
-      (
-          select speaker.ID
+  (
+    select speaker.ID
           from speaker
-          where speaker.dataset_id=@ID
+          where speaker.dataset_id =@ID
       )
-      `
+`
     );
     DB.getInstance().transaction(() => {
       deleteSamplesStmt.run({ ID });
@@ -135,10 +139,10 @@ ipcMain.on(
       }
       const outDatasetDir = response.filePaths[0];
       const getSpeakersStmt = DB.getInstance().prepare(
-        `SELECT ID, name FROM speaker WHERE dataset_id=@datasetID`
+        `SELECT ID, name FROM speaker WHERE dataset_id =@datasetID`
       );
       const getTextsStmt = DB.getInstance().prepare(
-        `SELECT text, txt_path AS txtPath FROM sample WHERE speaker_id=@speakerID`
+        `SELECT text, txt_path AS txtPath FROM sample WHERE speaker_id =@speakerID`
       );
       const speakersToCopy: {
         inPath: string;
@@ -192,14 +196,14 @@ ipcMain.handle(
 );
 
 const filesToSamples = async (audioFiles: string[], txtFiles: string[]) => {
-  const audioExtensions = AUDIO_EXTENSIONS.map((ext) => `.${ext}`);
+  const audioExtensions = AUDIO_EXTENSIONS.map((ext) => `.${ext} `);
   const samples: SpeakerSampleInterface[] = [];
   const audioFilesSet: Set<string> = new Set(audioFiles);
 
   for (const txtFile of txtFiles) {
     const txtPathNoExt = txtFile.split(path.extname(txtFile))[0];
     for (const audioExtension of audioExtensions) {
-      const audioFile = `${txtPathNoExt}${audioExtension}`;
+      const audioFile = `${txtPathNoExt}${audioExtension} `;
       if (audioFilesSet.has(audioFile)) {
         const text = await fsPromises.readFile(txtFile, {
           encoding: "utf8",
@@ -334,8 +338,8 @@ ipcMain.on(
       properties: ["openDirectory", "multiSelections"],
     };
 
-    const textExtensions = TEXT_EXTENSIONS.map((ext) => `.${ext}`);
-    const audioExtensions = AUDIO_EXTENSIONS.map((ext) => `.${ext}`);
+    const textExtensions = TEXT_EXTENSIONS.map((ext) => `.${ext} `);
+    const audioExtensions = AUDIO_EXTENSIONS.map((ext) => `.${ext} `);
 
     dialog.showOpenDialog(null, options).then(async (response) => {
       if (response.canceled) {
@@ -520,24 +524,24 @@ ipcMain.handle(
 ipcMain.handle(FETCH_DATASET_CANDIDATES_CHANNEL.IN, () => {
   const datasets = DB.getInstance()
     .prepare(
-      `SELECT  
-          dataset.ID AS ID,
-          dataset.name AS name,
-          training_run.name AS trainingRunName,
-          cleaning_run.name AS cleaningRunName,
-          text_normalization_run.name AS textNormalizationName,
+      `SELECT
+dataset.ID AS ID,
+  dataset.name AS name,
+    training_run.name AS trainingRunName,
+      cleaning_run.name AS cleaningRunName,
+        text_normalization_run.name AS textNormalizationName,
           sample_splitting_run.name AS sampleSplittingRunName
         FROM dataset 
         LEFT JOIN training_run ON training_run.dataset_id = dataset.ID
         LEFT JOIN cleaning_run ON cleaning_run.dataset_id = dataset.ID
         LEFT JOIN text_normalization_run ON text_normalization_run.dataset_id = dataset.ID
         LEFT JOIN sample_splitting_run ON sample_splitting_run.dataset_id = dataset.ID
-        WHERE EXISTS (
-          SELECT 1 FROM speaker WHERE speaker.dataset_id = dataset.ID AND EXISTS(
+        WHERE EXISTS(
+            SELECT 1 FROM speaker WHERE speaker.dataset_id = dataset.ID AND EXISTS(
               SELECT 1 FROM sample WHERE sample.speaker_id = speaker.ID
+            )
           )
-        )
-      `
+  `
     )
     .all()
     .map((dataset: any) => {
@@ -573,15 +577,4 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle(
-  FETCH_DATASET_CHANNEL.IN,
-  async (event: IpcMainInvokeEvent, datasetID: number) => {
-    const speakers = getSpeakersWithSamples(datasetID);
-    const ds = DB.getInstance()
-      .prepare("SELECT ID, name FROM dataset WHERE ID=@datasetID")
-      .get({ datasetID });
-    ds.speakers = speakers;
-    ds.referencedBy = getReferencedBy(datasetID);
-    return ds;
-  }
-);
+

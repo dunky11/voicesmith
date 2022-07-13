@@ -51,7 +51,8 @@ ipcMain.handle(
         only_train_speaker_emb_until,
         dataset_id,
         device,
-        skip_on_error
+        skip_on_error,
+        acoustic_model_type
       ) VALUES(
         @name,
         @maximumWorkers,
@@ -72,7 +73,8 @@ ipcMain.handle(
         @onlyTrainSpeakerEmbUntil,
         @datasetID,
         @device,
-        @skipOnError
+        @skipOnError,
+        @acousticModelType
       )`
       )
       .run(bool2int({ ...trainingRunInitialValues, name }));
@@ -112,7 +114,8 @@ ipcMain.handle(
       forced_alignment_batch_size=@forcedAlignmentBatchSize,
       dataset_id=@datasetID,
       device=@device,
-      skip_on_error=@skipOnError
+      skip_on_error=@skipOnError,
+      acoustic_model_type=@acousticModelType
       WHERE ID=@ID`
       )
       .run(bool2int(flattened));
@@ -158,7 +161,8 @@ ipcMain.handle(
       dataset.name AS datasetName,
       device,
       skip_on_error AS skipOnError,
-      forced_alignment_batch_size AS forcedAlignmentBatchSize
+      forced_alignment_batch_size AS forcedAlignmentBatchSize,
+      acoustic_model_type AS acousticModelType
     FROM training_run
     LEFT JOIN dataset ON training_run.dataset_id = dataset.ID 
     ${ID === null ? "" : "WHERE training_run.ID=@ID"}`);
@@ -260,6 +264,7 @@ ipcMain.handle(
             datasetName: el.datasetName,
             skipOnError: el.skipOnError === 1,
             forcedAlignmentBatchSize: el.forcedAlignmentBatchSize,
+            acousticModelType: el.acousticModelType
           },
           canStart: el.datasetID !== null,
         };
@@ -307,7 +312,7 @@ ipcMain.on(
         "SELECT dataset_id AS datasetID FROM training_run WHERE ID=@runID"
       )
       .get({ runID }).datasetID;
-    const speakers = getSpeakersWithSamples(datasetID);
+    const speakers = getSpeakersWithSamples(datasetID, true);
     let sampleCount = 0;
     speakers.forEach((speaker: SpeakerInterface) => {
       sampleCount += speaker.samples.length;

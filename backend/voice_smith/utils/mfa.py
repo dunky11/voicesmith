@@ -1,4 +1,7 @@
-def lang_to_mfa_acoustic(lang):
+from voice_smith.config.configs import PreprocessLangType
+
+
+def lang_to_mfa_acoustic(lang: str, language_type: PreprocessLangType):
     if lang == "bg":
         return "bulgarian_mfa"
     elif lang == "cs":
@@ -6,7 +9,10 @@ def lang_to_mfa_acoustic(lang):
     elif lang == "de":
         return "german_mfa"
     elif lang == "en":
-        return "english_mfa"
+        if language_type == "english_only":
+            return "english_us_arpa"
+        else:
+            return "english_mfa"
     elif lang == "es":
         return "spanish_mfa"
     elif lang == "fr":
@@ -32,7 +38,7 @@ def lang_to_mfa_acoustic(lang):
     )
 
 
-def lang_to_mfa_g2p(lang):
+def lang_to_mfa_g2p(lang, language_type: PreprocessLangType):
     if lang == "bg":
         return "bulgarian_mfa"
     elif lang == "cs":
@@ -40,7 +46,10 @@ def lang_to_mfa_g2p(lang):
     elif lang == "de":
         return "german_mfa"
     elif lang == "en":
-        return "english_us_mfa"
+        if language_type == "english_only":
+            return "english_us_arpa"
+        else:
+            return "english_mfa"
     elif lang == "es":
         return "spanish_mfa"
     elif lang == "fr":

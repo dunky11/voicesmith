@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Any, Tuple, List
+from typing import Union, Tuple, List, Literal
 import torch
+
+PreprocessLangType = Union[Literal["english_only"], Literal["multilingual"]]
 
 
 @dataclass
@@ -15,6 +17,7 @@ class STFTConfig:
 
 @dataclass
 class PreprocessingConfig:
+    language: PreprocessLangType
     val_size: float = 0.05
     min_seconds: float = 0.5
     max_seconds: float = 10.0
@@ -88,6 +91,7 @@ class ConformerConfig:
     p_dropout: float
     kernel_size_conv_mod: int
     kernel_size_depthwise: int
+    with_ff: bool
 
 
 @dataclass
@@ -113,9 +117,48 @@ class VarianceAdaptorConfig:
 
 
 @dataclass
-class AcousticModelConfig:
-    speaker_embed_dim: int = 512
-    lang_embed_dim: int = 128
+class AcousticENModelConfig:
+    speaker_embed_dim: int = 384
+    lang_embed_dim: int = 0
+    encoder: ConformerConfig = ConformerConfig(
+        n_layers=4,
+        n_heads=6,
+        n_hidden=384,
+        p_dropout=0.1,
+        kernel_size_conv_mod=7,
+        kernel_size_depthwise=7,
+        with_ff=False,
+    )
+    decoder: ConformerConfig = ConformerConfig(
+        n_layers=6,
+        n_heads=6,
+        n_hidden=384,
+        p_dropout=0.1,
+        kernel_size_conv_mod=11,
+        kernel_size_depthwise=11,
+        with_ff=False,
+    )
+    reference_encoder: ReferenceEncoderConfig = ReferenceEncoderConfig(
+        bottleneck_size_p=4,
+        bottleneck_size_u=256,
+        ref_enc_filters=[32, 32, 64, 64, 128, 128],
+        ref_enc_size=3,
+        ref_enc_strides=[1, 2, 1, 2, 1],
+        ref_enc_pad=[1, 1],
+        ref_enc_gru_size=32,
+        ref_attention_dropout=0.2,
+        token_num=32,
+        predictor_kernel_size=5,
+    )
+    variance_adaptor: VarianceAdaptorConfig = VarianceAdaptorConfig(
+        n_hidden=384, kernel_size=5, p_dropout=0.5, n_bins=256
+    )
+
+
+@dataclass
+class AcousticMultilingualModelConfig:
+    speaker_embed_dim: int = 1024
+    lang_embed_dim: int = 256
     encoder: ConformerConfig = ConformerConfig(
         n_layers=6,
         n_heads=8,
@@ -123,6 +166,7 @@ class AcousticModelConfig:
         p_dropout=0.1,
         kernel_size_conv_mod=7,
         kernel_size_depthwise=7,
+        with_ff=True,
     )
     decoder: ConformerConfig = ConformerConfig(
         n_layers=6,
@@ -131,6 +175,7 @@ class AcousticModelConfig:
         p_dropout=0.1,
         kernel_size_conv_mod=11,
         kernel_size_depthwise=11,
+        with_ff=True,
     )
     reference_encoder: ReferenceEncoderConfig = ReferenceEncoderConfig(
         bottleneck_size_p=4,
@@ -149,6 +194,9 @@ class AcousticModelConfig:
     )
 
 
+AcousticModelConfigType = Union[AcousticENModelConfig, AcousticMultilingualModelConfig]
+
+
 @dataclass
 class VocoderPretrainingConfig:
     segment_size: int = 16384
@@ -163,7 +211,7 @@ class VocoderPretrainingConfig:
     synth_interval: int = 250
     validation_interval: int = 2000
     checkpoint_interval: int = 250
-    stft_lamb: int = 2.5
+    stft_lamb: float = 2.5
 
 
 @dataclass
@@ -180,7 +228,7 @@ class VocoderFinetuningConfig:
     synth_interval: int = 250
     validation_interval: int = 4000
     checkpoint_interval: int = 250
-    stft_lamb: int = 2.5
+    stft_lamb: float = 2.5
 
 
 @dataclass

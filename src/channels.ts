@@ -5,6 +5,7 @@ import {
   CleaningRunInterface,
   SampleSplittingRunInterface,
   CleaningRunSampleInterface,
+  DatasetInterface,
 } from "./interfaces";
 
 export const INSTALL_BACKEND_CHANNEL = {
@@ -109,6 +110,16 @@ export const FETCH_DATASETS_CHANNEL = {
   IN: "fetch-datasets",
 };
 
+export interface FETCH_DATASETS_CHANNEL_TYPES {
+  IN: {
+    ARGS: {
+      ID: number | null;
+      withSamples: boolean;
+    };
+    OUT: DatasetInterface[];
+  }
+}
+
 export const ADD_SPEAKER_CHANNEL = {
   IN: "add-speaker",
 };
@@ -163,10 +174,6 @@ export const FETCH_DATASET_CANDIDATES_CHANNEL = {
 
 export const EDIT_SAMPLE_TEXT_CHANNEL = {
   IN: "edit-sample-text",
-};
-
-export const FETCH_DATASET_CHANNEL = {
-  IN: "fetch-dataset",
 };
 
 export const FETCH_MODELS_CHANNEL = {

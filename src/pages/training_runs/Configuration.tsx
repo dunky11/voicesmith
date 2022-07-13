@@ -4,6 +4,7 @@ import { useHistory } from "react-router-dom";
 import { FormInstance } from "rc-field-form";
 import { useDispatch } from "react-redux";
 import {
+  SpeakerInterface,
   TrainingRunConfigInterface,
   TrainingRunInterface,
 } from "../../interfaces";
@@ -21,6 +22,7 @@ import BatchSizeInput from "../../components/inputs/BatchSizeInput";
 import GradientAccumulationStepsInput from "../../components/inputs/GradientAccumulationStepsInput";
 import RunValidationEveryInput from "../../components/inputs/RunValidationEveryInput";
 import TrainOnlySpeakerEmbedsUntilInput from "../../components/inputs/TrainOnlySpeakerEmbedsUntilInput";
+import AcousticModelTypeInput from "../../components/inputs/AcousticModelTypeInput";
 import HelpIcon from "../../components/help/HelpIcon";
 import {
   UPDATE_TRAINING_RUN_CHANNEL,
@@ -131,7 +133,6 @@ export default function Configuration({
   useEffect(() => {
     isMounted.current = true;
     fetchConfiguration();
-
     return () => {
       isMounted.current = false;
     };
@@ -277,6 +278,22 @@ export default function Configuration({
               </Form.Item>
             </Collapse.Panel>
             <Collapse.Panel header="Acoustic Model" key="acoustic model">
+              <AcousticModelTypeInput name="acousticModelType" disabled={initialIsLoading} docsUrl="TODO" rules={[
+                ({
+                  getFieldValue,
+                }: {
+                  getFieldValue: (name: any) => any;
+                }) => ({
+                  validator(_: any, value: any) {
+                    if (value > getFieldValue("acousticTrainingIterations")) {
+                      return Promise.reject(
+                        new Error("Cannot be smaller than training steps")
+                      );
+                    }
+                    return Promise.resolve();
+                  },
+                }),
+              ]} />
               <LearningRateInput
                 name="acousticLearningRate"
                 disabled={initialIsLoading}

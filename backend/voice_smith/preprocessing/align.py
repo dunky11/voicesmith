@@ -6,6 +6,7 @@ from joblib import delayed, Parallel
 from voice_smith.utils.shell import run_conda_in_shell
 from voice_smith.utils.mfa import lang_to_mfa_acoustic
 from voice_smith.utils.tools import iter_logger
+from voice_smith.config.configs import PreprocessLangType
 
 
 def get_batch(
@@ -100,6 +101,7 @@ def align(
     n_workers: int,
     lang: str,
     batch_size: int,
+    language_type: PreprocessLangType,
 ):
     tmp_dir = Path(data_path) / "tmp"
     while True:
@@ -112,7 +114,7 @@ def align(
         if len(sample_ids) == 0:
             break
         copy_batch(base_paths=base_paths, out_dir=str(tmp_dir), n_workers=n_workers)
-        cmd = f"mfa align --overwrite --clean -j {n_workers} {tmp_dir} {lexicon_path} {lang_to_mfa_acoustic(lang)} {out_path}"
+        cmd = f"mfa align --overwrite --clean -j {n_workers} {tmp_dir} {lexicon_path} {lang_to_mfa_acoustic(lang, language_type)} {out_path}"
         success = run_conda_in_shell(cmd, environment_name, stderr_to_stdout=True)
         finish_batch(
             cur=cur,

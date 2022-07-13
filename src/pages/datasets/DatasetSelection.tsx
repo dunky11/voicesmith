@@ -16,6 +16,7 @@ import HelpIcon from "../../components/help/HelpIcon";
 import {
   EDIT_DATASET_NAME_CHANNEL,
   FETCH_DATASETS_CHANNEL,
+  FETCH_DATASETS_CHANNEL_TYPES,
   REMOVE_DATASET_CHANNEL,
   EXPORT_DATASET_CHANNEL,
   CREATE_DATASET_CHANNEL,
@@ -67,9 +68,13 @@ export default function DatasetSelection({
   };
 
   const fetchDatasets = () => {
+    const args: FETCH_DATASETS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ID: null,
+      withSamples: false
+    }
     ipcRenderer
-      .invoke(FETCH_DATASETS_CHANNEL.IN)
-      .then((ds: DatasetInterface[]) => {
+      .invoke(FETCH_DATASETS_CHANNEL.IN, args)
+      .then((ds: FETCH_DATASETS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
@@ -127,11 +132,11 @@ export default function DatasetSelection({
             isDisabled
               ? null
               : {
-                  tooltip: false,
-                  onChange: (newName: string) => {
-                    onDatasetNameEdit(record.ID, newName);
-                  },
-                }
+                tooltip: false,
+                onChange: (newName: string) => {
+                  onDatasetNameEdit(record.ID, newName);
+                },
+              }
           }
           disabled={isDisabled}
         >
@@ -146,15 +151,14 @@ export default function DatasetSelection({
     {
       title: "Number of Speakers",
       key: "speakerCount",
-      dataIndex: "speakerCount",
       sorter: {
         compare: (a: DatasetInterface, b: DatasetInterface) => {
-          if (a.speakerCount === undefined || b.speakerCount === undefined) {
-            return 0;
-          }
-          return numberCompare(a.speakerCount, b.speakerCount);
+          return numberCompare(a.speakers.length, b.speakers.length);
         },
       },
+      render: (text: any, record: DatasetInterface) => (
+        record.speakers.length
+      ),
     },
     {
       title: "",
@@ -258,11 +262,11 @@ export default function DatasetSelection({
               isDisabled
                 ? null
                 : {
-                    selectedRowKeys,
-                    onChange: (selectedRowKeys: any[]) => {
-                      setSelectedRowKeys(selectedRowKeys);
-                    },
-                  }
+                  selectedRowKeys,
+                  onChange: (selectedRowKeys: any[]) => {
+                    setSelectedRowKeys(selectedRowKeys);
+                  },
+                }
             }
           ></Table>
         </div>

@@ -1,10 +1,10 @@
 import torch
 import numpy as np
-from typing import Iterable, Dict, Any, Union
+from typing import Iterable, Dict, Any
 from voice_smith.config.configs import (
     AcousticFinetuningConfig,
     AcousticPretrainingConfig,
-    AcousticModelConfig,
+    AcousticModelConfigType,
 )
 
 
@@ -13,7 +13,7 @@ class ScheduledOptimPretraining:
         self,
         parameters: Iterable,
         train_config: AcousticPretrainingConfig,
-        model_config: AcousticModelConfig,
+        model_config: AcousticModelConfigType,
         current_step: int,
     ):
         self._optimizer = torch.optim.Adam(

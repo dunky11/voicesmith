@@ -1,19 +1,21 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from typing import Dict, Any, Tuple
+from typing import Tuple
 from voice_smith.utils import tools
 from voice_smith.model.layers import CoordConv1d
 from voice_smith.model.attention import (
     ConformerMultiHeadedSelfAttention,
     StyleEmbedAttention,
 )
-from voice_smith.config.configs import PreprocessingConfig, AcousticModelConfig
+from voice_smith.config.configs import PreprocessingConfig, AcousticModelConfigType
 
 
 class ReferenceEncoder(nn.Module):
     def __init__(
-        self, preprocess_config: PreprocessingConfig, model_config: AcousticModelConfig
+        self,
+        preprocess_config: PreprocessingConfig,
+        model_config: AcousticModelConfigType,
     ):
         super().__init__()
 
@@ -107,7 +109,7 @@ class ReferenceEncoder(nn.Module):
 
 class UtteranceLevelProsodyEncoder(nn.Module):
     def __init__(
-        self, preprocess_config: PreprocessingConfig, model_config: AcousticModelConfig,
+        self, preprocess_config: PreprocessingConfig, model_config: AcousticModelConfigType,
     ):
         super().__init__()
 
@@ -145,7 +147,9 @@ class STL(nn.Module):
     """Style Token Layer"""
 
     def __init__(
-        self, preprocess_config: PreprocessingConfig, model_config: AcousticModelConfig
+        self,
+        preprocess_config: PreprocessingConfig,
+        model_config: AcousticModelConfigType,
     ):
         super(STL, self).__init__()
 
@@ -177,7 +181,9 @@ class STL(nn.Module):
 
 class PhonemeLevelProsodyEncoder(nn.Module):
     def __init__(
-        self, preprocess_config: PreprocessingConfig, model_config: AcousticModelConfig
+        self,
+        preprocess_config: PreprocessingConfig,
+        model_config: AcousticModelConfigType,
     ):
         super().__init__()
 

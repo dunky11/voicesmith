@@ -48,7 +48,6 @@ export interface ModelInterface {
 export interface DatasetInterface {
   ID: number;
   name: string;
-  speakerCount?: number;
   speakers: SpeakerInterface[];
   referencedBy: string | null;
 }
@@ -65,20 +64,20 @@ export interface SpeakerInterface {
   ID: number;
   name: string;
   language:
-    | "bg"
-    | "cs"
-    | "de"
-    | "en"
-    | "es"
-    | "fr"
-    | "hr"
-    | "pl"
-    | "pt"
-    | "ru"
-    | "sv"
-    | "th"
-    | "tr"
-    | "uk";
+  | "bg"
+  | "cs"
+  | "de"
+  | "en"
+  | "es"
+  | "fr"
+  | "hr"
+  | "pl"
+  | "pt"
+  | "ru"
+  | "sv"
+  | "th"
+  | "tr"
+  | "uk";
   samples: SpeakerSampleInterface[];
 }
 
@@ -86,10 +85,10 @@ export interface RunInterface {
   ID: number;
   name: string;
   type:
-    | "trainingRun"
-    | "textNormalizationRun"
-    | "cleaningRun"
-    | "sampleSplittingRun";
+  | "trainingRun"
+  | "textNormalizationRun"
+  | "cleaningRun"
+  | "sampleSplittingRun";
 }
 
 export interface SynthConfigInterface {
@@ -106,21 +105,21 @@ export interface TrainingRunInterface extends RunInterface {
   audioStatistics: AudioStatisticInterface[];
   graphStatistics: GraphStatisticInterface[];
   stage:
-    | "not_started"
-    | "preprocessing"
-    | "acoustic_fine_tuning"
-    | "ground_truth_alignment"
-    | "vocoder_fine_tuning"
-    | "save_model"
-    | "finished";
+  | "not_started"
+  | "preprocessing"
+  | "acoustic_fine_tuning"
+  | "ground_truth_alignment"
+  | "vocoder_fine_tuning"
+  | "save_model"
+  | "finished";
   configuration: TrainingRunConfigInterface;
   preprocessingStage:
-    | "not_started"
-    | "copying_files"
-    | "gen_vocab"
-    | "gen_alignments"
-    | "extract_data"
-    | "finished";
+  | "not_started"
+  | "copying_files"
+  | "gen_vocab"
+  | "gen_alignments"
+  | "extract_data"
+  | "finished";
   preprocessingCopyingFilesProgress: number;
   preprocessingGenVocabProgress: number;
   preprocessingGenAlignProgress: number;
@@ -154,18 +153,19 @@ export interface TrainingRunConfigInterface {
   datasetName: string | null;
   skipOnError: boolean;
   forcedAlignmentBatchSize: number;
+  acousticModelType: "english_only" | "multilingual";
 }
 
 export interface CleaningRunInterface extends RunInterface {
   ID: number;
   type: "cleaningRun";
   stage:
-    | "not_started"
-    | "copying_files"
-    | "transcribe"
-    | "choose_samples"
-    | "apply_changes"
-    | "finished";
+  | "not_started"
+  | "copying_files"
+  | "transcribe"
+  | "choose_samples"
+  | "apply_changes"
+  | "finished";
   copyingFilesProgress: number;
   transcriptionProgress: number;
   applyingChangesProgress: number;
@@ -218,14 +218,14 @@ export interface TextNormalizationRunConfigInterface {
 
 export interface SampleSplittingRunInterface extends RunInterface {
   stage:
-    | "not_started"
-    | "copying_files"
-    | "gen_vocab"
-    | "gen_alignments"
-    | "creating_splits"
-    | "choose_samples"
-    | "apply_changes"
-    | "finished";
+  | "not_started"
+  | "copying_files"
+  | "gen_vocab"
+  | "gen_alignments"
+  | "creating_splits"
+  | "choose_samples"
+  | "apply_changes"
+  | "finished";
   copyingFilesProgress: number;
   genVocabProgress: number;
   genAlignProgress: number;
@@ -279,17 +279,17 @@ export interface SettingsInterface {
 
 export interface AppInfoInterface {
   platform:
-    | "aix"
-    | "darwin"
-    | "freebsd"
-    | "linux"
-    | "openbsd"
-    | "sunos"
-    | "win32"
-    | "android"
-    | "haiku"
-    | "cygwin"
-    | "netbsd";
+  | "aix"
+  | "darwin"
+  | "freebsd"
+  | "linux"
+  | "openbsd"
+  | "sunos"
+  | "win32"
+  | "android"
+  | "haiku"
+  | "cygwin"
+  | "netbsd";
   version: string;
 }
 

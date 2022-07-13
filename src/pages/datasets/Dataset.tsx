@@ -31,7 +31,8 @@ import {
   REMOVE_SPEAKERS_CHANNEL,
   EDIT_SPEAKER_CHANNEL,
   PICK_SPEAKERS_CHANNEL,
-  FETCH_DATASET_CHANNEL,
+  FETCH_DATASETS_CHANNEL,
+  FETCH_DATASETS_CHANNEL_TYPES,
 } from "../../channels";
 import { DATASETS_ROUTE } from "../../routes";
 import LanguageSelect from "../../components/inputs/LanguageSelect";
@@ -169,11 +170,11 @@ export default function Dataset({
               isLoading || isDisabled
                 ? null
                 : {
-                    tooltip: false,
-                    onChange: (newName: string) => {
-                      onSpeakerNameEdit(record, newName);
-                    },
-                  }
+                  tooltip: false,
+                  onChange: (newName: string) => {
+                    onSpeakerNameEdit(record, newName);
+                  },
+                }
             }
           >
             {record.name}
@@ -252,17 +253,21 @@ export default function Dataset({
     if (datasetID === null) {
       return;
     }
+    const args: FETCH_DATASETS_CHANNEL_TYPES["IN"]["ARGS"] = {
+      ID: datasetID,
+      withSamples: true
+    }
     ipcRenderer
-      .invoke(FETCH_DATASET_CHANNEL.IN, datasetID)
-      .then((dataset: DatasetInterface) => {
+      .invoke(FETCH_DATASETS_CHANNEL.IN, args)
+      .then((datasets: FETCH_DATASETS_CHANNEL_TYPES["IN"]["OUT"]) => {
         if (!isMounted.current) {
           return;
         }
         if (!hasInitLoaded) {
           setHasInitLoaded(true);
         }
-        setDataset(dataset);
-        setIsDisabled(dataset.referencedBy !== null);
+        setDataset(datasets[0]);
+        setIsDisabled(datasets[0].referencedBy !== null);
       });
   };
 
@@ -394,11 +399,11 @@ export default function Dataset({
               isLoading
                 ? null
                 : {
-                    selectedRowKeys,
-                    onChange: (selectedRowKeys: any[]) => {
-                      setSelectedRowKeys(selectedRowKeys);
-                    },
-                  }
+                  selectedRowKeys,
+                  onChange: (selectedRowKeys: any[]) => {
+                    setSelectedRowKeys(selectedRowKeys);
+                  },
+                }
             }
           ></Table>
         </div>
