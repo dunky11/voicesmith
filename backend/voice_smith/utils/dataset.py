@@ -8,9 +8,10 @@ import torch.nn.functional as F
 import random
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
+from scipy.stats import betabinom
 from voice_smith.config.langs import lang2id
 from voice_smith.utils.text import phones_to_token_ids
-from voice_smith.utils.tools import pad_1D, pad_2D
+from voice_smith.utils.tools import pad_1D, pad_2D, pad_3D
 from voice_smith.config.configs import PreprocessingConfig
 
 
@@ -54,6 +55,9 @@ class AcousticDataset(Dataset):
         durations = data["durations"]
         lang = data["lang"]
         phone = torch.LongTensor(phones_to_token_ids(data["phones"]))
+        attn_prior = self.beta_binomial_prior_distribution(
+            phone.shape[0], mel.shape[1]
+        ).T
 
         if mel.shape[1] < 20:
             print(
@@ -72,7 +76,15 @@ class AcousticDataset(Dataset):
             "pitch": pitch,
             "duration": durations,
             "lang": lang2id[lang],
+            "attn_prior": attn_prior,
         }
+
+        if phone.shape[0] >= mel.shape[1]:
+            print(
+                "Text is longer than mel, will be skipped due to monotonic alignment search ..."
+            )
+            rand_idx = np.random.randint(0, self.__len__())
+            return self.__getitem__(rand_idx)
 
         if self.is_eval:
             data = torch.load(
@@ -92,6 +104,19 @@ class AcousticDataset(Dataset):
                 speaker.append(s)
         return name, speaker
 
+    def beta_binomial_prior_distribution(
+        self, phoneme_count, mel_count, scaling_factor=1.0
+    ):
+        P, M = phoneme_count, mel_count
+        x = np.arange(0, P)
+        mel_text_probs = []
+        for i in range(1, M + 1):
+            a, b = scaling_factor * i, scaling_factor * (M + 1 - i)
+            rv = betabinom(P, a, b)
+            mel_i_prob = rv.pmf(x)
+            mel_text_probs.append(mel_i_prob)
+        return np.array(mel_text_probs)
+
     def reprocess(self, data: List[Dict[str, Any]], idxs: List[int]):
         ids = [data[idx]["id"] for idx in idxs]
         speakers = [data[idx]["speaker"] for idx in idxs]
@@ -102,6 +127,7 @@ class AcousticDataset(Dataset):
         pitches = [data[idx]["pitch"] for idx in idxs]
         durations = [data[idx]["duration"] for idx in idxs]
         langs = np.array([data[idx]["lang"] for idx in idxs])
+        attn_priors = [data[idx]["attn_prior"] for idx in idxs]
         text_lens = np.array([text.shape[0] for text in texts])
         mel_lens = np.array([mel.shape[1] for mel in mels])
         speakers = np.array(speakers)
@@ -109,6 +135,7 @@ class AcousticDataset(Dataset):
         mels = pad_2D(mels)
         pitches = pad_1D(pitches)
         durations = pad_1D(durations)
+        attn_priors = pad_3D(attn_priors, len(idxs), max(text_lens), max(mel_lens))
 
         if self.is_eval:
             wavs = [data[idx]["wav"] for idx in idxs]
@@ -125,7 +152,8 @@ class AcousticDataset(Dataset):
                 durations,
                 mel_lens,
                 langs,
-                wavs
+                attn_priors,
+                wavs,
             )
         else:
             return (
@@ -140,6 +168,7 @@ class AcousticDataset(Dataset):
                 durations,
                 mel_lens,
                 langs,
+                attn_priors,
             )
 
     def collate_fn(self, data):
@@ -207,7 +236,9 @@ class VocoderDataset(Dataset):
 
         if self.segment_size != -1:
             if audio.shape[0] < self.segment_size:
-                audio = F.pad(audio, (0, self.segment_size - audio.shape[0]), "constant")
+                audio = F.pad(
+                    audio, (0, self.segment_size - audio.shape[0]), "constant"
+                )
 
             if mel.shape[1] < self.frames_per_seg:
                 mel = F.pad(mel, (0, self.frames_per_seg - mel.shape[1]), "constant")

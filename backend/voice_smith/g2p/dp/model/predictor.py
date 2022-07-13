@@ -1,8 +1,6 @@
 from typing import Dict, List, Tuple
-
 import torch
 from torch.nn.utils.rnn import pad_sequence
-
 from voice_smith.g2p.dp import Prediction
 from voice_smith.g2p.dp.model.model import load_checkpoint
 from voice_smith.g2p.dp.model.utils import _get_len_util_stop

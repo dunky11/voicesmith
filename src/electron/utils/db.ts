@@ -39,6 +39,7 @@ const createTables = (db: any) => {
         only_train_speaker_emb_until INTEGER NOT NULL,
         skip_on_error BOOLEAN DEFAULT 1,
         forced_alignment_batch_size INTEGER NOT NULL DEFAULT 200000,
+        acoustic_model_type STRING DEFAULT NULL,
         dataset_id INTEGER DEFAULT NULL,
         FOREIGN KEY (dataset_id) REFERENCES dataset(ID) ON DELETE SET NULL,
         UNIQUE(name)
@@ -371,12 +372,12 @@ export const getSpeakersWithSamples = (datasetID: number) => {
         sample.txtPath === null
           ? null
           : path.join(
-              getDatasetsDir(),
-              String(datasetID),
-              "speakers",
-              String(sample.speakerID),
-              sample.audioPath
-            ),
+            getDatasetsDir(),
+            String(datasetID),
+            "speakers",
+            String(sample.speakerID),
+            sample.audioPath
+          ),
     }));
 
   const speaker2Samples: { [key: string]: SpeakerSampleInterface[] } = {};

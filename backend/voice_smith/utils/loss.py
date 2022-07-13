@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from piq import SSIMLoss
 from voice_smith.utils.tools import sample_wise_min_max
 from typing import Dict, Tuple, Any, List
@@ -12,6 +13,8 @@ class FastSpeech2LossGen(nn.Module):
         self.mse_loss = nn.MSELoss()
         self.mae_loss = nn.L1Loss()
         self.ssim_loss = SSIMLoss()
+        self.sum_loss = ForwardSumLoss()
+        self.bin_loss = BinLoss()
         self.fine_tuning = fine_tuning
         self.device = device
 
@@ -29,6 +32,12 @@ class FastSpeech2LossGen(nn.Module):
         durations: torch.Tensor,
         pitch_predictions: torch.Tensor,
         p_targets: torch.Tensor,
+        attn_logprob: torch.Tensor,
+        attn_soft: torch.Tensor,
+        attn_hard: torch.Tensor,
+        step: int,
+        src_lens: torch.Tensor,
+        mel_lens: torch.Tensor,
     ) -> Tuple[
         torch.Tensor,
         torch.Tensor,
@@ -91,6 +100,29 @@ class FastSpeech2LossGen(nn.Module):
 
         pitch_loss = self.mse_loss(pitch_predictions, p_targets)
 
+        ctc_loss = self.sum_loss(
+            attn_logprob=attn_logprob, in_lens=src_lens, out_lens=mel_lens
+        )
+
+        binarization_loss_enable_steps = 18000
+        binarization_loss_warmup_steps = 10000
+
+        if step < binarization_loss_enable_steps:
+            bin_loss_weight = torch.cuda.FloatTensor([0.0])
+        else:
+            bin_loss_weight = (
+                min(
+                    (step - binarization_loss_enable_steps)
+                    / binarization_loss_warmup_steps,
+                    1.0,
+                )
+                * 1.0
+            )
+        bin_loss = (
+            self.bin_loss(hard_attention=attn_hard, soft_attention=attn_soft)
+            * bin_loss_weight
+        )
+
         total_loss = (
             mel_loss
             + duration_loss
@@ -98,6 +130,8 @@ class FastSpeech2LossGen(nn.Module):
             + p_prosody_loss
             + ssim_loss
             + pitch_loss
+            + ctc_loss
+            + bin_loss
         )
 
         return (
@@ -108,7 +142,54 @@ class FastSpeech2LossGen(nn.Module):
             u_prosody_loss,
             p_prosody_loss,
             pitch_loss,
+            ctc_loss,
+            bin_loss,
         )
+
+
+class ForwardSumLoss(nn.Module):
+    def __init__(self, blank_logprob=-1):
+        super().__init__()
+        self.log_softmax = nn.LogSoftmax(dim=3)
+        self.ctc_loss = nn.CTCLoss(zero_infinity=True)
+        self.blank_logprob = blank_logprob
+
+    def forward(self, attn_logprob, in_lens, out_lens):
+        key_lens = in_lens
+        query_lens = out_lens
+        attn_logprob_padded = F.pad(
+            input=attn_logprob, pad=(1, 0), value=self.blank_logprob
+        )
+
+        total_loss = 0.0
+        for bid in range(attn_logprob.shape[0]):
+            target_seq = torch.arange(1, key_lens[bid] + 1).unsqueeze(0)
+            curr_logprob = attn_logprob_padded[bid].permute(1, 0, 2)[
+                : query_lens[bid], :, : key_lens[bid] + 1
+            ]
+
+            curr_logprob = self.log_softmax(curr_logprob[None])[0]
+            loss = self.ctc_loss(
+                curr_logprob,
+                target_seq,
+                input_lengths=query_lens[bid : bid + 1],
+                target_lengths=key_lens[bid : bid + 1],
+            )
+            total_loss += loss
+
+        total_loss /= attn_logprob.shape[0]
+        return total_loss
+
+
+class BinLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, hard_attention, soft_attention):
+        log_sum = torch.log(
+            torch.clamp(soft_attention[hard_attention == 1], min=1e-12)
+        ).sum()
+        return -log_sum / hard_attention.sum()
 
 
 def feature_loss(

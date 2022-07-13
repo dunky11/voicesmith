@@ -1,11 +1,11 @@
 from pathlib import Path
 import shutil
-import torch
 import json
-import sqlite3
 from typing import Tuple, Callable
 import dataclasses
 import argparse
+import sqlite3
+import torch
 from voice_smith.acoustic_training import train_acoustic
 from voice_smith.vocoder_training import train_vocoder
 from voice_smith.preprocessing.copy_files import copy_files
@@ -22,11 +22,9 @@ from voice_smith.utils.sql_logger import SQLLogger
 from voice_smith.utils.export import acoustic_to_torchscript, vocoder_to_torchscript
 from voice_smith.utils.loggers import set_stream_location
 from voice_smith.sql import get_con, save_current_pid
-from voice_smith.config.symbols import symbol2id
 from voice_smith.utils.tools import warnings_to_stdout, get_workers, get_device
 from voice_smith.preprocessing.generate_vocab import generate_vocab_mfa
 from voice_smith.preprocessing.align import align
-from voice_smith.utils.punctuation import get_punct
 from voice_smith.utils.runs import StageRunner
 from voice_smith.config.globals import (
     DB_PATH,
@@ -159,11 +157,10 @@ def get_vocoder_configs(
 def not_started_stage(
     cur: sqlite3.Cursor, con: sqlite3.Connection, run_id: int, data_path: str, **kwargs
 ) -> bool:
-    data_path = Path(data_path)
-    if data_path.exists():
+    if Path(data_path).exists():
         shutil.rmtree(data_path)
-    (data_path / "logs").mkdir(exist_ok=True, parents=True)
-    (data_path / "raw_data").mkdir(exist_ok=True, parents=True)
+    (Path(data_path) / "logs").mkdir(exist_ok=True, parents=True)
+    (Path(data_path) / "raw_data").mkdir(exist_ok=True, parents=True)
     cur.execute(
         "UPDATE training_run SET stage='preprocessing' WHERE ID=?", (run_id,),
     )
@@ -206,8 +203,16 @@ def preprocessing_stage(
                 str(Path(data_path) / "logs" / "preprocessing.txt"),
                 log_console=log_console,
             )
-            txt_paths, texts, audio_paths, names, langs = [], [], [], [], []
+            sample_ids, txt_paths, texts, audio_paths, names, langs = (
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+            )
             for (
+                sample_id,
                 txt_path,
                 text,
                 audio_path,
@@ -217,7 +222,9 @@ def preprocessing_stage(
                 lang,
             ) in cur.execute(
                 """
-                    SELECT sample.txt_path, sample.text, sample.audio_path, speaker.name AS speaker_name, dataset.ID AS dataset_id, speaker.ID as speaker_id, speaker.language FROM training_run INNER JOIN dataset ON training_run.dataset_id = dataset.ID 
+                    SELECT sample.ID, sample.txt_path, sample.text, sample.audio_path, 
+                    speaker.name AS speaker_name, dataset.ID, speaker.ID, speaker.language 
+                    FROM training_run INNER JOIN dataset ON training_run.dataset_id = dataset.ID 
                     INNER JOIN speaker on speaker.dataset_id = dataset.ID
                     INNER JOIN sample on sample.speaker_id = speaker.ID
                     WHERE training_run.ID=?
@@ -231,6 +238,7 @@ def preprocessing_stage(
                     / str(speaker_id)
                     / audio_path
                 )
+                sample_ids.append(sample_id)
                 txt_paths.append(txt_path)
                 texts.append(text)
                 audio_paths.append(str(full_audio_path))
@@ -246,8 +254,8 @@ def preprocessing_stage(
                 )
 
             copy_files(
+                sample_ids=sample_ids,
                 data_path=data_path,
-                txt_paths=txt_paths,
                 texts=texts,
                 langs=langs,
                 audio_paths=audio_paths,
@@ -255,6 +263,7 @@ def preprocessing_stage(
                 workers=p_config.workers,
                 progress_cb=progress_cb,
                 skip_on_error=p_config.skip_on_error,
+                name_by="name",
             )
             cur.execute(
                 "UPDATE training_run SET preprocessing_stage='gen_vocab' WHERE ID=?",
@@ -287,7 +296,7 @@ def preprocessing_stage(
                     lexicon_path=str(lexica_path),
                     n_workers=p_config.workers,
                     lang=lang,
-                    corpus_path=lang_path,
+                    corpus_path=str(lang_path),
                     environment_name=environment_name,
                 )
                 cur.execute(
@@ -303,7 +312,8 @@ def preprocessing_stage(
 
         elif preprocessing_stage == "gen_alignments":
             set_stream_location(
-                str(data_path / "logs" / "preprocessing.txt"), log_console=log_console
+                str(Path(data_path) / "logs" / "preprocessing.txt"),
+                log_console=log_console,
             )
             p_config, _, _ = get_acoustic_configs(cur=cur, run_id=run_id)
             vocab_paths = list(vocab_path.iterdir())
@@ -318,7 +328,7 @@ def preprocessing_stage(
                     environment_name=environment_name,
                     data_path=data_path,
                     lexicon_path=str(vocab_path),
-                    out_path=(Path(data_path) / "data" / "textgrid" / lang),
+                    out_path=str(Path(data_path) / "data" / "textgrid" / lang),
                     lang=lang,
                     n_workers=p_config.workers,
                     batch_size=p_config.forced_alignment_batch_size,
@@ -397,7 +407,7 @@ def acoustic_fine_tuning_stage(
     while True:
         try:
             checkpoint_acoustic, step = get_latest_checkpoint(
-                name="acoustic", ckpt_dir=str(data_path / "ckpt" / "acoustic")
+                name="acoustic", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic")
             )
             if checkpoint_acoustic is None:
                 reset = True
@@ -658,13 +668,11 @@ def save_model_stage(
     models_path: str,
     **kwargs,
 ) -> bool:
-    data_path = Path(data_path)
-    models_path = Path(models_path)
     checkpoint_acoustic, acoustic_steps = get_latest_checkpoint(
-        name="acoustic", ckpt_dir=str(data_path / "ckpt" / "acoustic"),
+        name="acoustic", ckpt_dir=str(Path(data_path) / "ckpt" / "acoustic"),
     )
     checkpoint_vocoder, vocoder_steps = get_latest_checkpoint(
-        name="vocoder", ckpt_dir=str(data_path / "ckpt" / "vocoder")
+        name="vocoder", ckpt_dir=str(Path(data_path) / "ckpt" / "vocoder")
     )
     if checkpoint_acoustic is None:
         raise ValueError(
@@ -688,11 +696,11 @@ def save_model_stage(
         model_config=m_config_acoustic,
         train_config=t_config_acoustic,
         assets_path=assets_path,
-        data_path=str(data_path / "data"),
+        data_path=str(Path(data_path) / "data"),
     )
     vocoder = vocoder_to_torchscript(
         ckpt_path=str(checkpoint_vocoder),
-        data_path=str(data_path / "data"),
+        data_path=str(Path(data_path) / "data"),
         preprocess_config=p_config,
         model_config=m_config_vocoder,
         train_config=t_config_vocoder,
@@ -717,13 +725,13 @@ def save_model_stage(
     row = cur.execute("SELECT name FROM training_run WHERE ID=?", (run_id,),).fetchone()
     con.commit()
 
-    name = get_available_name(model_dir=str(models_path), name=row[0])
-    (models_path / name).mkdir(exist_ok=True, parents=True)
-    models_dir = models_path / name / "torchscript"
+    name = get_available_name(model_dir=models_path, name=row[0])
+    (Path(models_path) / name).mkdir(exist_ok=True, parents=True)
+    models_dir = Path(models_path) / name / "torchscript"
     models_dir.mkdir(exist_ok=True)
     acoustic_model.save(str(models_dir / "acoustic_model.pt"))
-    vocoder.save(models_dir / "vocoder.pt")
-    with open(models_path / name / "config.json", "w", encoding="utf-8") as f:
+    vocoder.save(Path(models_dir) / "vocoder.pt")
+    with open(Path(models_path) / name / "config.json", "w", encoding="utf-8") as f:
         json.dump(config, f)
 
     cur.execute(
@@ -785,14 +793,7 @@ def continue_training_run(run_id: int, log_console: bool):
         before_run=before_run,
         before_stage=before_stage,
         get_stage_name=get_stage_name,
-        stages=[
-            ("not_started", not_started_stage),
-            ("preprocessing", preprocessing_stage),
-            ("acoustic_fine_tuning", acoustic_fine_tuning_stage),
-            ("ground_truth_alignment", ground_truth_alignment_stage),
-            ("vocoder_fine_tuning", vocoder_fine_tuning_stage),
-            ("save_model", save_model_stage),
-        ],
+        stages=[("not_started", not_started_stage)],
     )
     runner.run(
         cur=cur,

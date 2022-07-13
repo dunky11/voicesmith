@@ -38,6 +38,7 @@ def to_device(
             durations,
             mel_lens,
             langs,
+            attn_priors,
             wavs,
         ) = data
     else:
@@ -53,6 +54,7 @@ def to_device(
             durations,
             mel_lens,
             langs,
+            attn_priors,
         ) = data
 
     speakers = torch.tensor(speakers, dtype=torch.int64, device=device)
@@ -63,7 +65,8 @@ def to_device(
     durations = torch.tensor(durations, dtype=torch.int64, device=device)
     mel_lens = torch.tensor(mel_lens, dtype=torch.int64, device=device)
     langs = torch.tensor(langs, dtype=torch.int64, device=device)
-
+    attn_priors = torch.tensor(attn_priors, dtype=torch.float32, device=device)
+    
     if is_eval:
         wavs = torch.tensor(wavs, dtype=torch.float32, device=device)
         return (
@@ -78,6 +81,7 @@ def to_device(
             durations,
             mel_lens,
             langs,
+            attn_priors,
             wavs,
         )
     else:
@@ -93,6 +97,7 @@ def to_device(
             durations,
             mel_lens,
             langs,
+            attn_priors
         )
 
 
@@ -145,7 +150,7 @@ def pad_2D(
     return output
 
 
-def pad_3D(inputs: List[np.ndarray], B: int, T: int, L: int) -> np.ndarray:
+def pad_3D(inputs, B, T, L):
     inputs_padded = np.zeros((B, T, L), dtype=np.float32)
     for i, input_ in enumerate(inputs):
         inputs_padded[i, : np.shape(input_)[0], : np.shape(input_)[1]] = input_

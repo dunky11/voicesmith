@@ -16,8 +16,8 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, default=None)
     args = parser.parse_args()
 
-    device = torch.device("cuda") if torch.cuda.is_available else torch.device("cpu")
-    logger = WandBLogger("DelightfulTTS 120M parameters 4")
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    logger = WandBLogger("DelightfulTTS 120M parameters with UnsupDurAligner")
     p_config = PreprocessingConfig()
     m_config = AcousticModelConfig()
     t_config = AcousticPretrainingConfig()

@@ -93,6 +93,7 @@ def synth_iter(
                     durations,
                     mel_lens,
                     langs,
+                    attn_priors,
                     wavs,
                 ) = batch
                 for (speaker, text, src_len, mel, mel_len, lang, wav) in zip(
@@ -208,6 +209,8 @@ def train_iter(
         "u_prosody_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
         "p_prosody_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
         "pitch_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "ctc_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "bin_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
     }
 
     total_batch_size = 0
@@ -227,6 +230,7 @@ def train_iter(
             durations,
             mel_lens,
             langs,
+            attn_priors,
         ) = batch
 
         src_mask = get_mask_from_lengths(src_lens)
@@ -240,13 +244,13 @@ def train_iter(
             pitches=pitches,
             durations=durations,
             langs=langs,
+            attn_priors=attn_priors,
         )
         y_pred = outputs["y_pred"]
         log_duration_prediction = outputs["log_duration_prediction"]
         p_prosody_ref = outputs["p_prosody_ref"]
         p_prosody_pred = outputs["p_prosody_pred"]
         pitch_prediction = outputs["pitch_prediction"]
-
         (
             total_loss,
             mel_loss,
@@ -255,6 +259,8 @@ def train_iter(
             u_prosody_loss,
             p_prosody_loss,
             pitch_loss,
+            ctc_loss,
+            bin_loss,
         ) = criterion(
             src_masks=src_mask,
             mel_masks=mel_mask,
@@ -267,7 +273,13 @@ def train_iter(
             p_prosody_pred=p_prosody_pred,
             pitch_predictions=pitch_prediction,
             p_targets=pitches,
-            durations=durations,
+            durations=outputs["attn_hard_dur"],
+            attn_logprob=outputs["attn_logprob"],
+            attn_soft=outputs["attn_soft"],
+            attn_hard=outputs["attn_hard"],
+            src_lens=src_lens,
+            mel_lens=mel_lens,
+            step=step,
         )
 
         batch_size = mels.shape[0]
@@ -278,6 +290,8 @@ def train_iter(
         losses["u_prosody_loss"] += u_prosody_loss * batch_size
         losses["p_prosody_loss"] += p_prosody_loss * batch_size
         losses["pitch_loss"] += pitch_loss * batch_size
+        losses["ctc_loss"] += ctc_loss * batch_size
+        losses["bin_loss"] += bin_loss * batch_size
         total_batch_size += batch_size
 
         (total_loss / grad_acc_steps).backward()
@@ -289,15 +303,10 @@ def train_iter(
 
     if step % log_step == 0:
 
-        losses["reconstruction_loss"] /= total_batch_size
-        losses["mel_loss"] /= total_batch_size
-        losses["ssim_loss"] /= total_batch_size
-        losses["duration_loss"] /= total_batch_size
-        losses["u_prosody_loss"] /= total_batch_size
-        losses["p_prosody_loss"] /= total_batch_size
-        losses["pitch_loss"] /= total_batch_size
+        for loss_name in losses.keys():
+            losses[loss_name] /= total_batch_size
 
-        message = "Step {}/{}, ".format(step, total_step)
+        message = f"Step {step}/{total_step}, "
         for j, loss_name in enumerate(losses.keys()):
             if j != 0:
                 message += ", "
@@ -317,7 +326,7 @@ def train_iter(
     if step % 10 == 0:
         logger.query(
             "UPDATE training_run SET acoustic_fine_tuning_progress=? WHERE ID=?",
-            [step / total_step, db_id],
+            (step / total_step, db_id),
         )
 
 
@@ -345,6 +354,8 @@ def evaluate(
         "pitch_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
         "pesq": torch.tensor([0.0], dtype=torch.float32, device=device),
         "estoi": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "ctc_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
+        "bin_loss": torch.tensor([0.0], dtype=torch.float32, device=device),
     }
 
     len_ds = 0
@@ -364,6 +375,7 @@ def evaluate(
                     durations,
                     mel_lens,
                     langs,
+                    attn_priors,
                     wavs,
                 ) = batch
                 src_mask = get_mask_from_lengths(src_lens)
@@ -377,6 +389,7 @@ def evaluate(
                     pitches=pitches,
                     durations=durations,
                     langs=langs,
+                    attn_priors=attn_priors,
                 )
                 y_pred = outputs["y_pred"]
                 log_duration_prediction = outputs["log_duration_prediction"]
@@ -391,6 +404,8 @@ def evaluate(
                     u_prosody_loss,
                     p_prosody_loss,
                     pitch_loss,
+                    ctc_loss,
+                    bin_loss,
                 ) = criterion(
                     src_masks=src_mask,
                     mel_masks=mel_mask,
@@ -403,7 +418,13 @@ def evaluate(
                     p_prosody_pred=p_prosody_pred,
                     pitch_predictions=pitch_prediction,
                     p_targets=pitches,
-                    durations=durations,
+                    durations=outputs["attn_hard_dur"],
+                    attn_logprob=outputs["attn_logprob"],
+                    attn_soft=outputs["attn_soft"],
+                    attn_hard=outputs["attn_hard"],
+                    src_lens=src_lens,
+                    mel_lens=mel_lens,
+                    step=step,
                 )
                 batch_size = mels.shape[0]
                 losses["reconstruction_loss"] += total_loss * batch_size
@@ -413,11 +434,9 @@ def evaluate(
                 losses["u_prosody_loss"] += u_prosody_loss * batch_size
                 losses["p_prosody_loss"] += p_prosody_loss * batch_size
                 losses["pitch_loss"] += pitch_loss * batch_size
+                losses["ctc_loss"] += ctc_loss * batch_size
+                losses["bin_loss"] += bin_loss * batch_size
                 len_ds += batch_size
-
-    samples_to_gen = train_config.mcd_gen_max_samples
-    samples_generated = 0
-    mcds = []
 
     vocoder = get_infer_vocoder(
         checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"), device=device,
@@ -444,6 +463,7 @@ def evaluate(
                     durations,
                     mel_lens,
                     langs,
+                    attn_priors,
                     wavs,
                 ) = batch
                 outputs = gen.forward_train(
@@ -455,6 +475,7 @@ def evaluate(
                     pitches=pitches,
                     durations=durations,
                     langs=langs,
+                    attn_priors=attn_priors,
                     use_ground_truth=False,
                 )
                 y_pred = vocoder.infer(outputs["y_pred"], mel_lens=mel_lens)
@@ -481,7 +502,7 @@ def evaluate(
             message += ", "
         loss_value = losses[loss_name]
         message += f"{loss_name}: {round(loss_value.item(), 4)}"
-
+    print(message)
     for key in losses.keys():
         logger.log_graph(name=f"val_{key}", value=losses[key].item(), step=step)
 
@@ -622,5 +643,5 @@ def train_acoustic(
 
     logger.query(
         "UPDATE training_run SET acoustic_fine_tuning_progress=? WHERE ID=?",
-        [1.0, db_id],
+        (1.0, db_id),
     )
