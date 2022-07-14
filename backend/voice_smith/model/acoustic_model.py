@@ -1,4 +1,5 @@
 import json
+from lib2to3.pgen2 import token
 from typing import List
 import torch
 import torch.nn as nn
@@ -8,10 +9,9 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Tuple
 
-# from numba import jit, prange
+from numba import jit, prange
 from voice_smith.config.configs import PreprocessingConfig, AcousticModelConfigType
-from voice_smith.model.layers import EmbeddingPadded
-from voice_smith.config.symbols import symbols, symbol2id, pad
+from voice_smith.config.symbols import symbols, symbol2id
 from voice_smith.model.layers import (
     ConvTransposed,
     Conv1dGLU,
@@ -30,8 +30,6 @@ from voice_smith.config.langs import SUPPORTED_LANGUAGES
 
 LRELU_SLOPE = 0.3
 
-padding_idx = symbol2id[pad]
-
 
 class AcousticModel(nn.Module):
     def __init__(
@@ -43,7 +41,6 @@ class AcousticModel(nn.Module):
         n_speakers: int,
     ):
         super().__init__()
-        n_src_vocab = len(symbols) + 1
         self.emb_dim = model_config.encoder.n_hidden
         self.encoder = Conformer(
             dim=model_config.encoder.n_hidden,
@@ -97,13 +94,11 @@ class AcousticModel(nn.Module):
             embedding_dim=model_config.speaker_embed_dim + model_config.lang_embed_dim,
             p_dropout=model_config.decoder.p_dropout,
             kernel_size_conv_mod=model_config.decoder.kernel_size_conv_mod,
-            with_ff=model_config.decoder.with_ff
+            with_ff=model_config.decoder.with_ff,
         )
 
         self.src_word_emb = Parameter(
-            tools.initialize_embeddings(
-                (len(n_src_vocab), model_config.encoder.n_hidden)
-            )
+            tools.initialize_embeddings((len(symbols), model_config.encoder.n_hidden))
         )
 
         self.to_mel = nn.Linear(
@@ -126,12 +121,11 @@ class AcousticModel(nn.Module):
         src_mask: torch.Tensor,
         lang_idx: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        token_embeddings = torch.index_select(self.src_word_emb, 0, token_idx)
-        speaker_embeds = torch.index_select(self.speaker_embed, 0, speaker_idx).squeeze(
-            1
-        )
-        lang_embeds = torch.index_select(self.lang_embed, 0, lang_idx)
-        embeddings = torch.cat([speaker_embeds, lang_embeds], dim=1)
+        token_embeddings = F.embedding(token_idx, self.src_word_emb)
+        speaker_embeds = F.embedding(speaker_idx, self.speaker_embed)
+        lang_embeds = F.embedding(lang_idx, self.lang_embed)
+        embeddings = torch.cat([speaker_embeds, lang_embeds], dim=2)
+        embeddings = embeddings.masked_fill(src_mask.unsqueeze(-1), 0.0)
         token_embeddings = token_embeddings.masked_fill(src_mask.unsqueeze(-1), 0.0)
         return token_embeddings, embeddings
 
@@ -169,7 +163,6 @@ class AcousticModel(nn.Module):
         mels: torch.Tensor,
         mel_lens: torch.Tensor,
         pitches: torch.Tensor,
-        durations: torch.Tensor,
         langs: torch.Tensor,
         attn_priors: torch.Tensor,
         use_ground_truth: bool = True,
@@ -212,26 +205,33 @@ class AcousticModel(nn.Module):
             x = x + self.u_bottle_out(u_prosody_pred)
             x = x + self.p_bottle_out(p_prosody_pred)
         x_res = x
-        x, pitch_prediction, _, _ = self.pitch_adaptor.add_pitch_train(
-            x=x,
-            pitch_target=pitches,
-            src_mask=src_mask,
-            use_ground_truth=use_ground_truth,
-        )
         attn_logprob, attn_soft, attn_hard, attn_hard_dur = self.aligner(
-            enc_in=x.permute((0, 2, 1)),
+            enc_in=x_res.permute((0, 2, 1)),
             dec_in=mels,
             enc_len=src_lens,
             dec_len=mel_lens,
             enc_mask=src_mask,
             attn_prior=attn_priors,
         )
+        pitches = pitch_phoneme_averaging(
+            durations=attn_hard_dur, pitches=pitches, max_phoneme_len=x.shape[1]
+        )
+        x, pitch_prediction, _, _ = self.pitch_adaptor.add_pitch_train(
+            x=x,
+            pitch_target=pitches,
+            src_mask=src_mask,
+            use_ground_truth=use_ground_truth,
+        )
         """assert torch.equal(attn_hard_dur.sum(1).long(), mel_lens), (
             attn_hard_dur.sum(1),
             mel_lens,
         )"""
-        (x, log_duration_prediction) = self.length_regulator.upsample_train(
-            x=x, x_res=x_res, duration_target=attn_hard_dur, src_mask=src_mask
+        x, log_duration_prediction, embeddings = self.length_regulator.upsample_train(
+            x=x,
+            x_res=x_res,
+            duration_target=attn_hard_dur,
+            src_mask=src_mask,
+            embeddings=embeddings,
         )
         x = self.decoder(x, mel_mask, embeddings=embeddings, encoding=encoding)
         x = self.to_mel(x)
@@ -241,6 +241,7 @@ class AcousticModel(nn.Module):
         return {
             "y_pred": x,
             "pitch_prediction": pitch_prediction,
+            "pitch_target": pitches,
             "log_duration_prediction": log_duration_prediction,
             "u_prosody_pred": u_prosody_pred,
             "u_prosody_ref": u_prosody_ref,
@@ -283,9 +284,13 @@ class AcousticModel(nn.Module):
         x = x + self.u_bottle_out(u_prosody_pred).expand_as(x)
         x = x + self.p_bottle_out(p_prosody_pred).expand_as(x)
         x_res = x
-        x = self.pitch_adaptor.add_pitch(x=x, src_mask=src_mask, control=p_control,)
-        x, duration_rounded = self.length_regulator.upsample(
-            x=x, x_res=x_res, src_mask=src_mask, control=d_control
+        x = self.pitch_adaptor.add_pitch(x=x, src_mask=src_mask, control=p_control)
+        x, duration_rounded, embeddings = self.length_regulator.upsample(
+            x=x,
+            x_res=x_res,
+            src_mask=src_mask,
+            control=d_control,
+            embeddings=embeddings,
         )
         mel_mask = tools.get_mask_from_lengths(
             torch.tensor([x.shape[1]], dtype=torch.int64, device=x.device)
@@ -308,7 +313,7 @@ class Conformer(nn.Module):
         embedding_dim: int,
         p_dropout: float,
         kernel_size_conv_mod: int,
-        with_ff: bool
+        with_ff: bool,
     ):
         super().__init__()
         d_k = d_v = dim // n_heads
@@ -322,7 +327,7 @@ class Conformer(nn.Module):
                     kernel_size_conv_mod=kernel_size_conv_mod,
                     dropout=p_dropout,
                     embedding_dim=embedding_dim,
-                    with_ff=with_ff
+                    with_ff=with_ff,
                 )
                 for _ in range(n_layers)
             ]
@@ -357,7 +362,7 @@ class ConformerBlock(torch.nn.Module):
         kernel_size_conv_mod: int,
         embedding_dim: int,
         dropout: float,
-        with_ff: bool
+        with_ff: bool,
     ):
         super().__init__()
         self.with_ff = with_ff
@@ -627,8 +632,8 @@ class PitchAdaptor(nn.Module):
         return x
 
 
-# @jit(nopython=True)
-def mas_width1(attn_map):
+@jit(nopython=True)
+def mas_width1(attn_map: np.ndarray) -> np.ndarray:
     """mas with hardcoded width=1"""
     # assumes mel x text
     opt = np.zeros_like(attn_map)
@@ -658,13 +663,12 @@ def mas_width1(attn_map):
     return opt
 
 
-# @jit(nopython=True, parallel=True)
+@jit(nopython=True, parallel=True)
 def b_mas(b_attn_map, in_lens, out_lens, width=1):
     assert width == 1
     attn_out = np.zeros_like(b_attn_map)
 
-    # for b in prange(b_attn_map.shape[0]):
-    for b in range(b_attn_map.shape[0]):
+    for b in prange(b_attn_map.shape[0]):
         out = mas_width1(b_attn_map[b, 0, : out_lens[b], : in_lens[b]])
         attn_out[b, 0, : out_lens[b], : in_lens[b]] = out
     return attn_out
@@ -678,7 +682,7 @@ def pitch_phoneme_averaging(durations, pitches, max_phoneme_len):
     pitches_averaged = torch.zeros(
         (pitches.shape[0], max_phoneme_len), device=pitches.device
     )
-    for batch_idx in range(durations.shape[0]):
+    for batch_idx in prange(durations.shape[0]):
         start_idx = 0
         for i, duration in enumerate(durations[batch_idx]):
             duration = duration.int().item()
@@ -834,18 +838,21 @@ class LengthAdaptor(nn.Module):
         x: torch.Tensor,
         x_res: torch.Tensor,
         duration_target: torch.Tensor,
+        embeddings: torch.Tensor,
         src_mask: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         x_res = x_res.detach()
         log_duration_prediction = self.duration_predictor(x_res, src_mask,)
         x, _ = self.length_regulate(x, duration_target)
-        return x, log_duration_prediction
+        embeddings, _ = self.length_regulate(embeddings, duration_target)
+        return x, log_duration_prediction, embeddings
 
     def upsample(
         self,
         x: torch.Tensor,
         x_res: torch.Tensor,
         src_mask: torch.Tensor,
+        embeddings: torch.Tensor,
         control: float,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         log_duration_prediction = self.duration_predictor(x_res, src_mask,)
@@ -853,7 +860,8 @@ class LengthAdaptor(nn.Module):
             (torch.round(torch.exp(log_duration_prediction) - 1) * control), min=0,
         )
         x, _ = self.length_regulate(x, duration_rounded)
-        return x, duration_rounded
+        embeddings, _ = self.length_regulate(embeddings, duration_rounded)
+        return x, duration_rounded, embeddings
 
 
 class VariancePredictor(nn.Module):

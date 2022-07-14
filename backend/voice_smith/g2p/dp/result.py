@@ -6,13 +6,15 @@ class Prediction:
     Container for single word prediction result.
     """
 
-    def __init__(self,
-                 word: str,
-                 phonemes: str,
-                 phonemes_list: List[str],
-                 phoneme_tokens: List[str],
-                 confidence: float,
-                 token_probs: List[float]) -> None:
+    def __init__(
+        self,
+        word: str,
+        phonemes: str,
+        phonemes_list: List[str],
+        phoneme_tokens: List[str],
+        confidence: float,
+        token_probs: List[float],
+    ) -> None:
         """
         Initializes a Prediction object.
 
@@ -38,11 +40,13 @@ class PhonemizerResult:
     Container for phonemizer output.
     """
 
-    def __init__(self,
-                 text: List[str],
-                 split_text: List[List[str]],
-                 split_phonemes: List[List[str]],
-                 predictions: Dict[str, Prediction]) -> None:
+    def __init__(
+        self,
+        text: List[str],
+        split_text: List[List[str]],
+        split_phonemes: List[List[str]],
+        predictions: Dict[str, Prediction],
+    ) -> None:
         """
         Initializes a PhonemizerResult object.
 

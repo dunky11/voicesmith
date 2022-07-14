@@ -4,7 +4,7 @@ from voice_smith.acoustic_training import train_acoustic
 from voice_smith.config.configs import (
     PreprocessingConfig,
     AcousticPretrainingConfig,
-    AcousticModelConfig,
+    AcousticENModelConfig,
 )
 from voice_smith.utils.wandb_logger import WandBLogger
 import argparse
@@ -18,8 +18,8 @@ if __name__ == "__main__":
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     logger = WandBLogger("DelightfulTTS 120M parameters with UnsupDurAligner")
-    p_config = PreprocessingConfig()
-    m_config = AcousticModelConfig()
+    p_config = PreprocessingConfig(language="english_only")
+    m_config = AcousticENModelConfig()
     t_config = AcousticPretrainingConfig()
     wandb.config.update(
         {

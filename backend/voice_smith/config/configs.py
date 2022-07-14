@@ -119,7 +119,7 @@ class VarianceAdaptorConfig:
 @dataclass
 class AcousticENModelConfig:
     speaker_embed_dim: int = 384
-    lang_embed_dim: int = 0
+    lang_embed_dim: int = 1
     encoder: ConformerConfig = ConformerConfig(
         n_layers=4,
         n_heads=6,

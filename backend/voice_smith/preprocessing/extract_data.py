@@ -21,67 +21,9 @@ from voice_smith.utils.audio import (
     safe_load,
     resample,
 )
-from voice_smith.utils.tools import warnings_to_stdout
+from voice_smith.utils.tools import warnings_to_stdout, byte_encode
 
 warnings_to_stdout()
-
-
-
-def get_alignment(
-    phones_tier, words_tier, text: str, sampling_rate: int, hop_length: int
-) -> Tuple[List[str], List[int], float, float]:
-    phones = []
-    durations = []
-    start_time = 0
-    end_time = 0
-    samples_processed = 0
-    words_idx = 0
-    next_word_end = (
-        words_tier[words_idx].end_time if len(words_tier) > words_idx else -1
-    )
-    for i, t in enumerate(phones_tier._objects):
-        s, e, p = t.start_time, t.end_time, t.text
-        if phones == []:
-            start_time = s
-        else:
-            diff = s - end_time
-            if diff > 0:
-                sil_phone = "SILENCE"
-                phones.append(sil_phone)
-                best_samples_after = (s - start_time) * sampling_rate
-                samples_after_append = samples_processed + diff * sampling_rate
-                if samples_after_append >= best_samples_after:
-                    duration = int(np.floor((diff * sampling_rate) / hop_length))
-                else:
-                    duration = int(np.ceil((diff * sampling_rate) / hop_length))
-                durations.append(duration)
-                samples_processed += duration * hop_length
-
-        phones.append(p)
-        if e == next_word_end:
-            phones.append("BLANK")
-            durations.append(0)
-            words_idx += 1
-            next_word_end = (
-                words_tier[words_idx].end_time if len(words_tier) > words_idx else -1
-            )
-        diff = e - s
-        best_samples_after = (e - start_time) * sampling_rate
-        samples_after_append = samples_processed + diff * sampling_rate
-        if samples_after_append >= best_samples_after:
-            duration = int(np.floor((diff * sampling_rate) / hop_length))
-        else:
-            duration = int(np.ceil((diff * sampling_rate) / hop_length))
-        durations.append(duration)
-        samples_processed += duration * hop_length
-        end_time = e
-
-    # TODO alter for multilingual
-    if text[-1] in [".", "?", "!"]:
-        phones.append(text[-1])
-        durations.append(0)
-
-    return phones, durations, start_time, end_time
 
 
 def process_utterance(
@@ -98,11 +40,10 @@ def process_utterance(
     max_seconds: float,
     normalize_loudness: bool,
     ignore_below_hz: Union[int, None],
-    skip_on_error: bool
-) -> Union[None, Tuple[str, int]]:
+    skip_on_error: bool,
+) -> Union[None, str]:
     audio_path = Path(in_dir) / lang / speaker / f"{basename}.flac"
     text_path = Path(in_dir) / lang / speaker / f"{basename}.txt"
-    tg_path = Path(out_dir) / "textgrid" / lang / speaker / f"{basename}.TextGrid"
 
     data_out_path = Path(out_dir) / "data" / speaker / f"{basename}.pt"
     wav_out_path = Path(out_dir) / "wav" / speaker / f"{basename}.pt"
@@ -121,27 +62,11 @@ def process_utterance(
         print(f"File {text_path} does not exist, skipping ...")
         return
 
-    # Sometimes files cannot be aligned my MFA
-    if not tg_path.exists():
-        return
-
     with open(text_path, "r", encoding="utf-8") as f:
         raw_text = f.readline().strip()
 
-    textgrid = tgt.io.read_textgrid(tg_path)
-    phones_tier = textgrid.get_tier_by_name("phones")
-    words_tier = textgrid.get_tier_by_name("words")
-    phones, durations, start, end = get_alignment(
-        phones_tier=phones_tier,
-        words_tier=words_tier,
-        text=raw_text,
-        sampling_rate=sampling_rate,
-        hop_length=hop_length,
-    )
+    phones = byte_encode(raw_text)
 
-    if start >= end:
-        return
-    
     try:
         wav, sr = safe_load(str(audio_path), sr=None)
     except Exception as e:
@@ -158,10 +83,6 @@ def process_utterance(
 
     if sr != sampling_rate:
         wav = resample(wav, orig_sr=sr, target_sr=sampling_rate)
-
-    wav = wav[
-        int(np.round(sampling_rate * start)) : int(np.round(sampling_rate * end))
-    ].astype(np.float32)
 
     if wav.shape[0] < min_samples or wav.shape[0] > max_samples:
         return
@@ -187,53 +108,31 @@ def process_utterance(
     # We should find out why
     mel_spectrogram = mel_spectrogram[:, : pitch.shape[0]]
 
-    if sum(durations) > mel_spectrogram.shape[1]:
-        for i in range(len(durations) - 1, -1, -1):
-            if durations[i] != 0:
-                durations[i] -= 1
-                break
-
     pitch, _ = norm_interp_f0(pitch)
 
-    assert pitch.shape[0] == sum(durations) == mel_spectrogram.shape[1], (
+    assert pitch.shape[0] == mel_spectrogram.shape[1], (
         pitch.shape,
-        sum(durations),
         mel_spectrogram.shape[1],
     )
-
-    # Average per phoneme
-    averaged_pitch = np.zeros(len(durations))
-    pos = 0
-    for i, d in enumerate(durations):
-        if d > 0:
-            averaged_pitch[i] = np.mean(pitch[pos : pos + d])
-        else:
-            averaged_pitch[i] = 0
-        pos += d
-
-    assert averaged_pitch.shape[0] == len(durations) == len(phones)
 
     # Save files
     torch.save(
         {
             "mel": torch.from_numpy(mel_spectrogram),
-            "pitch": torch.from_numpy(averaged_pitch),
+            "pitch": torch.from_numpy(pitch),
             "lang": lang,
             "phones": phones,
             "raw_text": raw_text,
-            "durations": torch.LongTensor(durations),
-            "pitch_is_normalized": False
+            "pitch_is_normalized": False,
         },
         data_out_path,
     )
 
     torch.save(
-        {"wav": torch.from_numpy(wav).float(),},
-        wav_out_path,
+        {"wav": torch.from_numpy(wav).float(),}, wav_out_path,
     )
 
     return "|".join([basename, speaker])
-    
 
 
 def extract_data(
@@ -307,7 +206,7 @@ def extract_data(
             min_seconds=min_seconds,
             max_seconds=max_seconds,
             normalize_loudness=use_audio_normalization,
-            skip_on_error=preprocess_config.skip_on_error
+            skip_on_error=preprocess_config.skip_on_error,
         )
         for wav_path in iter_logger(
             wav_paths, total=len(wav_paths), cb=callback, print_every=log_every
@@ -455,7 +354,7 @@ def normalize_pitch(
         if "pitch_is_normalized" in data and data["pitch_is_normalized"]:
             pass
         else:
-            torch.save({ **data, "pitch_is_normalized": True }, path)
+            torch.save({**data, "pitch_is_normalized": True}, path)
         return min_value, max_value
 
     def callback(index):

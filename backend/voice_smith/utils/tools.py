@@ -35,7 +35,6 @@ def to_device(
             src_lens,
             mels,
             pitches,
-            durations,
             mel_lens,
             langs,
             attn_priors,
@@ -51,7 +50,6 @@ def to_device(
             src_lens,
             mels,
             pitches,
-            durations,
             mel_lens,
             langs,
             attn_priors,
@@ -62,11 +60,10 @@ def to_device(
     src_lens = torch.tensor(src_lens, dtype=torch.int64, device=device)
     mels = torch.tensor(mels, dtype=torch.float32, device=device)
     pitches = torch.tensor(pitches, dtype=torch.float32, device=device)
-    durations = torch.tensor(durations, dtype=torch.int64, device=device)
     mel_lens = torch.tensor(mel_lens, dtype=torch.int64, device=device)
     langs = torch.tensor(langs, dtype=torch.int64, device=device)
     attn_priors = torch.tensor(attn_priors, dtype=torch.float32, device=device)
-    
+
     if is_eval:
         wavs = torch.tensor(wavs, dtype=torch.float32, device=device)
         return (
@@ -78,7 +75,6 @@ def to_device(
             src_lens,
             mels,
             pitches,
-            durations,
             mel_lens,
             langs,
             attn_priors,
@@ -94,10 +90,9 @@ def to_device(
             src_lens,
             mels,
             pitches,
-            durations,
             mel_lens,
             langs,
-            attn_priors
+            attn_priors,
         )
 
 
@@ -399,3 +394,9 @@ def rand_slice_segments(x, x_lengths, segment_size):
     ids_str = (torch.rand([b]).to(device=x.device) * ids_str_max).to(dtype=torch.long)
     ret = slice_segments(x, ids_str, segment_size)
     return ret, ids_str
+
+
+def byte_encode(word):
+    text = word.strip()
+    return list(text.encode("utf-8"))
+

@@ -1,7 +1,7 @@
 from collections import Counter
 from pathlib import Path
 from random import Random
-from typing import List, Tuple, Iterable, Dict
+from typing import List, Tuple, Iterable
 import tqdm
 from voice_smith.g2p.dp.model.model import ModelType
 from voice_smith.g2p.dp.preprocessing.text import Preprocessor

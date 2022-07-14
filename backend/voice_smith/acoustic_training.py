@@ -74,7 +74,9 @@ def synth_iter(
     )
     sampling_rate = preprocess_config.sampling_rate
     vocoder = get_infer_vocoder(
-        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"), device=device,
+        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"),
+        preprocess_config=preprocess_config,
+        device=device,
     )
     with torch.no_grad():
         for batches in loader:
@@ -89,7 +91,6 @@ def synth_iter(
                     src_lens,
                     mels,
                     pitches,
-                    durations,
                     mel_lens,
                     langs,
                     attn_priors,
@@ -226,7 +227,6 @@ def train_iter(
             src_lens,
             mels,
             pitches,
-            durations,
             mel_lens,
             langs,
             attn_priors,
@@ -241,7 +241,6 @@ def train_iter(
             mels=mels,
             mel_lens=mel_lens,
             pitches=pitches,
-            durations=durations,
             langs=langs,
             attn_priors=attn_priors,
         )
@@ -271,7 +270,7 @@ def train_iter(
             p_prosody_ref=p_prosody_ref,
             p_prosody_pred=p_prosody_pred,
             pitch_predictions=pitch_prediction,
-            p_targets=pitches,
+            p_targets=outputs["pitch_target"],
             durations=outputs["attn_hard_dur"],
             attn_logprob=outputs["attn_logprob"],
             attn_soft=outputs["attn_soft"],
@@ -371,7 +370,6 @@ def evaluate(
                     src_lens,
                     mels,
                     pitches,
-                    durations,
                     mel_lens,
                     langs,
                     attn_priors,
@@ -386,7 +384,6 @@ def evaluate(
                     mels=mels,
                     mel_lens=mel_lens,
                     pitches=pitches,
-                    durations=durations,
                     langs=langs,
                     attn_priors=attn_priors,
                 )
@@ -416,7 +413,7 @@ def evaluate(
                     p_prosody_ref=p_prosody_ref,
                     p_prosody_pred=p_prosody_pred,
                     pitch_predictions=pitch_prediction,
-                    p_targets=pitches,
+                    p_targets=outputs["pitch_target"],
                     durations=outputs["attn_hard_dur"],
                     attn_logprob=outputs["attn_logprob"],
                     attn_soft=outputs["attn_soft"],
@@ -438,7 +435,9 @@ def evaluate(
                 len_ds += batch_size
 
     vocoder = get_infer_vocoder(
-        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"), device=device,
+        checkpoint=str(Path(assets_path) / "vocoder_pretrained.pt"),
+        preprocess_config=preprocess_config,
+        device=device,
     )
     sampling_rate = preprocess_config.sampling_rate
 
@@ -459,7 +458,6 @@ def evaluate(
                     src_lens,
                     mels,
                     pitches,
-                    durations,
                     mel_lens,
                     langs,
                     attn_priors,
@@ -472,7 +470,6 @@ def evaluate(
                     mels=mels,
                     mel_lens=mel_lens,
                     pitches=pitches,
-                    durations=durations,
                     langs=langs,
                     attn_priors=attn_priors,
                     use_ground_truth=False,

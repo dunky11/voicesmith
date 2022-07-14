@@ -1,7 +1,7 @@
 import torch
 from pathlib import Path
-from tqdm import tqdm
 from typing import List
+from tqdm import tqdm
 from joblib import Parallel, delayed
 from voice_smith.utils.audio import safe_load, resample, save_audio
 

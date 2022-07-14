@@ -132,34 +132,13 @@ class Conv1dGLU(nn.Module):
         x = self.conv(x)
         splitdim = 1
         a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
-        embeddings = self.embedding_proj(embeddings).unsqueeze(2)
+        embeddings = self.embedding_proj(embeddings)
         softsign = self.softsign(embeddings)
-        softsign = softsign.expand_as(a)
-        a = a + softsign
+        a = a + softsign.permute((0, 2, 1))
         x = a * torch.sigmoid(b)
         x = x + residual
         x = x * self.sqrt
         x = x.permute((0, 2, 1))
-        return x
-
-
-class EmbeddingProjBlock(nn.Module):
-    def __init__(self, embedding_dim: int):
-        super().__init__()
-        self.layers = nn.ModuleList(
-            [
-                nn.Linear(embedding_dim, embedding_dim),
-                nn.LeakyReLU(0.3),
-                nn.Linear(embedding_dim, embedding_dim),
-                nn.LeakyReLU(0.3),
-            ]
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        res = x
-        for layer in self.layers:
-            x = layer(x)
-        x = x + res
         return x
 
 
@@ -187,10 +166,7 @@ class ConvTransposed(nn.Module):
     ):
         super().__init__()
         self.conv = BSConv1d(
-            in_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            padding=padding,
+            in_channels, out_channels, kernel_size=kernel_size, padding=padding,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

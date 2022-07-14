@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple
 from scipy.stats import betabinom
 from voice_smith.config.langs import lang2id
-from voice_smith.utils.text import phones_to_token_ids
 from voice_smith.utils.tools import pad_1D, pad_2D, pad_3D
 from voice_smith.config.configs import PreprocessingConfig
 
@@ -52,9 +51,8 @@ class AcousticDataset(Dataset):
         raw_text = data["raw_text"]
         mel = data["mel"]
         pitch = data["pitch"]
-        durations = data["durations"]
         lang = data["lang"]
-        phone = torch.LongTensor(phones_to_token_ids(data["phones"]))
+        phone = torch.LongTensor(data["phones"])
         attn_prior = self.beta_binomial_prior_distribution(
             phone.shape[0], mel.shape[1]
         ).T
@@ -74,7 +72,6 @@ class AcousticDataset(Dataset):
             "raw_text": raw_text,
             "mel": mel,
             "pitch": pitch,
-            "duration": durations,
             "lang": lang2id[lang],
             "attn_prior": attn_prior,
         }
@@ -125,17 +122,22 @@ class AcousticDataset(Dataset):
         raw_texts = [data[idx]["raw_text"] for idx in idxs]
         mels = [data[idx]["mel"] for idx in idxs]
         pitches = [data[idx]["pitch"] for idx in idxs]
-        durations = [data[idx]["duration"] for idx in idxs]
         langs = np.array([data[idx]["lang"] for idx in idxs])
         attn_priors = [data[idx]["attn_prior"] for idx in idxs]
         text_lens = np.array([text.shape[0] for text in texts])
         mel_lens = np.array([mel.shape[1] for mel in mels])
-        speakers = np.array(speakers)
+
         texts = pad_1D(texts)
         mels = pad_2D(mels)
         pitches = pad_1D(pitches)
-        durations = pad_1D(durations)
         attn_priors = pad_3D(attn_priors, len(idxs), max(text_lens), max(mel_lens))
+
+        speakers = np.repeat(
+            np.expand_dims(np.array(speakers), axis=1), texts.shape[1], axis=1
+        )
+        langs = np.repeat(
+            np.expand_dims(np.array(langs), axis=1), texts.shape[1], axis=1
+        )
 
         if self.is_eval:
             wavs = [data[idx]["wav"] for idx in idxs]
@@ -149,7 +151,6 @@ class AcousticDataset(Dataset):
                 text_lens,
                 mels,
                 pitches,
-                durations,
                 mel_lens,
                 langs,
                 attn_priors,
@@ -165,7 +166,6 @@ class AcousticDataset(Dataset):
                 text_lens,
                 mels,
                 pitches,
-                durations,
                 mel_lens,
                 langs,
                 attn_priors,
