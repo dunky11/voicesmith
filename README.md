@@ -1,4 +1,4 @@
-# VoiceSmith [WIP]
+# VoiceSmith [Work in Progress]
 
 VoiceSmith makes it possible to train and infer on both single and multispeaker models without any coding experience. It fine-tunes a pretty solid text to speech pipeline based on a modified version of [DelightfulTTS](https://arxiv.org/abs/2110.12612) and [UnivNet](https://arxiv.org/abs/2106.07889) on your dataset. Both models were pretrained on a proprietary 5000 speaker dataset. It also provides some tools for dataset preprocessing like automatic text normalization.
 
