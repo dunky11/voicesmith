@@ -1,3 +1,4 @@
+
 from logging import Logger
 import torch
 from torch.nn.utils.clip_grad import clip_grad_norm_
@@ -310,6 +311,7 @@ def train_iter(
                 message += ", "
             loss_value = losses[loss_name]
             message += f"{loss_name}: {round(loss_value.item(), 4)}"
+        print(message)
 
         for key in losses.keys():
             logger.log_graph(name=f"train_{key}", value=losses[key].item(), step=step)
@@ -319,6 +321,16 @@ def train_iter(
         )
         logger.log_graph(
             name="only_train_speaker_emb", value=1 if model_is_frozen else 0, step=step
+        )
+        logger.log_image(
+            name="attn_soft",
+            image=outputs["attn_soft"][0, 0, :mel_lens[0].item(), :src_lens[0].item()].detach().T.cpu().numpy(),
+            step=step,
+        )
+        logger.log_image(
+            name="attn_hard",
+            image=outputs["attn_hard"][0, 0, :mel_lens[0].item(), :src_lens[0].item()].detach().T.cpu().numpy(),
+            step=step,
         )
 
     if step % 10 == 0:

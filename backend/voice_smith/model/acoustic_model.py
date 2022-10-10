@@ -1,3 +1,4 @@
+
 import json
 from lib2to3.pgen2 import token
 from typing import List
@@ -702,6 +703,7 @@ class Aligner(nn.Module):
         d_hidden,
         kernel_size_enc=3,
         kernel_size_dec=7,
+        attn_channels=80,
         temperature=0.0005,
     ):
         super().__init__()
@@ -718,11 +720,10 @@ class Aligner(nn.Module):
             nn.LeakyReLU(LRELU_SLOPE),
             nn.Conv1d(
                 d_hidden,
-                d_hidden,
-                kernel_size=kernel_size_enc,
-                padding=kernel_size_enc // 2,
+                attn_channels,
+                kernel_size=1,
+                padding=0,
             ),
-            nn.LeakyReLU(LRELU_SLOPE),
         )
 
         self.query_proj = nn.Sequential(
@@ -742,11 +743,10 @@ class Aligner(nn.Module):
             nn.LeakyReLU(LRELU_SLOPE),
             nn.Conv1d(
                 d_hidden,
-                d_hidden,
-                kernel_size=kernel_size_dec,
-                padding=kernel_size_dec // 2,
+                attn_channels,
+                kernel_size=1,
+                padding=0,
             ),
-            nn.LeakyReLU(LRELU_SLOPE),
         )
 
     def binarize_attention_parallel(self, attn, in_lens, out_lens):
@@ -784,7 +784,7 @@ class Aligner(nn.Module):
             attn = self.log_softmax(attn) + torch.log(
                 attn_prior.permute((0, 2, 1))[:, None] + 1e-8
             )
-            # print(f"AlignmentEncoder \t| After prior sum attn: {attn.shape}")"""
+            # print(f"AlignmentEncoder \t| After prior sum attn: {attn.shape}")""""""
 
         attn_logprob = attn.clone()
 

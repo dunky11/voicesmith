@@ -53,9 +53,7 @@ class AcousticDataset(Dataset):
         pitch = data["pitch"]
         lang = data["lang"]
         phone = torch.LongTensor(data["phones"])
-        attn_prior = self.beta_binomial_prior_distribution(
-            phone.shape[0], mel.shape[1]
-        ).T
+        
 
         if mel.shape[1] < 20:
             print(
@@ -190,6 +188,44 @@ class AcousticDataset(Dataset):
         for idx in idx_arr:
             output.append(self.reprocess(data, idx))
         return output
+
+
+class CodecDataset(Dataset):
+    def __init__(self, file_paths: List[Path], speaker_map: Dict[str, int]):
+        self.file_paths = file_paths
+        self.samples_per_seg = 8192
+        self.speaker_map = speaker_map
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        file_path = self.file_paths[idx]
+        speaker_id = self.speaker_map[file_path.parent.name]
+        audio = torch.load(file_path)
+        audio = torch.clamp(audio, -1.0, 1.0)
+
+        if audio.shape[0] < self.samples_per_seg:
+            audio = F.pad(audio, (0, self.samples_per_seg - audio.shape[0]), "constant")
+
+        from_sample = random.randint(0, audio.shape[0] - self.samples_per_seg)
+        audio = audio[from_sample : from_sample + self.samples_per_seg]
+        return audio, speaker_id
+
+    def __len__(self) -> int:
+        return len(self.file_paths)
+
+    def get_sample_to_synth(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        rand_idx = np.random.randint(0, self.__len__())
+        file_path = self.file_paths[rand_idx]
+        speaker_id = self.speaker_map[file_path.parent.name]
+        audio = torch.load(file_path)
+        audio = torch.clamp(audio, -1.0, 1.0)
+        return audio, speaker_id
+
+    def collate_fn(self, datas):
+        audios = [data[0] for data in datas]
+        speaker_ids = [data[1] for data in datas]
+        speaker_ids = torch.tensor(speaker_ids, dtype=torch.int64)
+        audios = torch.tensor(pad_1D(audios), dtype=torch.float32)
+        return audios, speaker_ids
 
 
 class VocoderDataset(Dataset):

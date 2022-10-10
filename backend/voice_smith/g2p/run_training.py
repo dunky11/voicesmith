@@ -15,7 +15,7 @@ name = "G2P Byte MFA training 6x6 transformer (384, 1536), [15 MFA langs]"
 if perform_benchmark:
     SPLIT_SIZE = 12753
 else:
-    SPLIT_SIZE = 10000
+    SPLIT_SIZE = 5000
 
 if __name__ == "__main__":
     if perform_benchmark:
@@ -29,23 +29,10 @@ if __name__ == "__main__":
 
     data, phones, text_symbols = [], [], []
     lang_to_word_to_gold = {}
-    config = read_config(Path(".") / "dp" / "configs" / "autoreg_config.yaml")
+    config = read_config(Path(".") / "dp" / "configs" / "forward_config.yaml")
     if args.checkpoint is None:
         for dictionary_path in [
-            Path(".") / "dictionaries" / "bg" / "bulgarian_mfa.dict",
-            Path(".") / "dictionaries" / "cs" / "czech_mfa.dict",
-            Path(".") / "dictionaries" / "de" / "german_mfa.dict",
             Path(".") / "dictionaries" / "en" / "english_us_mfa.dict",
-            Path(".") / "dictionaries" / "es" / "spanish_mfa.dict",
-            Path(".") / "dictionaries" / "fr" / "french_mfa.dict",
-            Path(".") / "dictionaries" / "hr" / "croatian_mfa.dict",
-            Path(".") / "dictionaries" / "pl" / "polish_mfa.dict",
-            Path(".") / "dictionaries" / "pt" / "portuguese_portugal_mfa.dict",
-            Path(".") / "dictionaries" / "ru" / "russian_mfa.dict",
-            Path(".") / "dictionaries" / "sv" / "swedish_mfa.dict",
-            Path(".") / "dictionaries" / "th" / "thai_mfa.dict",
-            Path(".") / "dictionaries" / "tr" / "turkish_mfa.dict",
-            Path(".") / "dictionaries" / "uk" / "ukrainian_mfa.dict",
         ]:
             lang = dictionary_path.parent.name
             d, p, t, word_to_gold = parse_dictionary(dictionary_path, lang)

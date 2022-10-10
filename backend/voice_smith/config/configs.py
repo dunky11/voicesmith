@@ -204,8 +204,8 @@ class VocoderPretrainingConfig:
     adam_b1: float = 0.5
     adam_b2: float = 0.9
     lr_decay: float = 0.995
-    batch_size: int = 14
-    grad_accum_steps: int = 1
+    batch_size: int = 8
+    grad_accum_steps: int = 2
     train_steps: int = 1000000
     stdout_interval: int = 25
     synth_interval: int = 250

@@ -10,7 +10,7 @@ class FastSpeech2LossGen(nn.Module):
     def __init__(self, fine_tuning: bool, device: torch.device):
         super().__init__()
 
-        self.mse_loss = nn.MSELoss()
+        self.mse_loss = nn.L1Loss()
         self.mae_loss = nn.L1Loss()
         self.ssim_loss = SSIMLoss()
         self.sum_loss = ForwardSumLoss()
@@ -104,24 +104,8 @@ class FastSpeech2LossGen(nn.Module):
             attn_logprob=attn_logprob, in_lens=src_lens, out_lens=mel_lens
         )
 
-        binarization_loss_enable_steps = 18000
-        binarization_loss_warmup_steps = 10000
-
-        if step < binarization_loss_enable_steps:
-            bin_loss_weight = torch.cuda.FloatTensor([0.0])
-        else:
-            bin_loss_weight = (
-                min(
-                    (step - binarization_loss_enable_steps)
-                    / binarization_loss_warmup_steps,
-                    1.0,
-                )
-                * 1.0
-            )
-        bin_loss = (
-            self.bin_loss(hard_attention=attn_hard, soft_attention=attn_soft)
-            * bin_loss_weight
-        )
+        bin_loss = self.bin_loss(hard_attention=attn_hard, soft_attention=attn_soft)
+        # bin_loss = torch.FloatTensor([0.0]).to(self.device)
 
         total_loss = (
             mel_loss

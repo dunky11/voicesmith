@@ -11,6 +11,7 @@ from voice_smith.utils.optimizer import (
 )
 from voice_smith.model import acoustic_model
 from voice_smith.model.univnet import Generator as UnivNet, Discriminator
+from voice_smith.model.codec import CodecVQAutoEncoder
 from voice_smith.config.configs import (
     PreprocessingConfig,
     AcousticPretrainingConfig,
@@ -155,7 +156,75 @@ def get_vocoder(
     return generator, discriminator, steps, optim_g, optim_d, scheduler_g, scheduler_d
 
 
-def get_infer_vocoder(checkpoint: str, preprocess_config: PreprocessingConfig, device: torch.device) -> UnivNet:
+def get_codec(
+    checkpoint: str,
+    train_config: Union[VocoderPretrainingConfig, VocoderFinetuningConfig],
+    model_config: VocoderModelConfig,
+    preprocess_config: PreprocessingConfig,
+    device: torch.device,
+) -> Tuple[
+    CodecVQAutoEncoder,
+    Discriminator,
+    int,
+    torch.optim.Optimizer,
+    torch.optim.Optimizer,
+    torch.optim.lr_scheduler.ExponentialLR,
+    torch.optim.lr_scheduler.ExponentialLR,
+]:
+
+    generator = CodecVQAutoEncoder(
+        model_config=model_config, preprocess_config=preprocess_config
+    )
+    discriminator = Discriminator(model_config=model_config)
+
+    if checkpoint is None:
+        state_dict = None
+        steps = 0
+    else:
+        state_dict = torch.load(checkpoint, map_location=device)
+        steps = state_dict["steps"] + 1
+        generator.load_state_dict(state_dict["generator"], strict=False)
+        discriminator.load_state_dict(state_dict["discriminator"], strict=False)
+
+    generator.to(device)
+    discriminator.to(device)
+
+    optim_g = torch.optim.AdamW(
+        generator.parameters(),
+        train_config.learning_rate,
+        betas=(train_config.adam_b1, train_config.adam_b2),
+    )
+    optim_d = torch.optim.AdamW(
+        discriminator.parameters(),
+        train_config.learning_rate,
+        betas=(train_config.adam_b1, train_config.adam_b2),
+    )
+
+    if checkpoint is not None:
+        optim_g.load_state_dict(state_dict["optim_g"])
+        optim_d.load_state_dict(state_dict["optim_d"])
+
+    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
+        optim_g, gamma=train_config.lr_decay, last_epoch=-1
+    )
+    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
+        optim_d, gamma=train_config.lr_decay, last_epoch=-1
+    )
+
+    assert len(optim_g.param_groups) == 1
+    optim_g.param_groups[0]["lr"] = train_config.learning_rate
+    assert len(optim_d.param_groups) == 1
+    optim_d.param_groups[0]["lr"] = train_config.learning_rate
+    for _ in range(steps // 1000):
+        scheduler_g.step()
+        scheduler_d.step()
+
+    return generator, discriminator, steps, optim_g, optim_d, scheduler_g, scheduler_d
+
+
+def get_infer_vocoder(
+    checkpoint: str, preprocess_config: PreprocessingConfig, device: torch.device
+) -> UnivNet:
     model_config = VocoderModelConfig()
     generator = UnivNet(
         model_config=model_config, preprocess_config=preprocess_config

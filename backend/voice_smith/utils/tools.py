@@ -96,6 +96,7 @@ def to_device(
         )
 
 
+
 def sample_wise_min_max(x: torch.Tensor) -> torch.Tensor:
     maximum = torch.amax(x, dim=(1, 2), keepdim=True)
     minimum = torch.amin(x, dim=(1, 2), keepdim=True)
